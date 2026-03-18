@@ -1,0 +1,501 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Quality Dashboard — ДнепрНАС{% endblock %}
+
+{% block content_title %}
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:4px">
+  <div style="font-size:2rem;line-height:1">🔍</div>
+  <div>
+    <h1 style="margin:0;font-size:1.5rem;font-weight:800;color:#3D5166">Quality Dashboard</h1>
+    <span style="color:#8a9bb0;font-size:.85rem">Контроль качества данных — найдите и исправьте пробелы</span>
+  </div>
+  <a href="/"
+     style="margin-left:auto;padding:7px 16px;background:#3D5166;color:#FFCC1D;
+            border-radius:7px;font-weight:700;font-size:.85rem;text-decoration:none">
+    ← Дашборд
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --slate: #3D5166;
+    --yellow: #FFCC1D;
+    --red:    #e74c3c;
+    --orange: #e67e22;
+    --green:  #27ae60;
+    --blue:   #3498db;
+    --gray:   #6c757d;
+  }
+  /* ── KPI row ── */
+  .q-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .q-kpi {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 12px rgba(61,81,102,.10);
+    border-left: 5px solid var(--yellow);
+    text-decoration: none;
+    color: inherit;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .q-kpi:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(61,81,102,.16); }
+  .q-kpi.red    { border-color: var(--red); }
+  .q-kpi.orange { border-color: var(--orange); }
+  .q-kpi.blue   { border-color: var(--blue); }
+  .q-kpi.green  { border-color: var(--green); }
+  .q-kpi-icon { font-size: 2rem; flex-shrink: 0; }
+  .q-kpi-val  { font-size: 2rem; font-weight: 800; color: var(--slate); line-height: 1; }
+  .q-kpi-lbl  { font-size: .74rem; color: #8a9bb0; text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+
+  /* ── Sections ── */
+  .q-section {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(61,81,102,.08);
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .q-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--slate);
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+  }
+  .q-section-head h2 { margin: 0; font-size: 1rem; font-weight: 700; }
+  .q-section-head .q-cnt {
+    background: var(--yellow);
+    color: var(--slate);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .85rem;
+    font-weight: 800;
+  }
+  .q-section-body { padding: 0; }
+
+  /* ── Tables ── */
+  .q-table { width: 100%; border-collapse: collapse; }
+  .q-table th {
+    background: #f0f3f6;
+    color: var(--slate);
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .q-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f3f6;
+    font-size: .88rem;
+    vertical-align: middle;
+  }
+  .q-table tr:last-child td { border-bottom: none; }
+  .q-table tr:hover td { background: #fafbfc; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .badge-red    { background: var(--red); }
+  .badge-orange { background: var(--orange); }
+  .badge-green  { background: var(--green); }
+  .badge-blue   { background: var(--blue); }
+  .badge-gray   { background: var(--gray); }
+
+  /* ── Action links ── */
+  .q-fix-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .8rem;
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .q-fix-link:hover { color: var(--slate); }
+
+  /* ── Empty state ── */
+  .q-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--green);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  /* ── Dupe cards ── */
+  .dupe-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin: 12px 16px;
+    overflow: hidden;
+  }
+  .dupe-card-head {
+    background: #fff7e6;
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--orange);
+    border-bottom: 1px solid #e2e8f0;
+  }
+</style>
+
+<!-- ── KPI плашки ────────────────────────────────────────────────────────── -->
+<div class="q-kpi-row">
+  <a href="#no-object" class="q-kpi {% if cnt_no_object > 0 %}red{% else %}green{% endif %}">
+    <div class="q-kpi-icon">📂</div>
+    <div>
+      <div class="q-kpi-val">{{ cnt_no_object }}</div>
+      <div class="q-kpi-lbl">Без объекта</div>
+    </div>
+  </a>
+  <a href="#no-finance" class="q-kpi {% if cnt_no_finance > 0 %}orange{% else %}green{% endif %}">
+    <div class="q-kpi-icon">💰</div>
+    <div>
+      <div class="q-kpi-val">{{ cnt_no_finance }}</div>
+      <div class="q-kpi-lbl">Финдоки неполные</div>
+    </div>
+  </a>
+  <a href="#no-expiry-doc" class="q-kpi {% if cnt_no_expiry_doc > 0 %}orange{% else %}green{% endif %}">
+    <div class="q-kpi-icon">📅</div>
+    <div>
+      <div class="q-kpi-val">{{ cnt_no_expiry_doc }}</div>
+      <div class="q-kpi-lbl">Сроки без doc</div>
+    </div>
+  </a>
+  <a href="#problems" class="q-kpi {% if cnt_open_problems > 0 %}red{% else %}green{% endif %}">
+    <div class="q-kpi-icon">⚠️</div>
+    <div>
+      <div class="q-kpi-val">{{ cnt_open_problems }}</div>
+      <div class="q-kpi-lbl">Открытые проблемы</div>
+    </div>
+  </a>
+  <a href="#dupes" class="q-kpi {% if cnt_dupes > 0 %}orange{% else %}green{% endif %}">
+    <div class="q-kpi-icon">🔁</div>
+    <div>
+      <div class="q-kpi-val">{{ cnt_dupes }}</div>
+      <div class="q-kpi-lbl">Группы дубл.</div>
+    </div>
+  </a>
+  <div class="q-kpi {% if total_issues == 0 %}green{% elif total_issues < 10 %}orange{% else %}red{% endif %}">
+    <div class="q-kpi-icon">{% if total_issues == 0 %}✅{% else %}🔴{% endif %}</div>
+    <div>
+      <div class="q-kpi-val">{{ total_issues }}</div>
+      <div class="q-kpi-lbl">Всего проблем</div>
+    </div>
+  </div>
+</div>
+
+{% if total_issues == 0 %}
+<div class="q-section">
+  <div class="q-empty">
+    ✅ Все данные в порядке — качество данных отличное!
+  </div>
+</div>
+{% endif %}
+
+<!-- ── 1. Документы без объекта ─────────────────────────────────────────── -->
+<div class="q-section" id="no-object">
+  <div class="q-section-head" onclick="toggleSection(this)">
+    <h2>📂 Документы без объекта</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="q-cnt">{{ cnt_no_object }}</span>
+      <span style="font-size:.85rem;opacity:.7">▼</span>
+    </div>
+  </div>
+  <div class="q-section-body">
+    {% if uploads_no_object %}
+    <table class="q-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Файл</th>
+          <th>Тип</th>
+          <th>Статус</th>
+          <th>Загружен</th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in uploads_no_object %}
+        <tr>
+          <td><code>#{{ u.id }}</code></td>
+          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{ u.filename }}">{{ u.filename }}</td>
+          <td>{{ u.doc_type|default:"—" }}</td>
+          <td>
+            {% if u.review_status == "pending" %}
+              <span class="badge badge-orange">⏳ Ожидает</span>
+            {% elif u.review_status == "approved" %}
+              <span class="badge badge-green">✅ Утверждён</span>
+            {% else %}
+              <span class="badge badge-red">❌ {{ u.review_status }}</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap;color:#8a9bb0;font-size:.8rem">{{ u.uploaded_at|truncatechars:16 }}</td>
+          <td>
+            <a class="q-fix-link"
+               href="/admin/adminpanel/uploadlog/{{ u.id }}/change/">
+              ✏️ Исправить
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="q-empty">✅ Таких документов нет</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── 2. Финдоки без суммы / контрагента ─────────────────────────────── -->
+<div class="q-section" id="no-finance">
+  <div class="q-section-head" onclick="toggleSection(this)">
+    <h2>💰 Финдоки без суммы или контрагента</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="q-cnt">{{ cnt_no_finance }}</span>
+      <span style="font-size:.85rem;opacity:.7">▼</span>
+    </div>
+  </div>
+  <div class="q-section-body">
+    {% if finance_incomplete %}
+    <table class="q-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Объект</th>
+          <th>Файл</th>
+          <th>Сумма</th>
+          <th>Контрагент</th>
+          <th>Статус</th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in finance_incomplete %}
+        <tr>
+          <td><code>#{{ f.id }}</code></td>
+          <td>{{ f.object_name|default:"—" }}</td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{ f.filename }}">{{ f.filename }}</td>
+          <td>
+            {% if not f.amount or f.amount == 0 %}
+              <span class="badge badge-red">нет</span>
+            {% else %}
+              {{ f.amount|floatformat:2 }}
+            {% endif %}
+          </td>
+          <td>
+            {% if not f.counterparty %}
+              <span class="badge badge-red">нет</span>
+            {% else %}
+              {{ f.counterparty }}
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-gray">{{ f.status }}</span>
+          </td>
+          <td>
+            <a class="q-fix-link"
+               href="/admin/adminpanel/financedoc/{{ f.id }}/change/">
+              ✏️ Дополнить
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="q-empty">✅ Все финдоки заполнены</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── 3. Сроки без документа-основания ───────────────────────────────── -->
+<div class="q-section" id="no-expiry-doc">
+  <div class="q-section-head" onclick="toggleSection(this)">
+    <h2>📅 Сроки без документа-основания</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="q-cnt">{{ cnt_no_expiry_doc }}</span>
+      <span style="font-size:.85rem;opacity:.7">▼</span>
+    </div>
+  </div>
+  <div class="q-section-body">
+    {% if expiry_no_doc %}
+    <table class="q-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Объект</th>
+          <th>Срок</th>
+          <th>Осталось</th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in expiry_no_doc %}
+        <tr>
+          <td><code>#{{ e.id }}</code></td>
+          <td>{{ e.title }}</td>
+          <td>{{ e.object_name|default:"—" }}</td>
+          <td style="white-space:nowrap">{{ e.expires_at }}</td>
+          <td>
+            {# Calculate days left in template - approximate #}
+            <span style="color:#e67e22;font-weight:600">нет ссылки</span>
+          </td>
+          <td>
+            <a class="q-fix-link"
+               href="/admin/adminpanel/expiryitem/{{ e.id }}/change/">
+              ✏️ Привязать
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="q-empty">✅ Все сроки имеют документ-основание</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── 4. Топ объектов по открытым проблемам ──────────────────────────── -->
+<div class="q-section" id="problems">
+  <div class="q-section-head" onclick="toggleSection(this)">
+    <h2>⚠️ Топ проблем по типу</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="q-cnt">{{ cnt_open_problems }}</span>
+      <span style="font-size:.85rem;opacity:.7">▼</span>
+    </div>
+  </div>
+  <div class="q-section-body">
+    {% if top_problems_objects %}
+    <div style="padding:16px 20px">
+      {% for p in top_problems_objects %}
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:var(--red);color:#fff;border-radius:20px;
+                    padding:3px 12px;font-size:.85rem;font-weight:700;min-width:42px;text-align:center">
+          {{ p.cnt }}
+        </div>
+        <div style="flex:1">
+          <div style="background:#f0f3f6;border-radius:6px;height:10px;overflow:hidden">
+            <div style="background:{% if p.cnt >= 5 %}var(--red){% elif p.cnt >= 2 %}var(--orange){% else %}var(--yellow){% endif %};
+                        height:100%;width:{{ p.cnt|add:0 }}0%;max-width:100%;border-radius:6px;
+                        transition:width .4s"></div>
+          </div>
+        </div>
+        <div style="font-size:.9rem;font-weight:600;color:var(--slate);min-width:180px">
+          {{ p.label }}
+        </div>
+        <a href="/admin/adminpanel/problem/?status=open&label={{ p.label }}"
+           class="q-fix-link">просмотр →</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="q-empty">✅ Открытых проблем нет</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── 5. Дубликаты документов ───────────────────────────────────────── -->
+<div class="q-section" id="dupes">
+  <div class="q-section-head" onclick="toggleSection(this)">
+    <h2>🔁 Дубликаты документов (по SHA-256)</h2>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="q-cnt">{{ cnt_dupes }}</span>
+      <span style="font-size:.85rem;opacity:.7">▼</span>
+    </div>
+  </div>
+  <div class="q-section-body" style="padding:8px 0">
+    {% if dupe_docs %}
+      {% for group in dupe_docs %}
+      <div class="dupe-card">
+        <div class="dupe-card-head">
+          <span>🔁 {{ group.count }} копии</span>
+          <span style="font-family:monospace;font-size:.8rem;color:#888">{{ group.hash }}</span>
+        </div>
+        <table class="q-table" style="margin:0">
+          <thead>
+            <tr>
+              <th>doc_id</th>
+              <th>Объект</th>
+              <th>Файл</th>
+              <th>Статус</th>
+              <th>Создан</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in group.docs %}
+            <tr>
+              <td><code>#{{ d.id }}</code></td>
+              <td>{{ d.object_name }}</td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                {{ d.original_filename }}
+              </td>
+              <td>
+                {% if d.status == "approved" %}
+                  <span class="badge badge-green">✅ {{ d.status }}</span>
+                {% elif d.status == "rejected" %}
+                  <span class="badge badge-red">❌ {{ d.status }}</span>
+                {% else %}
+                  <span class="badge badge-orange">⏳ {{ d.status }}</span>
+                {% endif %}
+              </td>
+              <td style="color:#8a9bb0;font-size:.8rem">{{ d.created_at|truncatechars:16 }}</td>
+              <td>
+                <a href="/doc/{{ d.id }}/" class="q-fix-link">🔍 Карточка</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="q-empty">✅ Дубликатов не обнаружено</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function toggleSection(head) {
+  const body = head.nextElementSibling;
+  const arrow = head.querySelector('span:last-child');
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    arrow.textContent = '▼';
+  } else {
+    body.style.display = 'none';
+    arrow.textContent = '▶';
+  }
+}
+</script>
+{% endblock %}

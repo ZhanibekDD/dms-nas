@@ -487,3 +487,239 @@ def pdf_registry(request):
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{fname}"'
     return response
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sprint 13.2 — Quality dashboard
+# GET /quality/ → страница с 4 блоками контроля качества данных
+# ──────────────────────────────────────────────────────────────────────────────
+
+@staff_member_required
+@require_GET
+def quality_dashboard(request):
+    from .models import UploadLog, FinanceDoc, ExpiryItem, Problem, Document
+    from django.db.models import Count, Q
+    from datetime import date
+
+    today = date.today().isoformat()
+
+    # ── 1. Документы без объекта ──
+    uploads_no_object = (
+        UploadLog.objects
+        .filter(Q(object_name="") | Q(object_name__isnull=True))
+        .order_by("-id")[:50]
+    )
+
+    # ── 2. Финдоки без суммы или контрагента ──
+    finance_incomplete = (
+        FinanceDoc.objects
+        .filter(
+            Q(amount__isnull=True) | Q(amount=0) |
+            Q(counterparty="") | Q(counterparty__isnull=True)
+        )
+        .order_by("-id")[:50]
+    )
+
+    # ── 3. Сроки без документа-основания (doc_path пустой) ──
+    expiry_no_doc = (
+        ExpiryItem.objects
+        .filter(status="active")
+        .filter(Q(doc_path="") | Q(doc_path__isnull=True))
+        .order_by("expires_at")[:50]
+    )
+
+    # ── 4. Топ-10 объектов по открытым проблемам ──
+    top_problems_objects = (
+        Problem.objects
+        .filter(status="open")
+        .exclude(Q(label="") | Q(label__isnull=True))
+        .values("label")
+        .annotate(cnt=Count("id"))
+        .order_by("-cnt")[:10]
+    )
+
+    # ── 5. Документы-дубликаты (одинаковый hash) ──
+    try:
+        dupe_hashes = (
+            Document.objects
+            .exclude(file_hash__isnull=True)
+            .exclude(file_hash="")
+            .values("file_hash")
+            .annotate(cnt=Count("id"))
+            .filter(cnt__gt=1)
+            .order_by("-cnt")[:20]
+        )
+        dupe_docs = []
+        for dh in dupe_hashes:
+            docs = Document.objects.filter(file_hash=dh["file_hash"]).order_by("id")
+            dupe_docs.append({
+                "hash": dh["file_hash"][:12] + "…",
+                "count": dh["cnt"],
+                "docs": list(docs),
+            })
+    except Exception:
+        dupe_docs = []
+
+    # ── Счётчики для KPI-плашек ──
+    total_issues = (
+        uploads_no_object.count() +
+        finance_incomplete.count() +
+        expiry_no_doc.count() +
+        Problem.objects.filter(status="open").count()
+    )
+
+    context = {
+        "uploads_no_object":   uploads_no_object,
+        "finance_incomplete":  finance_incomplete,
+        "expiry_no_doc":       expiry_no_doc,
+        "top_problems_objects": top_problems_objects,
+        "dupe_docs":           dupe_docs,
+        "total_issues":        total_issues,
+        "cnt_no_object":       uploads_no_object.count(),
+        "cnt_no_finance":      finance_incomplete.count(),
+        "cnt_no_expiry_doc":   expiry_no_doc.count(),
+        "cnt_open_problems":   Problem.objects.filter(status="open").count(),
+        "cnt_dupes":           len(dupe_docs),
+    }
+    return render(request, "adminpanel/quality_dashboard.html", context)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sprint 11 — Document Card
+# GET /doc/<doc_id>/ → карточка документа со всеми связанными сущностями
+# ──────────────────────────────────────────────────────────────────────────────
+
+@staff_member_required
+@require_GET
+def document_card(request, doc_id: int):
+    from .models import Document, UploadLog, FinanceDoc, ExpiryItem, DocLink, AuditLog, OcrResult
+    from django.db.models import Q
+
+    try:
+        doc = Document.objects.get(pk=doc_id)
+    except Document.DoesNotExist:
+        raise Http404(f"Документ #{doc_id} не найден")
+
+    # Загрузка по doc_id или по nas_path
+    uploads = UploadLog.objects.filter(
+        Q(doc_id=doc_id) | Q(nas_path=doc.nas_path)
+    ).order_by("-id")
+
+    # Финдоки по doc_id или по nas_path
+    finance = FinanceDoc.objects.filter(
+        Q(doc_id=doc_id) | Q(nas_path=doc.nas_path)
+    ).order_by("-id")
+
+    # Сроки по doc_path (nas_path документа)
+    expiry = ExpiryItem.objects.filter(
+        Q(doc_path=doc.nas_path)
+    ).order_by("expires_at")
+
+    # doc_links — ищем со стороны doc_id
+    links_from = DocLink.objects.filter(from_type="document", from_id=doc_id)
+    links_to   = DocLink.objects.filter(to_type="document", to_id=doc_id)
+
+    # upload_id-ы из uploads для поиска links по upload
+    upload_ids = list(uploads.values_list("id", flat=True))
+    links_upload = DocLink.objects.filter(
+        Q(from_type="upload", from_id__in=upload_ids) |
+        Q(to_type="upload",   to_id__in=upload_ids)
+    )
+
+    # OCR результаты
+    ocr_results = OcrResult.objects.filter(
+        Q(doc_id=doc_id) | Q(upload_id__in=upload_ids)
+    ).order_by("-id")
+
+    # Аудит
+    audit = AuditLog.objects.filter(
+        Q(entity_type="document", entity_id=doc_id) |
+        Q(entity_type="upload", entity_id__in=upload_ids)
+    ).order_by("-id")[:30]
+
+    # Дубликаты по хэшу
+    duplicates = []
+    if doc.file_hash:
+        duplicates = list(
+            Document.objects.filter(file_hash=doc.file_hash)
+            .exclude(pk=doc_id)
+            .order_by("id")
+        )
+
+    context = {
+        "doc":          doc,
+        "uploads":      uploads,
+        "finance":      finance,
+        "expiry":       expiry,
+        "links_from":   links_from,
+        "links_to":     links_to,
+        "links_upload": links_upload,
+        "ocr_results":  ocr_results,
+        "audit":        audit,
+        "duplicates":   duplicates,
+    }
+    return render(request, "adminpanel/document_card.html", context)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sprint 13.1 — Reject with reason (AJAX endpoint)
+# POST /reject-with-reason/  body: {ids: [1,2,3], reason: "..."}
+# ──────────────────────────────────────────────────────────────────────────────
+
+@staff_member_required
+@csrf_exempt
+def reject_with_reason(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST only"}, status=405)
+
+    try:
+        data   = json.loads(request.body)
+        ids    = [int(i) for i in data.get("ids", [])]
+        reason = data.get("reason", "").strip()
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+
+    if not ids:
+        return JsonResponse({"ok": False, "error": "No ids provided"}, status=400)
+    if not reason:
+        return JsonResponse({"ok": False, "error": "Reason required"}, status=400)
+
+    import apps.bot.bot_db as db
+    from core.services.approvals import reject_doc
+    from core.services.notify import notify_doc_rejected
+
+    reviewer = request.user.get_full_name() or request.user.username
+    ok_count = err_count = 0
+
+    for upload_id in ids:
+        try:
+            result = reject_doc(
+                db, _nas(), upload_id,
+                request.user.id or 0,
+                reason,
+            )
+            if result.get("ok"):
+                ok_count += 1
+                try:
+                    row = db.get_upload(upload_id)
+                    if row and row.get("telegram_id"):
+                        notify_doc_rejected(
+                            telegram_id=int(row["telegram_id"]),
+                            filename=row.get("filename", f"#{upload_id}"),
+                            doc_id=upload_id,
+                            reviewer=reviewer,
+                            reason=reason,
+                        )
+                except Exception:
+                    pass
+            else:
+                err_count += 1
+        except Exception as exc:
+            logger.error("reject_with_reason id=%s: %s", upload_id, exc)
+            err_count += 1
+
+    return JsonResponse({
+        "ok": True,
+        "rejected": ok_count,
+        "errors":   err_count,
+    })

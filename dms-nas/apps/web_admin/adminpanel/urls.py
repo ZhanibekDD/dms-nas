@@ -12,4 +12,10 @@ urlpatterns = [
     path("pdf/dashboard/", views.pdf_dashboard, name="pdf_dashboard"),
     path("pdf/registry/",   views.pdf_registry,  name="pdf_registry"),
     path("pdf/object/<str:object_name>/", views.pdf_object, name="pdf_object"),
+    # Sprint 13.2: Quality dashboard
+    path("quality/", views.quality_dashboard, name="quality_dashboard"),
+    # Sprint 11: Document card
+    path("doc/<int:doc_id>/", views.document_card, name="document_card"),
+    # Sprint 13.1: Reject with reason (AJAX)
+    path("reject-with-reason/", views.reject_with_reason, name="reject_with_reason"),
 ]

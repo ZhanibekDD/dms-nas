@@ -1,0 +1,472 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Документ #{{ doc.id }} — {{ doc.original_filename }}{% endblock %}
+
+{% block content_title %}
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  <div style="font-size:2rem">📄</div>
+  <div>
+    <h1 style="margin:0;font-size:1.4rem;font-weight:800;color:#3D5166">
+      {{ doc.original_filename }}
+    </h1>
+    <span style="color:#8a9bb0;font-size:.85rem">
+      doc_id #{{ doc.id }} · {{ doc.object_name }} · {{ doc.doc_type|default:"—" }}
+    </span>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+    {% if doc.nas_path %}
+    <a href="/nas-proxy/?path={{ doc.nas_path }}"
+       style="padding:7px 14px;background:#27ae60;color:#fff;border-radius:7px;
+              font-weight:700;font-size:.82rem;text-decoration:none">
+      ⬇️ Скачать
+    </a>
+    {% endif %}
+    <a href="/admin/adminpanel/document/{{ doc.id }}/change/"
+       style="padding:7px 14px;background:#3D5166;color:#FFCC1D;border-radius:7px;
+              font-weight:700;font-size:.82rem;text-decoration:none">
+      ✏️ Редактировать
+    </a>
+    <a href="/quality/"
+       style="padding:7px 14px;background:#f0f3f6;color:#3D5166;border-radius:7px;
+              font-weight:700;font-size:.82rem;text-decoration:none;border:1px solid #dce3ea">
+      ← Назад
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  :root { --slate:#3D5166; --yellow:#FFCC1D; --red:#e74c3c; --orange:#e67e22; --green:#27ae60; --blue:#3498db; }
+
+  /* ── Основная карточка ── */
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(61,81,102,.08);
+    margin-bottom: 22px;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 13px 20px;
+    background: var(--slate);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-head h2 { margin: 0; font-size: .95rem; font-weight: 700; }
+  .card-head .cnt {
+    background: var(--yellow);
+    color: var(--slate);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: .82rem;
+    font-weight: 800;
+  }
+  .card-body { padding: 18px 20px; }
+
+  /* ── Meta grid ── */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 4px;
+  }
+  .meta-item label { display:block; font-size:.72rem; text-transform:uppercase;
+                     letter-spacing:.4px; color:#8a9bb0; margin-bottom:3px; }
+  .meta-item .val { font-size:.95rem; font-weight:600; color:var(--slate); }
+
+  /* ── Tables ── */
+  .dt { width:100%; border-collapse:collapse; }
+  .dt th { background:#f0f3f6; color:var(--slate); font-size:.78rem; text-transform:uppercase;
+           letter-spacing:.4px; padding:9px 14px; text-align:left; border-bottom:2px solid #e2e8f0; }
+  .dt td { padding:8px 14px; border-bottom:1px solid #f0f3f6; font-size:.87rem; vertical-align:middle; }
+  .dt tr:last-child td { border-bottom:none; }
+  .dt tr:hover td { background:#fafbfc; }
+
+  /* ── Badges ── */
+  .badge { display:inline-block; padding:2px 9px; border-radius:20px;
+           font-size:.74rem; font-weight:700; color:#fff; }
+  .b-pending  { background:var(--orange); }
+  .b-approved { background:var(--green); }
+  .b-rejected { background:var(--red); }
+  .b-archived { background:#6c757d; }
+  .b-confirmed{ background:var(--green); }
+
+  /* ── Дупликат ── */
+  .dupe-warn {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff7e6; border: 1px solid #ffd580;
+    border-radius: 10px; padding: 12px 16px;
+    margin-bottom: 20px; font-size: .9rem;
+  }
+
+  /* ── Hash chip ── */
+  .hash-chip {
+    font-family: monospace; font-size: .78rem; background: #f0f3f6;
+    border-radius: 6px; padding: 2px 8px; color: #555;
+  }
+
+  /* ── Timeline ── */
+  .timeline { list-style: none; padding: 0; margin: 0; }
+  .timeline li {
+    display: flex; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid #f0f3f6; font-size: .85rem;
+  }
+  .timeline li:last-child { border-bottom: none; }
+  .tl-time { color: #8a9bb0; white-space: nowrap; min-width: 130px; }
+  .tl-action { font-weight: 600; color: var(--slate); }
+  .tl-detail { color: #666; }
+
+  /* ── Status pill ── */
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 14px; border-radius: 20px; font-size: .88rem; font-weight: 700;
+  }
+</style>
+
+<!-- ── Предупреждение о дубликатах ───────────────────────────────────── -->
+{% if duplicates %}
+<div class="dupe-warn">
+  <span style="font-size:1.4rem">⚠️</span>
+  <div>
+    <strong>Обнаружены дубликаты ({{ duplicates|length }} шт.)</strong> — тот же SHA-256 хэш.<br>
+    <span style="font-size:.82rem;color:#888">
+      {% for d in duplicates %}
+        <a href="/doc/{{ d.id }}/" style="color:var(--orange)">#{{ d.id }} {{ d.original_filename }}</a>{% if not forloop.last %}, {% endif %}
+      {% endfor %}
+    </span>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Основная информация ────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-head">
+    <h2>📋 Основные данные</h2>
+    {% if doc.status == "approved" %}
+      <span class="status-pill" style="background:#d4edda;color:#27ae60">✅ Утверждён</span>
+    {% elif doc.status == "rejected" %}
+      <span class="status-pill" style="background:#f8d7da;color:#e74c3c">❌ Отклонён</span>
+    {% elif doc.status == "pending" %}
+      <span class="status-pill" style="background:#fff3cd;color:#e67e22">⏳ На проверке</span>
+    {% else %}
+      <span class="status-pill" style="background:#e9ecef;color:#6c757d">📦 {{ doc.status }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <div class="meta-grid">
+      <div class="meta-item">
+        <label>Объект</label>
+        <div class="val">
+          <a href="/objects/{{ doc.object_name }}/" style="color:var(--blue);text-decoration:none;font-weight:700">
+            🏗️ {{ doc.object_name }}
+          </a>
+        </div>
+      </div>
+      <div class="meta-item">
+        <label>Категория</label>
+        <div class="val">
+          {% if doc.category == "build" %}🔨 Строительство
+          {% elif doc.category == "finance" %}💰 Финансы
+          {% elif doc.category == "safety" %}🦺 ТБ/ОТ
+          {% elif doc.category == "photo" %}📸 Фото
+          {% else %}📎 {{ doc.category }}{% endif %}
+        </div>
+      </div>
+      <div class="meta-item">
+        <label>Тип документа</label>
+        <div class="val">{{ doc.doc_type|default:"—" }}</div>
+      </div>
+      <div class="meta-item">
+        <label>Размер файла</label>
+        <div class="val">
+          {% if doc.file_size %}
+            {% if doc.file_size >= 1048576 %}
+              {{ doc.file_size|filesizeformat }}
+            {% else %}
+              {{ doc.file_size }} байт
+            {% endif %}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="meta-item">
+        <label>SHA-256 (первые 16)</label>
+        <div class="val">
+          {% if doc.file_hash %}
+            <span class="hash-chip">{{ doc.file_hash|truncatechars:16 }}</span>
+          {% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="meta-item">
+        <label>Создан</label>
+        <div class="val">{{ doc.created_at|truncatechars:19 }}</div>
+      </div>
+      <div class="meta-item">
+        <label>Обновлён</label>
+        <div class="val">{{ doc.updated_at|truncatechars:19 }}</div>
+      </div>
+      <div class="meta-item">
+        <label>Путь на NAS</label>
+        <div class="val" style="font-size:.78rem;word-break:break-all;color:#666">
+          {{ doc.nas_path|default:"—" }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Загрузки (uploads_log) ─────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-head">
+    <h2>📤 Загрузки в системе</h2>
+    <span class="cnt">{{ uploads.count }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    {% if uploads %}
+    <table class="dt">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Пользователь</th>
+          <th>Тип</th>
+          <th>Статус</th>
+          <th>Загружен</th>
+          <th>Проверил</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in uploads %}
+        <tr>
+          <td><code>#{{ u.id }}</code></td>
+          <td>{{ u.telegram_id }}</td>
+          <td>{{ u.doc_type|default:"—" }}</td>
+          <td>
+            <span class="badge b-{{ u.review_status }}">{{ u.review_status }}</span>
+            {% if u.reject_reason %}
+              <span style="font-size:.75rem;color:#e74c3c" title="{{ u.reject_reason }}">💬 причина</span>
+            {% endif %}
+          </td>
+          <td style="color:#8a9bb0;font-size:.8rem">{{ u.uploaded_at|truncatechars:16 }}</td>
+          <td style="color:#8a9bb0;font-size:.8rem">
+            {% if u.reviewed_by %}{{ u.reviewed_by }}{% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="/admin/adminpanel/uploadlog/{{ u.id }}/change/"
+               style="color:var(--blue);font-size:.8rem;text-decoration:none">✏️</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="text-align:center;padding:24px;color:#8a9bb0">Загрузок нет</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Финансовые документы ────────────────────────────────────────────── -->
+{% if finance %}
+<div class="card">
+  <div class="card-head">
+    <h2>💰 Финансовые документы</h2>
+    <span class="cnt">{{ finance.count }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="dt">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Тип</th>
+          <th>Сумма</th>
+          <th>Контрагент</th>
+          <th>Статус</th>
+          <th>Дата</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in finance %}
+        <tr>
+          <td><code>#{{ f.id }}</code></td>
+          <td>{{ f.doc_type|default:"—" }}</td>
+          <td style="font-weight:600">
+            {% if f.amount %}{{ f.amount|floatformat:2 }}{% else %}<span style="color:var(--red)">нет</span>{% endif %}
+          </td>
+          <td>{{ f.counterparty|default:"—" }}</td>
+          <td>
+            {% if f.status == "утверждён" %}
+              <span class="badge b-approved">{{ f.status }}</span>
+            {% elif f.status == "отклонён" %}
+              <span class="badge b-rejected">{{ f.status }}</span>
+            {% elif f.status == "оплачен" %}
+              <span class="badge b-confirmed">{{ f.status }}</span>
+            {% else %}
+              <span class="badge b-pending">{{ f.status }}</span>
+            {% endif %}
+          </td>
+          <td style="color:#8a9bb0;font-size:.8rem">{{ f.created_at|truncatechars:16 }}</td>
+          <td>
+            <a href="/admin/adminpanel/financedoc/{{ f.id }}/change/"
+               style="color:var(--blue);font-size:.8rem;text-decoration:none">✏️</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Сроки ───────────────────────────────────────────────────────────── -->
+{% if expiry %}
+<div class="card">
+  <div class="card-head">
+    <h2>📅 Привязанные сроки</h2>
+    <span class="cnt">{{ expiry.count }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="dt">
+      <thead>
+        <tr><th>ID</th><th>Название</th><th>Срок</th><th>Статус</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for e in expiry %}
+        <tr>
+          <td><code>#{{ e.id }}</code></td>
+          <td>{{ e.title }}</td>
+          <td style="font-weight:600">{{ e.expires_at }}</td>
+          <td>
+            {% if e.status == "active" %}
+              <span class="badge b-approved">active</span>
+            {% else %}
+              <span class="badge b-archived">{{ e.status }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/admin/adminpanel/expiryitem/{{ e.id }}/change/"
+               style="color:var(--blue);font-size:.8rem;text-decoration:none">✏️</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── OCR результаты ─────────────────────────────────────────────────── -->
+{% if ocr_results %}
+<div class="card">
+  <div class="card-head">
+    <h2>🤖 OCR результаты</h2>
+    <span class="cnt">{{ ocr_results.count }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="dt">
+      <thead>
+        <tr><th>ID</th><th>Статус</th><th>Номер</th><th>Дата</th><th>Срок</th><th>Контрагент</th><th>Точность</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for ocr in ocr_results %}
+        <tr>
+          <td><code>#{{ ocr.id }}</code></td>
+          <td>
+            {% if ocr.status == "confirmed" %}
+              <span class="badge b-confirmed">✅</span>
+            {% elif ocr.status == "rejected" %}
+              <span class="badge b-rejected">❌</span>
+            {% else %}
+              <span class="badge b-pending">⏳</span>
+            {% endif %}
+          </td>
+          <td>{{ ocr.doc_number|default:"—" }}</td>
+          <td>{{ ocr.doc_date|default:"—" }}</td>
+          <td>{{ ocr.expires_at|default:"—" }}</td>
+          <td>{{ ocr.counterparty|default:"—" }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="background:#eee;border-radius:4px;width:60px;height:8px;overflow:hidden">
+                <div style="background:{% if ocr.confidence >= 75 %}var(--green){% elif ocr.confidence >= 40 %}var(--orange){% else %}var(--red){% endif %};
+                            height:100%;width:{{ ocr.confidence }}%;border-radius:4px"></div>
+              </div>
+              <span style="font-size:.78rem;color:#666">{{ ocr.confidence }}%</span>
+            </div>
+          </td>
+          <td>
+            <a href="/admin/adminpanel/ocrresult/{{ ocr.id }}/change/"
+               style="color:var(--blue);font-size:.8rem;text-decoration:none">✏️</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Связи doc_links ─────────────────────────────────────────────────── -->
+{% if links_from or links_to or links_upload %}
+<div class="card">
+  <div class="card-head">
+    <h2>🔗 Связи с другими документами</h2>
+    <span class="cnt">{{ links_from.count|add:links_to.count }}</span>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="dt">
+      <thead>
+        <tr><th>ID</th><th>От</th><th>→</th><th>К</th><th>Создана</th></tr>
+      </thead>
+      <tbody>
+        {% for lnk in links_from %}
+        <tr>
+          <td><code>#{{ lnk.id }}</code></td>
+          <td><span style="background:var(--blue);color:#fff;border-radius:4px;padding:1px 6px;font-size:.75rem">{{ lnk.from_type }} #{{ lnk.from_id }}</span></td>
+          <td style="color:var(--yellow);font-weight:700;font-size:1.2rem">→</td>
+          <td><span style="background:#f0f3f6;border-radius:4px;padding:1px 6px;font-size:.75rem;color:var(--slate)">{{ lnk.to_type }} #{{ lnk.to_id }}</span></td>
+          <td style="color:#8a9bb0;font-size:.8rem">{{ lnk.created_at|truncatechars:16 }}</td>
+        </tr>
+        {% endfor %}
+        {% for lnk in links_to %}
+        <tr>
+          <td><code>#{{ lnk.id }}</code></td>
+          <td><span style="background:#f0f3f6;border-radius:4px;padding:1px 6px;font-size:.75rem;color:var(--slate)">{{ lnk.from_type }} #{{ lnk.from_id }}</span></td>
+          <td style="color:var(--yellow);font-weight:700;font-size:1.2rem">→</td>
+          <td><span style="background:var(--blue);color:#fff;border-radius:4px;padding:1px 6px;font-size:.75rem">{{ lnk.to_type }} #{{ lnk.to_id }}</span></td>
+          <td style="color:#8a9bb0;font-size:.8rem">{{ lnk.created_at|truncatechars:16 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Журнал аудита ───────────────────────────────────────────────────── -->
+{% if audit %}
+<div class="card">
+  <div class="card-head">
+    <h2>📜 Журнал действий</h2>
+    <span class="cnt">{{ audit.count }}</span>
+  </div>
+  <div class="card-body" style="padding:12px 20px">
+    <ul class="timeline">
+      {% for a in audit %}
+      <li>
+        <span class="tl-time">{{ a.created_at|truncatechars:19 }}</span>
+        <div>
+          <span class="tl-action">{{ a.action }}</span>
+          <span style="color:#8a9bb0;font-size:.8rem">{{ a.entity_type }} #{{ a.entity_id }}</span><br>
+          <span class="tl-detail">{{ a.detail|truncatechars:120 }}</span>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

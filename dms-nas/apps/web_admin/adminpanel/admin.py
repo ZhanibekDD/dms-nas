@@ -153,24 +153,48 @@ class UploadLogAdmin(ObjectFilterMixin, admin.ModelAdmin):
                 err += 1
         self.message_user(request, f"Утверждено: {ok}, ошибок: {err}")
 
-    @admin.action(description="❌ Отклонить выбранные")
+    @admin.action(description="❌ Отклонить выбранные (с причиной)")
     def action_reject(self, request, queryset):
-        root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        )
-        if root not in sys.path:
-            sys.path.insert(0, root)
+        """
+        Если в POST-запросе есть 'reject_reason' — используем его.
+        Иначе — отвечаем HTML-формой с диалогом ввода причины.
+        """
+        reason = request.POST.get("reject_reason", "").strip()
+
+        # ── Первый вызов: нет причины → показываем диалог ──
+        if not reason:
+            ids = ",".join(str(obj.pk) for obj in queryset)
+            from django.shortcuts import render as _render
+            return _render(request, "adminpanel/reject_reason_form.html", {
+                "queryset": queryset,
+                "ids": ids,
+                "action": "action_reject",
+                "opts": self.model._meta,
+            })
+
+        # ── Второй вызов: причина есть → выполняем отклонение ──
+        _ensure_root_in_path()
         import apps.bot.bot_db as db
         from core.services.approvals import reject_doc
         from core.services.notify import notify_doc_rejected
         reviewer = request.user.get_full_name() or request.user.username
+
+        # При возврате из формы queryset может быть пустым — берём по ids
+        ids_str = request.POST.get("reject_ids", "")
+        if ids_str:
+            from .models import UploadLog as _UL
+            try:
+                id_list = [int(i) for i in ids_str.split(",") if i.strip()]
+                queryset = _UL.objects.filter(pk__in=id_list)
+            except ValueError:
+                pass
+
         ok = 0
         for obj in queryset.filter(review_status="pending"):
             reject_doc(db, _nas(), obj.id,
                        request.user.id if request.user.id else 0,
-                       "Отклонено через Web Admin")
+                       reason)
             ok += 1
-            # Sprint 13: notify uploader via Telegram
             try:
                 uploader_row = db.get_upload(obj.id)
                 if uploader_row and uploader_row.get("telegram_id"):
@@ -179,10 +203,11 @@ class UploadLogAdmin(ObjectFilterMixin, admin.ModelAdmin):
                         filename=obj.filename,
                         doc_id=obj.id,
                         reviewer=reviewer,
+                        reason=reason,
                     )
             except Exception:
                 pass
-        self.message_user(request, f"Отклонено: {ok}")
+        self.message_user(request, f"Отклонено: {ok} · Причина: {reason}")
 
     @admin.action(description="🔗 Создать связи с выбранными (doc_links)")
     def action_bulk_link(self, request, queryset):
@@ -461,7 +486,7 @@ class AuditLogAdmin(admin.ModelAdmin):
 class DocumentAdmin(ObjectFilterMixin, admin.ModelAdmin):
     list_display   = ("id", "original_filename", "object_name", "category_badge",
                       "doc_type", "status_badge", "file_size_fmt",
-                      "created_at", "download_link", "dedupe_flag")
+                      "created_at", "download_link", "dedupe_flag", "card_link")
     list_filter    = ("status", "category", "doc_type", "object_name")
     search_fields  = ("original_filename", "object_name", "nas_path", "file_hash")
     readonly_fields = ("id", "file_hash", "file_size", "created_at", "updated_at",
@@ -525,6 +550,14 @@ class DocumentAdmin(ObjectFilterMixin, admin.ModelAdmin):
         if count > 1:
             return format_html('<span style="color:orange">⚠️ {} копий</span>', count)
         return format_html('<span style="color:green">✅</span>')
+
+    @admin.display(description="Карточка")
+    def card_link(self, obj):
+        return format_html(
+            '<a href="/doc/{}/" target="_blank" '
+            'style="color:#3498db;text-decoration:none;font-weight:600">🔍 Открыть</a>',
+            obj.id
+        )
 
     @admin.action(description="✅ Утвердить выбранные документы")
     def action_approve_docs(self, request, queryset):

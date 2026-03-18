@@ -3,12 +3,14 @@ Central configuration — all tokens / credentials stored here.
 """
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
-BOT_TOKEN = "7954883438:AAFNTTNkO6Vy_J3-eb2yJQTft0DcZ3I7f6A"
+# Получить токен у @BotFather: https://t.me/botfather
+BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"
 
 # ── Synology NAS ──────────────────────────────────────────────────────────────
-NAS_BASE_URL = "https://stroydnepr.synology.me:5001/webapi/entry.cgi"
-NAS_USER     = "Administrator"
-NAS_PASSWORD = "Lytgh8989."
+# Укажите IP/домен вашего NAS и учётные данные
+NAS_BASE_URL = "https://YOUR_NAS_HOST:5001/webapi/entry.cgi"
+NAS_USER     = "YOUR_NAS_USERNAME"
+NAS_PASSWORD = "YOUR_NAS_PASSWORD"
 
 # ── Database ──────────────────────────────────────────────────────────────────
 import pathlib
@@ -27,7 +29,7 @@ POSTGRES_HOST     = "localhost"
 POSTGRES_PORT     = 5432
 POSTGRES_DB       = "dms"
 POSTGRES_USER     = "dms_user"
-POSTGRES_PASSWORD = "dms_pass_2025"
+POSTGRES_PASSWORD = "YOUR_POSTGRES_PASSWORD"
 
 # Вычисляемый DSN (используется core/database.py и Django)
 if DB_MODE == "postgres":

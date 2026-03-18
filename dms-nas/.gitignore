@@ -43,6 +43,12 @@ desktop.ini
 *.env
 secrets.py
 local_settings.py
+core/config_local.py
+
+# ── Docker volumes / backups ──────────────────────────────────────────────────
+backups/
+*.sql.gz
+*.dump
 
 # ── Build artifacts ───────────────────────────────────────────────────────────
 dist/

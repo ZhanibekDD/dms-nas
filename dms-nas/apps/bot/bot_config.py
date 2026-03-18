@@ -1,145 +1,40 @@
 """
-Central configuration — all tokens / credentials stored here.
+apps/bot/bot_config.py
+──────────────────────
+DEPRECATED — все настройки теперь в core/config.py.
+
+Этот файл оставлен для обратной совместимости.
+Он просто реэкспортирует всё из core.config.
 """
 
-# ── Telegram ──────────────────────────────────────────────────────────────────
-# Получить токен у @BotFather: https://t.me/botfather
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_HERE"
+# Re-export everything from the single source of truth
+from core.config import (   # noqa: F401
+    BOT_TOKEN,
+    NAS_BASE_URL, NAS_USER, NAS_PASSWORD, NAS_HTTPS,
+    NAS_ROOT_SHARES,
 
-# ── Synology NAS ──────────────────────────────────────────────────────────────
-# Укажите IP/домен вашего NAS и учётные данные
-NAS_BASE_URL = "https://YOUR_NAS_HOST:5001/webapi/entry.cgi"
-NAS_USER     = "YOUR_NAS_USERNAME"
-NAS_PASSWORD = "YOUR_NAS_PASSWORD"
+    DB_BACKEND as DB_MODE,
+    DB_DSN,
+    SQLITE_PATH as DB_PATH,
+    SQLITE_DSN as DB_DSN_SQLITE,
 
-# ── Database ──────────────────────────────────────────────────────────────────
-import pathlib
-_HERE = pathlib.Path(__file__).parent
-DB_PATH = str(_HERE.parent.parent / "dms.db")
+    PG_HOST as POSTGRES_HOST,
+    PG_PORT as POSTGRES_PORT,
+    PG_DB   as POSTGRES_DB,
+    PG_USER as POSTGRES_USER,
+    PG_PASS as POSTGRES_PASSWORD,
 
-# DB_MODE: 'sqlite' (default) or 'postgres'
-# Поменяй на 'postgres' после запуска migrate_sqlite_to_postgres.py
-DB_MODE = "sqlite"
+    DJANGO_DB,
 
-# SQLite DSN
-DB_DSN_SQLITE = f"sqlite:///{DB_PATH}"
-
-# PostgreSQL — всё прямо в коде (no .env)
-POSTGRES_HOST     = "localhost"
-POSTGRES_PORT     = 5432
-POSTGRES_DB       = "dms"
-POSTGRES_USER     = "dms_user"
-POSTGRES_PASSWORD = "YOUR_POSTGRES_PASSWORD"
-
-# Вычисляемый DSN (используется core/database.py и Django)
-if DB_MODE == "postgres":
-    DB_DSN = (
-        f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-    )
-    DJANGO_DB = {
-        "ENGINE":   "django.db.backends.postgresql",
-        "NAME":     POSTGRES_DB,
-        "USER":     POSTGRES_USER,
-        "PASSWORD": POSTGRES_PASSWORD,
-        "HOST":     POSTGRES_HOST,
-        "PORT":     str(POSTGRES_PORT),
-        "CONN_MAX_AGE": 60,
-    }
-else:
-    DB_DSN = DB_DSN_SQLITE
-    DJANGO_DB = {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME":   DB_PATH,
-    }
-
-# ── Roles & permissions ───────────────────────────────────────────────────────
-ROLE_PERMISSIONS: dict[str, list[str]] = {
-    "admin":  ["upload", "find", "approve", "reject", "expiry",
-               "finance", "photo_report", "package", "create_object",
-               "problems", "search", "my_uploads", "manage_users"],
-    "pto":    ["upload", "find", "approve", "reject", "expiry",
-               "photo_report", "package", "create_object", "problems",
-               "search", "my_uploads"],
-    "tb":     ["upload", "find", "approve", "reject", "problems",
-               "search", "my_uploads"],
-    "buh":    ["upload", "find", "finance", "search", "my_uploads"],
-    "prorab": ["upload", "find", "expiry", "photo_report", "problems",
-               "search", "my_uploads"],
-    "viewer": ["find", "search"],
-}
-
-ROLE_LABELS: dict[str, str] = {
-    "admin":  "Администратор",
-    "pto":    "ПТО",
-    "tb":     "ТБ",
-    "buh":    "Бухгалтер",
-    "prorab": "Прораб",
-    "viewer": "Просмотр",
-}
-
-# ── Document types ────────────────────────────────────────────────────────────
-DOC_TYPES      = ["Сертификат", "ТТН", "Акт", "Протокол", "ФотоОтчет", "Другое"]
-FINANCE_TYPES  = ["Счета", "ТТН", "Акты", "Договоры", "Прочее"]
-
-# ── Finance status transitions ────────────────────────────────────────────────
-FINANCE_TRANSITIONS: dict[str, list[str]] = {
-    "черновик":    ["на_проверке"],
-    "на_проверке": ["утверждён", "отклонён"],
-    "утверждён":   ["оплачен"],
-    "отклонён":    ["черновик"],
-    "оплачен":     [],
-}
-
-# ── Object folder template ─────────────────────────────────────────────────────
-OBJECT_TEMPLATE: list[str] = [
-    "_INBOX/Сертификат",
-    "_INBOX/ТТН",
-    "_INBOX/Акт",
-    "_INBOX/Протокол",
-    "_INBOX/ФотоОтчет",
-    "_INBOX/Другое",
-    "_APPROVED/Сертификат",
-    "_APPROVED/ТТН",
-    "_APPROVED/Акт",
-    "_APPROVED/Протокол",
-    "_APPROVED/ФотоОтчет",
-    "_APPROVED/Другое",
-    "_REJECTED/Сертификат",
-    "_REJECTED/ТТН",
-    "_REJECTED/Акт",
-    "_REJECTED/Протокол",
-    "_REJECTED/Другое",
-    "ФотоОтчет",
-    "_PACKAGES",
-    "Финансы/_INBOX",
-    "Финансы/Счета",
-    "Финансы/ТТН",
-    "Финансы/Акты",
-    "Финансы/Договоры",
-    "Финансы/Прочее",
-    "Финансы/_EXPORTS",
-]
-
-# ── Scheduler ─────────────────────────────────────────────────────────────────
-EXPIRY_HOUR   = 9    # daily reminder at 09:00
-REMINDER_DAYS = [30, 7, 1]
-
-# ── Whitelist: Telegram IDs allowed to use the bot ────────────────────────────
-# Empty = all users can register (admin must confirm role assignment)
-WHITELIST: list[int] = []
-
-# ── Default checklist for photo reports ──────────────────────────────────────
-DEFAULT_CHECKLIST = [
-    "Общий вид объекта",
-    "Фундамент / основание",
-    "Несущие конструкции",
-    "Кровля",
-    "Фасад",
-    "Внутренние работы",
-    "Инженерные системы",
-    "Благоустройство",
-]
-
-# ── NAS root shares to expose in browser ──────────────────────────────────────
-NAS_ROOT_SHARES = ["/Обмен", "/Днепр"]
+    ROLE_PERMISSIONS,
+    ROLE_LABELS,
+    DOC_TYPES,
+    FINANCE_TYPES,
+    FINANCE_TRANSITIONS,
+    OBJECT_TEMPLATE,
+    EXPIRY_HOUR,
+    REMINDER_DAYS,
+    WHITELIST,
+    DEFAULT_CHECKLIST,
+    ADMIN_IDS,
+)

@@ -1,0 +1,58 @@
+version: "3.9"
+
+# ── DMS-NAS  ·  PostgreSQL + pgAdmin ─────────────────────────────────────────
+# Все пароли хранятся прямо здесь (без .env, как требует проект).
+# Запуск:   docker-compose -f docker-compose.pg.yml up -d
+# Стоп:     docker-compose -f docker-compose.pg.yml down
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dms_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       dms
+      POSTGRES_USER:     dms_user
+      POSTGRES_PASSWORD: dms_pass_2025
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=ru_RU.UTF-8 --lc-ctype=ru_RU.UTF-8"
+    volumes:
+      - dms_pgdata:/var/lib/postgresql/data
+      # При первом старте автоматически выполнится schema_postgres.sql
+      - ./core/schema_postgres.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dms_user -d dms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dms_net
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dms_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@dms.local
+      PGADMIN_DEFAULT_PASSWORD: admin_pgadmin_2025
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - dms_pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dms_net
+
+volumes:
+  dms_pgdata:
+  dms_pgadmin:
+
+networks:
+  dms_net:
+    driver: bridge

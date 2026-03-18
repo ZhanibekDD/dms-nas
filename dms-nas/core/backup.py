@@ -25,7 +25,7 @@ def run_backup(db_path: str, nas) -> dict:
     Postgres: runs pg_dump and gzips the output.
     Returns {"ok": True, ...} or {"ok": False, "error": "..."}
     """
-    from apps.bot.bot_config import DB_MODE
+    from core.config import DB_BACKEND as DB_MODE
 
     today = datetime.now().strftime("%Y%m%d")
 
@@ -59,9 +59,9 @@ def _backup_sqlite(db_path: str, nas, today: str, folder: str) -> dict:
 
 
 def _backup_postgres(nas, today: str, folder: str, weekly: bool = False) -> dict:
-    from apps.bot.bot_config import (
-        POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB,
-        POSTGRES_USER, POSTGRES_PASSWORD,
+    from core.config import (
+        PG_HOST as POSTGRES_HOST, PG_PORT as POSTGRES_PORT, PG_DB as POSTGRES_DB,
+        PG_USER as POSTGRES_USER, PG_PASS as POSTGRES_PASSWORD,
     )
     prefix = "dms_weekly_" if weekly else "dms_"
     period = datetime.now().strftime("%Y_W%W") if weekly else today
@@ -128,7 +128,7 @@ def _prune_old_backups(nas, folder: str = NAS_BACKUP_FOLDER,
 
 def run_weekly_backup(db_path: str, nas) -> dict:
     """Weekly backup to separate folder."""
-    from apps.bot.bot_config import DB_MODE
+    from core.config import DB_BACKEND as DB_MODE
 
     folder = "/Backup/weekly"
     week = datetime.now().strftime("%Y_W%W")

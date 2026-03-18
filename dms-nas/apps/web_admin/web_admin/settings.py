@@ -1,6 +1,6 @@
 """
 Django settings for DMS-NAS web admin panel.
-Sprint 10: unified DB config via bot_config.DJANGO_DB.
+Sprint 10: unified DB config via core.config (единый источник, без .env).
 """
 
 import os
@@ -9,12 +9,13 @@ import pathlib
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 
-# Make bot_config importable from web context
+# Добавляем корень проекта (dms-nas/) в sys.path
 _ROOT = str(BASE_DIR.parent.parent)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from apps.bot.bot_config import DB_PATH, DJANGO_DB  # noqa: E402
+# Единый источник конфига — core.config
+from core.config import SQLITE_PATH as DB_PATH, DJANGO_DB  # noqa: E402
 
 SECRET_KEY = "dms-nas-super-secret-key-change-in-prod-2025"
 

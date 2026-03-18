@@ -32,7 +32,12 @@ def _get_engine() -> Engine:
     if _engine is not None:
         return _engine
 
-    from apps.bot.bot_config import DB_MODE, DB_DSN
+    # core.config — единый источник, bot_config больше не используется здесь
+    try:
+        from core.config import DB_BACKEND as DB_MODE, DB_DSN, PG_POOL_SIZE, PG_MAX_OVERFLOW
+    except ImportError:
+        from apps.bot.bot_config import DB_MODE, DB_DSN
+        PG_POOL_SIZE, PG_MAX_OVERFLOW = 5, 10
 
     if DB_MODE == "sqlite":
         _engine = create_engine(
@@ -43,9 +48,9 @@ def _get_engine() -> Engine:
     else:
         _engine = create_engine(
             DB_DSN,
-            pool_pre_ping=True,   # detect stale connections
-            pool_size=5,
-            max_overflow=10,
+            pool_pre_ping=True,
+            pool_size=PG_POOL_SIZE,
+            max_overflow=PG_MAX_OVERFLOW,
             echo=False,
         )
     logger.info("DB engine created: %s mode=%s", DB_DSN[:40], DB_MODE)
@@ -79,7 +84,10 @@ def insert_row(conn, sql: str, params: dict) -> int:
     Execute INSERT and return new row ID.
     Handles SQLite (last_insert_rowid) vs Postgres (RETURNING id) automatically.
     """
-    from apps.bot.bot_config import DB_MODE
+    try:
+        from core.config import DB_BACKEND as DB_MODE
+    except ImportError:
+        from apps.bot.bot_config import DB_MODE
 
     if DB_MODE == "postgres":
         pg_sql = sql.rstrip().rstrip(";")
@@ -109,7 +117,10 @@ def init_schema(schema_sql: str) -> None:
     Execute a multi-statement schema SQL.
     Works for both SQLite (executescript) and Postgres (split on ';').
     """
-    from apps.bot.bot_config import DB_MODE
+    try:
+        from core.config import DB_BACKEND as DB_MODE
+    except ImportError:
+        from apps.bot.bot_config import DB_MODE
 
     statements = [s.strip() for s in schema_sql.split(";") if s.strip()]
 

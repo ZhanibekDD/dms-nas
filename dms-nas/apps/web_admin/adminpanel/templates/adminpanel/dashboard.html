@@ -1,0 +1,526 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Дашборд — ДнепрНАС{% endblock %}
+
+{% block content_title %}
+<div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+  <img src="{% static 'adminpanel/img/logo.jpg' %}"
+       style="height:52px;width:52px;border-radius:10px;object-fit:cover;box-shadow:0 2px 8px rgba(61,81,102,.25)">
+  <div>
+    <h1 style="margin:0;font-size:1.6rem;font-weight:800;color:#3D5166">Дашборд</h1>
+    <span style="color:#8a9bb0;font-size:.88rem">Строительная компания Днепр — Система документов</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  /* ── KPI grid ──────────────────────────────────────────────────────── */
+  .db-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .db-kpi {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 12px rgba(61,81,102,.12);
+    border-left: 5px solid #FFCC1D;
+    transition: transform .18s, box-shadow .18s;
+  }
+  .db-kpi:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(61,81,102,.18); }
+  .db-kpi.red   { border-color: #e74c3c; }
+  .db-kpi.green { border-color: #27ae60; }
+  .db-kpi.blue  { border-color: #3498db; }
+  .db-kpi.gold  { border-color: #FFCC1D; }
+
+  .db-kpi-icon {
+    font-size: 2rem;
+    width: 46px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .db-kpi-body {}
+  .db-kpi-val {
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #3D5166;
+  }
+  .db-kpi-label {
+    font-size: .78rem;
+    color: #7a8fa5;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-top: 3px;
+  }
+
+  /* ── Section title ──────────────────────────────────────────────────── */
+  .db-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #3D5166;
+    margin: 28px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 3px solid #FFCC1D;
+  }
+  .db-section span { font-size: 1.2rem; }
+
+  /* ── Table ──────────────────────────────────────────────────────────── */
+  .db-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(61,81,102,.1);
+    font-size: .9rem;
+  }
+  .db-table thead th {
+    background: #3D5166;
+    color: #FFCC1D;
+    padding: 11px 14px;
+    font-weight: 600;
+    text-align: left;
+    letter-spacing: .3px;
+    white-space: nowrap;
+  }
+  .db-table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f2f5;
+    vertical-align: middle;
+  }
+  .db-table tbody tr:last-child td { border-bottom: none; }
+  .db-table tbody tr:hover td { background: rgba(255,204,29,.07); }
+
+  /* ── Badges ─────────────────────────────────────────────────────────── */
+  .badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .badge-pending  { background: #e67e22; }
+  .badge-approved { background: #27ae60; }
+  .badge-rejected { background: #e74c3c; }
+  .badge-archived { background: #95a5a6; }
+
+  /* ── Quick action buttons ───────────────────────────────────────────── */
+  .db-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .db-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: .88rem;
+    text-decoration: none;
+    transition: all .18s;
+  }
+  .db-btn-primary {
+    background: #FFCC1D;
+    color: #2C3D50;
+    box-shadow: 0 2px 8px rgba(255,204,29,.4);
+  }
+  .db-btn-primary:hover {
+    background: #E0B000;
+    color: #2C3D50;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(255,204,29,.5);
+  }
+  .db-btn-outline {
+    background: #fff;
+    color: #3D5166;
+    border: 2px solid #3D5166;
+  }
+  .db-btn-outline:hover {
+    background: #3D5166;
+    color: #fff;
+    transform: translateY(-2px);
+  }
+
+  /* ── Greeting banner ────────────────────────────────────────────────── */
+  .db-banner {
+    background: linear-gradient(135deg, #3D5166 0%, #2C3D50 100%);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    box-shadow: 0 4px 20px rgba(61,81,102,.3);
+    position: relative;
+    overflow: hidden;
+  }
+  .db-banner::after {
+    content: '';
+    position: absolute;
+    right: -30px;
+    top: -30px;
+    width: 160px;
+    height: 160px;
+    background: rgba(255,204,29,.08);
+    border-radius: 50%;
+  }
+  .db-banner-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 3px solid rgba(255,204,29,.5);
+  }
+  .db-banner-text h2 {
+    margin: 0 0 4px;
+    color: #FFCC1D;
+    font-size: 1.35rem;
+    font-weight: 800;
+  }
+  .db-banner-text p {
+    margin: 0;
+    color: rgba(255,255,255,.75);
+    font-size: .9rem;
+  }
+  .db-banner-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+  .db-banner-stat {
+    text-align: center;
+  }
+  .db-banner-stat-val {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #FFCC1D;
+    line-height: 1;
+  }
+  .db-banner-stat-label {
+    font-size: .72rem;
+    color: rgba(255,255,255,.6);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+
+  @media (max-width: 640px) {
+    .db-banner-stats { display: none; }
+    .db-kpi-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<!-- ── Banner ─────────────────────────────────────────────────────────────── -->
+<div class="db-banner">
+  <img class="db-banner-logo"
+       src="{% static 'adminpanel/img/logo.jpg' %}"
+       alt="Логотип">
+  <div class="db-banner-text">
+    <h2>Строительная компания Днепр</h2>
+    <p>Система управления документами и файлами на NAS</p>
+  </div>
+  <div class="db-banner-stats">
+    <div class="db-banner-stat">
+      <div class="db-banner-stat-val">{{ total_docs }}</div>
+      <div class="db-banner-stat-label">Документов</div>
+    </div>
+    <div class="db-banner-stat">
+      <div class="db-banner-stat-val">{{ expiry_active }}</div>
+      <div class="db-banner-stat-label">Сроков</div>
+    </div>
+    <div class="db-banner-stat">
+      <div class="db-banner-stat-val">{{ fin_total }}</div>
+      <div class="db-banner-stat-label">Финдоков</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KPI row 1: Документы ──────────────────────────────────────────────── -->
+<div class="db-section"><span>📄</span> Документы</div>
+<div class="db-kpi-grid">
+  <div class="db-kpi gold">
+    <div class="db-kpi-icon">📁</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ total_docs }}</div>
+      <div class="db-kpi-label">Всего</div>
+    </div>
+  </div>
+  <div class="db-kpi">
+    <div class="db-kpi-icon">⏳</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ pending_docs }}</div>
+      <div class="db-kpi-label">На проверке</div>
+    </div>
+  </div>
+  <div class="db-kpi green">
+    <div class="db-kpi-icon">✅</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ approved }}</div>
+      <div class="db-kpi-label">Утверждено</div>
+    </div>
+  </div>
+  <div class="db-kpi red">
+    <div class="db-kpi-icon">❌</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ rejected }}</div>
+      <div class="db-kpi-label">Отклонено</div>
+    </div>
+  </div>
+  <div class="db-kpi blue">
+    <div class="db-kpi-icon">📤</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ today_uploads }}</div>
+      <div class="db-kpi-label">Сегодня</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KPI row 2: Сроки + Проблемы ─────────────────────────────────────── -->
+<div class="db-section"><span>⏰</span> Сроки и проблемы</div>
+<div class="db-kpi-grid">
+  <div class="db-kpi blue">
+    <div class="db-kpi-icon">🗓️</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ expiry_active }}</div>
+      <div class="db-kpi-label">Активных сроков</div>
+    </div>
+  </div>
+  <div class="db-kpi {% if expiry_overdue %}red{% else %}green{% endif %}">
+    <div class="db-kpi-icon">🔴</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ expiry_overdue }}</div>
+      <div class="db-kpi-label">Просрочено</div>
+    </div>
+  </div>
+  <div class="db-kpi {% if open_problems %}red{% else %}green{% endif %}">
+    <div class="db-kpi-icon">⚠️</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ open_problems }}</div>
+      <div class="db-kpi-label">Открытых проблем</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KPI row 2.5: Document Registry ───────────────────────────────────── -->
+<div class="db-section"><span>📋</span> Реестр документов (Sprint 11)</div>
+<div class="db-kpi-grid">
+  <div class="db-kpi blue">
+    <div class="db-kpi-icon">🗂️</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ registry_total }}</div>
+      <div class="db-kpi-label">В реестре</div>
+    </div>
+  </div>
+  <div class="db-kpi">
+    <div class="db-kpi-icon">⏳</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ registry_pending }}</div>
+      <div class="db-kpi-label">На проверке</div>
+    </div>
+  </div>
+  <div class="db-kpi green">
+    <div class="db-kpi-icon">✅</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ registry_approved }}</div>
+      <div class="db-kpi-label">Утверждено</div>
+    </div>
+  </div>
+  <div class="db-kpi {% if registry_dupes %}red{% else %}green{% endif %}">
+    <div class="db-kpi-icon">♻️</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ registry_dupes }}</div>
+      <div class="db-kpi-label">Дубликатов</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KPI row 3: Финансы ────────────────────────────────────────────────── -->
+<div class="db-section"><span>💰</span> Финансы</div>
+<div class="db-kpi-grid">
+  <div class="db-kpi gold">
+    <div class="db-kpi-icon">💼</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ fin_total }}</div>
+      <div class="db-kpi-label">Всего</div>
+    </div>
+  </div>
+  <div class="db-kpi">
+    <div class="db-kpi-icon">📝</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ fin_draft }}</div>
+      <div class="db-kpi-label">Черновики</div>
+    </div>
+  </div>
+  <div class="db-kpi">
+    <div class="db-kpi-icon">⏳</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ fin_review }}</div>
+      <div class="db-kpi-label">На проверке</div>
+    </div>
+  </div>
+  <div class="db-kpi green">
+    <div class="db-kpi-icon">✅</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ fin_approved }}</div>
+      <div class="db-kpi-label">Утверждено</div>
+    </div>
+  </div>
+  <div class="db-kpi green">
+    <div class="db-kpi-icon">💳</div>
+    <div class="db-kpi-body">
+      <div class="db-kpi-val">{{ fin_paid }}</div>
+      <div class="db-kpi-label">Оплачено</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Топ объектов ──────────────────────────────────────────────────────── -->
+{% if top_objects %}
+<div class="db-section"><span>🏗️</span> Топ активных объектов</div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+  {% for obj in top_objects %}
+  <a href="/objects/{{ obj.object_name }}/"
+     style="display:inline-flex;align-items:center;gap:8px;
+            background:#fff;border-radius:10px;padding:10px 16px;
+            text-decoration:none;box-shadow:0 2px 8px rgba(61,81,102,.1);
+            border-left:4px solid #FFCC1D;transition:all .18s"
+     onmouseover="this.style.transform='translateY(-2px)'"
+     onmouseout="this.style.transform=''">
+    <span style="font-size:1.2rem">🏗️</span>
+    <div>
+      <div style="font-weight:700;color:#3D5166;font-size:.9rem">{{ obj.object_name }}</div>
+      <div style="font-size:.75rem;color:#8a9bb0">{{ obj.cnt }} документ{% if obj.cnt != 1 %}ов{% endif %}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Последние загрузки ────────────────────────────────────────────────── -->
+<div class="db-section"><span>📋</span> Последние загрузки</div>
+<table class="db-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Файл</th>
+      <th>Объект</th>
+      <th>Тип</th>
+      <th>Статус</th>
+      <th>Дата</th>
+      <th>NAS</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for doc in recent_uploads %}
+    <tr>
+      <td style="color:#8a9bb0;font-weight:600">{{ doc.id }}</td>
+      <td>
+        <strong>{{ doc.filename|truncatechars:38 }}</strong>
+      </td>
+      <td>
+        <span style="background:#3D5166;color:#FFCC1D;padding:2px 8px;border-radius:6px;font-size:.78rem;font-weight:600">
+          {{ doc.object_name }}
+        </span>
+      </td>
+      <td style="color:#506A85">{{ doc.doc_type }}</td>
+      <td><span class="badge badge-{{ doc.review_status }}">{{ doc.review_status }}</span></td>
+      <td style="color:#8a9bb0;font-size:.83rem;white-space:nowrap">{{ doc.uploaded_at|slice:":16" }}</td>
+      <td>
+        {% if doc.nas_path %}
+          <a href="/nas-proxy/?path={{ doc.nas_path }}" target="_blank"
+             style="color:#3D5166;font-size:1.1rem" title="Скачать">⬇️</a>
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" style="text-align:center;color:#aaa;padding:24px">
+        <div style="font-size:2rem">📭</div>
+        <div>Документов пока нет</div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- ── Quick actions ─────────────────────────────────────────────────────── -->
+<div class="db-actions">
+  <a href="/admin/adminpanel/uploadlog/" class="db-btn db-btn-primary">
+    📄 Документы
+  </a>
+  <a href="/admin/adminpanel/document/" class="db-btn db-btn-primary">
+    📋 Реестр
+  </a>
+  <a href="/admin/adminpanel/expiryitem/" class="db-btn db-btn-outline">
+    ⏰ Сроки
+  </a>
+  <a href="/admin/adminpanel/financedoc/" class="db-btn db-btn-outline">
+    💰 Финансы
+  </a>
+  <a href="/admin/adminpanel/problem/" class="db-btn db-btn-outline">
+    ⚠️ Проблемы
+  </a>
+  <a href="/objects/" class="db-btn db-btn-outline">
+    🏗️ Объекты
+  </a>
+  <a href="/packages/" class="db-btn db-btn-outline">
+    📦 Пакеты
+  </a>
+  <a href="/admin/adminpanel/auditlog/" class="db-btn db-btn-outline">
+    📜 Аудит
+  </a>
+  <a href="/admin/adminpanel/ocrresult/" class="db-btn db-btn-outline">
+    🔍 OCR
+  </a>
+</div>
+
+<!-- ── PDF Export buttons ────────────────────────────────────────────────── -->
+<div class="db-section" style="margin-top:24px"><span>📥</span> Экспорт в PDF</div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px">
+  <a href="/pdf/dashboard/"
+     style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;
+            background:linear-gradient(135deg,#3D5166,#2C3D50);color:#FFCC1D;
+            border-radius:10px;text-decoration:none;font-weight:700;font-size:.88rem;
+            box-shadow:0 3px 10px rgba(61,81,102,.25);transition:all .18s"
+     onmouseover="this.style.transform='translateY(-2px)'"
+     onmouseout="this.style.transform=''">
+    📊 Дашборд PDF
+  </a>
+  <a href="/pdf/registry/"
+     style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;
+            background:linear-gradient(135deg,#3D5166,#2C3D50);color:#FFCC1D;
+            border-radius:10px;text-decoration:none;font-weight:700;font-size:.88rem;
+            box-shadow:0 3px 10px rgba(61,81,102,.25);transition:all .18s"
+     onmouseover="this.style.transform='translateY(-2px)'"
+     onmouseout="this.style.transform=''">
+    📋 Реестр PDF
+  </a>
+</div>
+
+<!-- ── Footer credit ─────────────────────────────────────────────────────── -->
+<div style="margin-top:32px;padding:16px;background:#fff;border-radius:12px;
+            box-shadow:0 2px 8px rgba(61,81,102,.08);display:flex;align-items:center;gap:14px">
+  <img src="{% static 'adminpanel/img/logo.jpg' %}"
+       style="width:36px;height:36px;border-radius:7px;object-fit:cover">
+  <div style="color:#8a9bb0;font-size:.82rem">
+    <strong style="color:#3D5166">DMS-NAS</strong> — Система управления документами строительной компании Днепр
+  </div>
+</div>
+
+{% endblock %}

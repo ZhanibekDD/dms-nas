@@ -1,0 +1,146 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ object_name }} — Сводка{% endblock %}
+{% block content_title %}
+<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+  <h1 style="margin:0">🏗️ Объект: {{ object_name }}</h1>
+  <a href="/pdf/object/{{ object_name }}/"
+     style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+            background:#3D5166;color:#FFCC1D;border-radius:8px;
+            text-decoration:none;font-weight:700;font-size:.85rem;
+            box-shadow:0 2px 8px rgba(61,81,102,.2);transition:all .18s"
+     onmouseover="this.style.background='#2C3D50'"
+     onmouseout="this.style.background='#3D5166'">
+    📥 Скачать PDF
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  .kpi-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .kpi { background:#fff; border-radius:8px; padding:16px 20px; min-width:130px;
+         box-shadow:0 2px 6px rgba(0,0,0,.08); border-top:4px solid #f39c12; text-align:center; }
+  .kpi.warn { border-color:#e74c3c; }
+  .kpi.ok   { border-color:#27ae60; }
+  .kpi.info { border-color:#3498db; }
+  .kpi .val { font-size:2rem; font-weight:700; }
+  .kpi .lbl { font-size:.8rem; color:#666; margin-top:4px; }
+  .section { font-size:1.05rem; font-weight:600; margin:24px 0 10px;
+             border-bottom:2px solid #f39c12; padding-bottom:4px; }
+  table.t { width:100%; border-collapse:collapse; background:#fff;
+            border-radius:8px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.06); margin-bottom:20px; }
+  table.t th { background:#2c3e50; color:#fff; padding:9px 12px; text-align:left; }
+  table.t td { padding:8px 12px; border-bottom:1px solid #f2f2f2; }
+  .badge { padding:2px 8px; border-radius:4px; font-size:.8rem; font-weight:600; color:#fff; }
+  .badge-pending  { background:#e67e22; }
+  .badge-approved { background:#27ae60; }
+  .badge-rejected { background:#e74c3c; }
+  .btn { display:inline-block; padding:6px 14px; border-radius:4px;
+         background:#f39c12; color:#fff; text-decoration:none; font-size:.9rem; }
+  .btn:hover { background:#e67e22; }
+</style>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="val">{{ docs_total }}</div>
+    <div class="lbl">📄 Всего документов</div>
+  </div>
+  <div class="kpi warn">
+    <div class="val">{{ docs_pending }}</div>
+    <div class="lbl">⏳ На проверке</div>
+  </div>
+  <div class="kpi ok">
+    <div class="val">{{ docs_approved }}</div>
+    <div class="lbl">✅ Утверждено</div>
+  </div>
+  <div class="kpi {% if docs_rejected %}warn{% else %}ok{% endif %}">
+    <div class="val">{{ docs_rejected }}</div>
+    <div class="lbl">❌ Отклонено</div>
+  </div>
+  <div class="kpi info">
+    <div class="val">{{ expiry_active }}</div>
+    <div class="lbl">⏰ Активных сроков</div>
+  </div>
+  <div class="kpi {% if expiry_overdue %}warn{% endif %}">
+    <div class="val">{{ expiry_overdue }}</div>
+    <div class="lbl">🔴 Просроченных</div>
+  </div>
+  <div class="kpi {% if open_problems %}warn{% endif %}">
+    <div class="val">{{ open_problems }}</div>
+    <div class="lbl">⚠️ Проблем открыто</div>
+  </div>
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+  <a class="btn" href="/admin/adminpanel/uploadlog/?object_name={{ object_name }}">📄 Документы</a>
+  <a class="btn" href="/admin/adminpanel/expiryitem/?object_name={{ object_name }}">⏰ Сроки</a>
+  <a class="btn" href="/admin/adminpanel/financedoc/?object_name={{ object_name }}">💰 Финансы</a>
+  <a class="btn" href="/packages/?object_name={{ object_name }}">📦 Создать пакет</a>
+</div>
+
+<div class="section">📋 Последние документы</div>
+<table class="t">
+  <thead>
+    <tr><th>#</th><th>Файл</th><th>Тип</th><th>Статус</th><th>Дата</th><th>NAS</th></tr>
+  </thead>
+  <tbody>
+    {% for doc in recent_uploads %}
+    <tr>
+      <td>{{ doc.id }}</td>
+      <td>{{ doc.filename }}</td>
+      <td>{{ doc.doc_type }}</td>
+      <td><span class="badge badge-{{ doc.review_status }}">{{ doc.review_status }}</span></td>
+      <td>{{ doc.uploaded_at|slice:":10" }}</td>
+      <td>{% if doc.nas_path %}<a href="/nas-proxy/?path={{ doc.nas_path }}" target="_blank">⬇️</a>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="text-align:center;color:#999">Нет документов</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="section">💰 Финансовые документы</div>
+<table class="t">
+  <thead>
+    <tr><th>#</th><th>Файл</th><th>Тип</th><th>Сумма</th><th>Статус</th><th>Дата</th></tr>
+  </thead>
+  <tbody>
+    {% for f in fin_docs %}
+    <tr>
+      <td>{{ f.id }}</td>
+      <td>{{ f.filename }}</td>
+      <td>{{ f.doc_type }}</td>
+      <td>{{ f.amount|default:"—" }}</td>
+      <td>{{ f.status }}</td>
+      <td>{{ f.created_at|slice:":10" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" style="text-align:center;color:#999">Нет документов</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if last_report %}
+<div class="section">📸 Последний фотоотчёт</div>
+<table class="t">
+  <tr><th>ID</th><th>Дата</th><th>Статус</th><th>Папка NAS</th></tr>
+  <tr>
+    <td>{{ last_report.id }}</td>
+    <td>{{ last_report.report_date }}</td>
+    <td>{{ last_report.status }}</td>
+    <td><code>{{ last_report.nas_folder }}</code></td>
+  </tr>
+</table>
+{% endif %}
+
+{% if nas_items %}
+<div class="section">📂 Папки объекта на NAS</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;">
+  {% for item in nas_items %}
+  <span style="background:#ecf0f1;padding:4px 10px;border-radius:4px;font-size:.85rem;">
+    {% if item.isdir %}📁{% else %}📄{% endif %} {{ item.name }}
+  </span>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

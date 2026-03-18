@@ -1,0 +1,61 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.pyc
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv_bot/
+venv_web/
+venv/
+.venv/
+env/
+ENV/
+
+# ── Database files ────────────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Static collected files ───────────────────────────────────────────────────
+apps/web_admin/staticfiles/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Secrets (never commit) ────────────────────────────────────────────────────
+.env
+*.env
+secrets.py
+local_settings.py
+
+# ── Build artifacts ───────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# ── Test/temp ─────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.tmp
+*.bak
+
+# ── PDF test output ───────────────────────────────────────────────────────────
+test_*.pdf

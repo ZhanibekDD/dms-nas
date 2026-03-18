@@ -1,0 +1,14 @@
+{% extends "jazzmin/base.html" %}
+{% load static %}
+
+{% block branding %}
+<a href="{% url 'admin:index' %}" class="brand-link">
+  <img src="{% static 'adminpanel/img/logo.jpg' %}"
+       alt="Логотип"
+       class="brand-image elevation-3"
+       style="height:36px;width:36px;border-radius:7px;object-fit:cover;margin-right:8px;">
+  <span class="brand-text font-weight-bold" style="color:#FFCC1D;font-size:1.05rem;letter-spacing:.5px">
+    ДнепрНАС
+  </span>
+</a>
+{% endblock %}

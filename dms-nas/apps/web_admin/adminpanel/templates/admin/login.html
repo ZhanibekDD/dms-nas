@@ -1,0 +1,301 @@
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход — ДнепрНАС</title>
+  <link rel="icon" href="{% static 'adminpanel/img/favicon.ico' %}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="{% static 'adminpanel/img/apple-touch-icon.png' %}">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background:
+        linear-gradient(145deg, #2C3D50 0%, #3D5166 55%, #2C3D50 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      /* subtle geometric pattern */
+      background-image:
+        linear-gradient(145deg, #2C3D50 0%, #3D5166 55%, #2C3D50 100%),
+        repeating-linear-gradient(
+          -55deg,
+          transparent, transparent 20px,
+          rgba(255,204,29,.03) 20px, rgba(255,204,29,.03) 40px
+        );
+    }
+
+    /* ── Card ── */
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.05);
+      overflow: hidden;
+      animation: slideUp .4s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(24px); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+
+    /* ── Header ── */
+    .login-header {
+      background: linear-gradient(135deg, #3D5166 0%, #2C3D50 100%);
+      padding: 36px 36px 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-header::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 140px; height: 140px;
+      background: rgba(255,204,29,.1);
+      border-radius: 50%;
+    }
+
+    .login-header::after {
+      content: '';
+      position: absolute;
+      bottom: -30px; left: -30px;
+      width: 100px; height: 100px;
+      background: rgba(255,204,29,.07);
+      border-radius: 50%;
+    }
+
+    .login-logo-img {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      object-fit: cover;
+      border: 3px solid rgba(255,204,29,.5);
+      box-shadow: 0 4px 20px rgba(0,0,0,.3);
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-company {
+      color: #FFCC1D;
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-top: 14px;
+      letter-spacing: .5px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-subtitle {
+      color: rgba(255,255,255,.65);
+      font-size: .85rem;
+      margin-top: 5px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Body ── */
+    .login-body {
+      padding: 32px 36px 36px;
+    }
+
+    .login-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #3D5166;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Messages / errors */
+    .login-messages {
+      margin-bottom: 18px;
+    }
+    .login-msg {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: .87rem;
+      font-weight: 500;
+    }
+    .login-msg.error {
+      background: #fff5f5;
+      border-left: 4px solid #e74c3c;
+      color: #c0392b;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: .83rem;
+      font-weight: 600;
+      color: #506A85;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      border: 2px solid #e0e6ed;
+      border-radius: 10px;
+      font-size: .95rem;
+      color: #3D5166;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+      background: #f8fafc;
+    }
+
+    .form-input:focus {
+      border-color: #FFCC1D;
+      box-shadow: 0 0 0 3px rgba(255,204,29,.2);
+      background: #fff;
+    }
+
+    .form-input-wrap {
+      position: relative;
+    }
+
+    .form-input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #8a9bb0;
+      font-size: .95rem;
+    }
+
+    /* Submit button */
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: #FFCC1D;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2C3D50;
+      cursor: pointer;
+      letter-spacing: .3px;
+      margin-top: 8px;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .login-btn:hover {
+      background: #E0B000;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(255,204,29,.4);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Footer */
+    .login-footer {
+      text-align: center;
+      padding: 14px;
+      background: #f8fafc;
+      border-top: 1px solid #edf0f4;
+      font-size: .78rem;
+      color: #8a9bb0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-card">
+  <!-- Header with logo -->
+  <div class="login-header">
+    <img class="login-logo-img"
+         src="{% static 'adminpanel/img/logo.jpg' %}"
+         alt="Логотип">
+    <div class="login-company">Строительная компания Днепр</div>
+    <div class="login-subtitle">Система управления документами</div>
+  </div>
+
+  <!-- Login form -->
+  <div class="login-body">
+    <div class="login-title">
+      <i class="fas fa-sign-in-alt" style="color:#FFCC1D"></i>
+      Вход в систему
+    </div>
+
+    {% if form.errors %}
+    <div class="login-messages">
+      <div class="login-msg error">
+        <i class="fas fa-exclamation-circle"></i>
+        Неверный логин или пароль. Попробуйте снова.
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{{ request.path }}">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+      <div class="form-group">
+        <label class="form-label" for="id_username">
+          <i class="fas fa-user"></i> Логин
+        </label>
+        <div class="form-input-wrap">
+          <i class="fas fa-user form-input-icon"></i>
+          <input class="form-input"
+                 type="text"
+                 id="id_username"
+                 name="username"
+                 autocomplete="username"
+                 autofocus
+                 placeholder="Введите логин">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="id_password">
+          <i class="fas fa-lock"></i> Пароль
+        </label>
+        <div class="form-input-wrap">
+          <i class="fas fa-lock form-input-icon"></i>
+          <input class="form-input"
+                 type="password"
+                 id="id_password"
+                 name="password"
+                 autocomplete="current-password"
+                 placeholder="Введите пароль">
+        </div>
+      </div>
+
+      <button type="submit" class="login-btn">
+        <i class="fas fa-sign-in-alt"></i>
+        Войти в систему
+      </button>
+    </form>
+  </div>
+
+  <div class="login-footer">
+    DMS-NAS &nbsp;•&nbsp; Строительная компания Днепр
+  </div>
+</div>
+
+</body>
+</html>

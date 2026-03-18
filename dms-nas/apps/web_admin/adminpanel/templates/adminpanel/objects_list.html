@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Объекты — DMS-NAS{% endblock %}
+{% block content_title %}<h1>🏗️ Объекты строительства</h1>{% endblock %}
+
+{% block content %}
+<style>
+  .obj-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+  .obj-card { background:#fff; border-radius:8px; padding:20px;
+              box-shadow:0 2px 8px rgba(0,0,0,.08); border-top:4px solid #f39c12;
+              text-decoration:none; color:#222; display:block; transition:transform .15s; }
+  .obj-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.13); }
+  .obj-card h3 { margin:0 0 8px; font-size:1.05rem; }
+  .obj-card .src { font-size:.75rem; color:#999; }
+</style>
+
+<p style="margin-bottom:20px;">
+  <a href="/packages/" style="background:#f39c12;color:#fff;padding:8px 18px;border-radius:4px;text-decoration:none;">
+    📦 Создать пакет
+  </a>
+</p>
+
+<div class="obj-grid">
+  {% for obj in objects %}
+  <a class="obj-card" href="/objects/{{ obj.name }}/">
+    <h3>🏗️ {{ obj.name }}</h3>
+    <div class="src">источник: {{ obj.source }}</div>
+  </a>
+  {% empty %}
+  <p style="color:#999">Объекты не найдены. Проверьте NAS соединение.</p>
+  {% endfor %}
+</div>
+{% endblock %}

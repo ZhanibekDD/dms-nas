@@ -1,0 +1,12 @@
+python-telegram-bot==20.8
+apscheduler==3.10.4
+requests==2.31.0
+urllib3==2.2.1
+# Sprint 10 — DB layer
+sqlalchemy>=2.0.30
+psycopg2-binary>=2.9.9
+# Sprint 12 — OCR
+pdfplumber>=0.11.0
+openpyxl>=3.1.0
+Pillow>=10.0.0
+# pytesseract>=0.3.10  # раскомментировать если установлен Tesseract OCR

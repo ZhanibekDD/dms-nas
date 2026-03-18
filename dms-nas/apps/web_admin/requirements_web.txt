@@ -1,0 +1,16 @@
+django==5.0.6
+django-jazzmin==3.0.0
+gunicorn==22.0.0
+requests==2.31.0
+urllib3==2.2.1
+whitenoise==6.7.0
+waitress>=3.0.0
+# Sprint 10 — DB layer
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.30
+# Sprint 12 — OCR & Excel
+pdfplumber>=0.11.0
+openpyxl>=3.1.0
+Pillow>=10.0.0
+# Sprint 14 — PDF reports
+reportlab>=4.0.0

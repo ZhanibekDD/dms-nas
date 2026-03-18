@@ -1,0 +1,57 @@
+## DMS-NAS Cursor Rules (Master v2)
+
+### Goal
+Construction Company DMS: Telegram Bot + Django Web Admin.
+Files on Synology NAS (DSM File Station API). Metadata in SQLite (→ Postgres later).
+See full spec: docs/MASTER_SPEC.md
+
+### Synology API — NON-NEGOTIABLE
+- Base: https://stroydnepr.synology.me:5001/webapi/entry.cgi
+- Pass _sid and SynoToken in query string on EVERY request.
+- Use LOGICAL paths (/Днепр, /Обмен) — NEVER /volume1/...
+- Upload: multipart/form-data POST; tokens ONLY in URL query string, NOT in form body.
+- Support Cyrillic paths and filenames (UTF-8).
+- All NAS ops retry 1–3 times with backoff.
+
+### Architecture — NON-NEGOTIABLE
+- Do NOT duplicate logic between bot and web.
+- Business logic ONLY in core/services/*.
+- NAS access ONLY via core/nas_client.py.
+- DB mutations via bot_db.py or core/services; keep consistent.
+- Monitoring/alerts via core/monitoring.py.
+
+### NAS folder structure (canonical)
+/{Object}/
+  _INBOX/{Сертификат|ТТН|Акт|Протокол|ФотоОтчет|Другое}/
+  _APPROVED/{same}/
+  _REJECTED/{same}/
+  ФотоОтчет/ | _PACKAGES/ | Финансы/{_INBOX|Счета|ТТН|Акты|Договоры|Прочее|_EXPORTS}/
+  Журналы/ | ТБ_ОТ/
+
+### Quality rules
+- All approve/reject/status/reminder actions are IDEMPOTENT.
+- Wrap multi-step DB updates in transactions where possible.
+- Log every NAS op and DB mutation with: user_id, role, object, path, result.
+- Preserve ALL acceptance tests (docs/ACCEPTANCE_TESTS.md); add new tests for new features.
+
+### Callback_data (Telegram)
+- Max 64 bytes. NEVER put full paths in callback_data.
+- Use _pid()/_pget() from bot.py for all NAS path references in keyboards.
+
+### Security
+- Telegram: check _has(update, perm) on every handler entry.
+- Web: @staff_member_required or group check on every non-public view.
+- NAS proxy: server downloads, browser never touches NAS directly.
+
+### Finance transitions (enforced, never bypass)
+черновик → на_проверке → утверждён → оплачен
+на_проверке → отклонён → черновик
+
+### Sprints status
+- Sprints 1–7: DONE
+- Sprint 8 (Hardening): health endpoint, monitoring alerts, backup, log rotation, autostart
+- Sprint 9 (Cross-links): doc_links, packages from web, object summary
+- Sprint 10: Postgres migration (future)
+- Sprint 11: OCR/AI (future)
+
+### No OCR in v1 unless explicitly requested.

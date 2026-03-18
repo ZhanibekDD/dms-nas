@@ -48,10 +48,28 @@ See full spec: docs/MASTER_SPEC.md
 на_проверке → отклонён → черновик
 
 ### Sprints status
-- Sprints 1–7: DONE
-- Sprint 8 (Hardening): health endpoint, monitoring alerts, backup, log rotation, autostart
-- Sprint 9 (Cross-links): doc_links, packages from web, object summary
-- Sprint 10: Postgres migration (future)
-- Sprint 11: OCR/AI (future)
+- Sprints 1–9:  DONE (bot + web + hardening + links + packages + object summary)
+- Sprint 10:    Postgres — code ready (migrate_sqlite_to_postgres.py), switch DB_MODE = "postgres"
+- Sprint 11:    DONE — documents registry, SHA-256 dedup, doc_id in uploads/finance
+- Sprint 12:    DONE — object-level permissions (user_objects, /grant, /revoke, /listaccess)
+- Sprint 13:    DONE — mass ops, Web→Telegram notifications, weekly digest
+- Sprint 14:    DONE — PDF reports (ReportLab), Excel export (openpyxl), favicon
+- Sprint 15:    DONE (MVP) — OCR via pdfplumber + pytesseract, human-in-the-loop web form
+- Sprint 14 DR: TODO — docs/DR_RUNBOOK.md + restore scripts
+- Sprint 16:    TODO — RAG/semantic search (Qdrant + embeddings)
+- Sprint 17:    TODO — 1С/ERP export, SMTP, SSO
 
-### No OCR in v1 unless explicitly requested.
+### v2 Roadmap constraints (MASTER_SPEC_v2.md)
+- Never commit secrets to repo. Use bot_config_local.py in .gitignore or env vars.
+- Sprint 10: migrate SQLite -> Postgres with verification and rollback plan.
+- Sprint 11: documents registry with doc_id and SHA-256 deduplication. ✅
+- Sprint 12: object-level permissions enforced in bot AND web. ✅
+- Sprint 13: mass operations + quality dashboard + Web→Telegram notifications. ✅
+- Sprint 14: DR runbook + restore scripts + backup verification + PDF/Excel reports. ✅ partial
+- Sprint 15+: OCR ONLY via background worker/thread; NEVER in request path. ✅
+- Sprint 16: RAG/semantic search via Qdrant, embeddings, "answer with sources".
+- Sprint 17: 1С/ERP CSV export, SMTP email, SSO/AD.
+- All stages: audit_log every mutation, idempotent operations, retry NAS ops 1-3x.
+- Acceptance tests: P-series (Postgres), D-series (Docs), O-series (Objects),
+                    M-series (Mass ops), R-series (DR), OCR-series.
+- See full spec: docs/MASTER_SPEC_v2.md

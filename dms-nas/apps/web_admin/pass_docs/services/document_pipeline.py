@@ -27,6 +27,12 @@ def resolve_extractor_kind(document_type: DocumentType) -> str | None:
     raw = (document_type.extractor_kind or "").strip().lower()
     if raw in EXTRACTOR_REGISTRY:
         return raw
+    # Соглашение импорта из «N&Документ.pdf»: 6 = паспорт, 7 = медсправка (код типа = префикс файла).
+    code_plain = (document_type.code or "").strip()
+    if code_plain == "6":
+        return "ru_passport"
+    if code_plain == "7":
+        return "medical_certificate"
     code = (document_type.code or "").upper()
     if "PASSPORT" in code or "PASPORT" in code:
         return "ru_passport"

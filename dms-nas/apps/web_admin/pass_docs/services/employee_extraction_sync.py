@@ -4,7 +4,8 @@
 Поддерживаются только extractor_kind:
   ru_passport — в Employee только паспортные номера и (если пусто) дата рождения; ФИО из паспорта не пишутся
     в карточку — только preview / сравнение в summary и блок в notes.
-  medical_certificate — как раньше; повтор одного и того же документа в notes не дублируется.
+  medical_certificate — company только если в карточке пусто и строка проходит эвристику «похоже на
+    организацию»; иначе организация только в summary и в заметках; заключение в notes как раньше.
 
 Служебный сотрудник общих документов (__COMMON_ORG__) не обновляется.
 """
@@ -12,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import unicodedata
 from datetime import date, datetime
 from typing import Any
@@ -281,31 +283,112 @@ def _sync_ru_passport(emp: Employee, n: dict[str, Any], *, doc_pk: int) -> dict[
     return out
 
 
+def _medical_organization_trustworthy(org: str) -> bool:
+    """
+    Грубая проверка: не писать в company слишком короткие строки и типичное «ФИО из трёх слов» без
+    признаков медорганизации / юрлица.
+    """
+    o = (org or "").strip()
+    if len(o) < 6:
+        return False
+    low = o.casefold()
+    markers = (
+        "ооо",
+        "зао",
+        "оао",
+        "ип ",
+        "ип.",
+        "гбуз",
+        "гуз ",
+        "фгбу",
+        "больниц",
+        "поликлиник",
+        "медицин",
+        "клиник",
+        "центр ",
+        " центр",
+        "стационар",
+        "амбулатор",
+        "минздрав",
+        "департамент",
+        "управлен",
+        "учрежден",
+        "гкб",
+        "госпитал",
+        "диагностич",
+        "лаборатор",
+        "санатор",
+        "филиал",
+        "акционер",
+    )
+    if any(m in low for m in markers):
+        return True
+    parts = [p for p in re.split(r"\s+", o) if p]
+    if len(parts) == 3:
+        if all(re.fullmatch(r"[А-ЯЁа-яё\-]{2,40}", p) for p in parts):
+            if not any(ch.isdigit() for ch in o):
+                return False
+    return len(o) >= 12
+
+
 def _sync_medical_certificate(emp: Employee, n: dict[str, Any], *, doc_pk: int) -> dict[str, Any]:
     updates: dict[str, Any] = {}
     fields_out: list[str] = []
 
     org = _s(n.get("organization"))
-    if org and not (emp.company or "").strip():
-        updates["company"] = org[:255]
-        fields_out.append("company")
+    company_empty = not (emp.company or "").strip()
+    company_auto_applied = False
+    company_skip_reason = ""
+
+    if org:
+        if not company_empty:
+            company_skip_reason = "existing_company"
+        elif _medical_organization_trustworthy(org):
+            updates["company"] = org[:255]
+            fields_out.append("company")
+            company_auto_applied = True
+        else:
+            company_skip_reason = "organization_not_trustworthy"
 
     conclusion = _s(n.get("conclusion"))
+    med_marker = f"--- Медсправка (документ id={doc_pk}) ---"
+    existing = (emp.notes or "").rstrip()
+
+    note_lines: list[str] = []
+    if org and not company_auto_applied:
+        note_lines.append(
+            f"Организация (из разбора, в поле «организация» не записана автоматически): {org}"
+        )
     if conclusion:
-        med_marker = f"--- Медсправка (документ id={doc_pk}) ---"
-        existing = (emp.notes or "").rstrip()
-        if med_marker in existing:
-            pass
-        else:
-            block = f"\n{med_marker}\nЗаключение: {conclusion}\n"
-            updates["notes"] = (existing + block).strip() if existing else block.strip()
-            fields_out.append("notes")
+        note_lines.append(f"Заключение: {conclusion}")
+
+    if note_lines and med_marker not in existing:
+        block = med_marker + "\n" + "\n".join(note_lines) + "\n"
+        updates["notes"] = (existing + "\n" + block).strip() if existing else block.strip()
+        fields_out.append("notes")
+
+    base_extra: dict[str, Any] = {
+        "extractor_kind": "medical_certificate",
+        "employee_id": emp.pk,
+        "document_id": doc_pk,
+        "medical_organization_preview": org,
+        "company_auto_applied": company_auto_applied,
+        "company_skip_reason": company_skip_reason,
+    }
 
     if not updates:
-        return {"applied": False, "reason": "no_medical_fields_to_write", "document_id": doc_pk}
+        return {
+            "applied": False,
+            "reason": "no_medical_fields_to_write",
+            **base_extra,
+        }
 
     for k, v in updates.items():
         setattr(emp, k, v)
     emp.save(update_fields=list(updates.keys()))
     logger.debug("Employee pk=%s обновлён из медсправки (документ %s): %s", emp.pk, doc_pk, fields_out)
-    return {"applied": True, "extractor_kind": "medical_certificate", "fields": fields_out, "employee_id": emp.pk}
+    return {
+        "applied": True,
+        "fields": fields_out,
+        **base_extra,
+    }

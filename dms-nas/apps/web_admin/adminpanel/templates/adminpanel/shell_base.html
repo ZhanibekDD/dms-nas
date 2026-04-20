@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'adminpanel/css/brand.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="workspace-shell">
+  <aside class="workspace-sidebar">
+    <div class="workspace-sidebar-title">Единая экосистема</div>
+    <a href="/workspace/dashboard/" class="workspace-link">Dashboard</a>
+    <a href="/workspace/employees/" class="workspace-link">Employees</a>
+    <a href="/workspace/documents/" class="workspace-link">Documents</a>
+    <a href="/workspace/packages/" class="workspace-link">Packages</a>
+    <a href="/workspace/ai/" class="workspace-link">AI Assistant</a>
+    <div class="workspace-sidebar-sep"></div>
+    <a href="/" class="workspace-link workspace-link-muted">Старый дашборд</a>
+    <a href="/quality/" class="workspace-link workspace-link-muted">Quality Dashboard</a>
+  </aside>
+
+  <section class="workspace-main">
+    <header class="workspace-topbar">
+      <div>
+        <h1 class="workspace-title">{% block workspace_title %}Workspace{% endblock %}</h1>
+        <p class="workspace-subtitle">{% block workspace_subtitle %}Новый UI shell без ломки текущего adminpanel{% endblock %}</p>
+      </div>
+      <div class="workspace-actions">
+        <a href="/workspace/scan/" class="workspace-btn workspace-btn-primary">Сканировать документ</a>
+        <a href="/workspace/ai/" class="workspace-btn workspace-btn-outline">Спросить ИИ</a>
+      </div>
+    </header>
+
+    <div class="workspace-content">
+      {% block workspace_content %}{% endblock %}
+    </div>
+  </section>
+</div>
+{% endblock %}

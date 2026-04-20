@@ -3,6 +3,12 @@ from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("workspace/dashboard/", views.workspace_dashboard, name="workspace_dashboard"),
+    path("workspace/employees/", views.workspace_employees, name="workspace_employees"),
+    path("workspace/documents/", views.workspace_documents, name="workspace_documents"),
+    path("workspace/packages/", views.workspace_packages, name="workspace_packages"),
+    path("workspace/ai/", views.ai_assistant_page, name="ai_assistant_page"),
+    path("workspace/scan/", views.scan_document_page, name="scan_document_page"),
     path("nas-proxy/", views.nas_proxy, name="nas_proxy"),
     path("health", views.health, name="health"),
     path("packages/", views.packages_ui, name="packages_ui"),

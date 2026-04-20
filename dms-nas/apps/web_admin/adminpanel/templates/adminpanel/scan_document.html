@@ -1,0 +1,12 @@
+{% extends "adminpanel/shell_base.html" %}
+
+{% block workspace_title %}Сканировать документ{% endblock %}
+{% block workspace_subtitle %}Отдельный сценарий для OCR/Vision обработки{% endblock %}
+
+{% block workspace_content %}
+<div class="workspace-card">
+  <h3>Сканирование документа</h3>
+  <p>Здесь будет сценарий загрузки файла и вызова extraction-пайплайна.</p>
+  <p class="workspace-note">На этом этапе только UI-заглушка без upload и обработки.</p>
+</div>
+{% endblock %}

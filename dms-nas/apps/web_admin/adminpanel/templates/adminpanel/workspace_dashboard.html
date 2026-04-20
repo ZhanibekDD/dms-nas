@@ -1,0 +1,29 @@
+{% extends "adminpanel/shell_base.html" %}
+
+{% block workspace_title %}Dashboard{% endblock %}
+{% block workspace_subtitle %}Точка входа для новых сценариев документов, пакетов и AI{% endblock %}
+
+{% block workspace_content %}
+<div class="workspace-grid">
+  <div class="workspace-card">
+    <h3>Сканировать документ</h3>
+    <p>Отдельный сценарий для будущего OCR/Vision извлечения данных из PDF и изображений.</p>
+    <a href="/workspace/scan/" class="workspace-btn workspace-btn-primary">Открыть сценарий</a>
+  </div>
+  <div class="workspace-card">
+    <h3>Спросить ИИ</h3>
+    <p>Отдельный сценарий для советов, проверки комплекта и объяснений по документам.</p>
+    <a href="/workspace/ai/" class="workspace-btn workspace-btn-outline">Открыть AI Assistant</a>
+  </div>
+</div>
+
+<div class="workspace-card">
+  <h3>Статус этапа 1</h3>
+  <p>Выполнен только UI shell: добавлены маршруты, страницы-заглушки и разделение двух кнопок.</p>
+  <ul class="workspace-list">
+    <li>Без миграций и серверных изменений</li>
+    <li>Без extraction, import и pass_docs моделей</li>
+    <li>Существующие страницы adminpanel сохранены</li>
+  </ul>
+</div>
+{% endblock %}

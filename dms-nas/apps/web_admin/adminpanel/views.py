@@ -134,6 +134,36 @@ def dashboard(request):
     return render(request, "adminpanel/dashboard.html", context)
 
 
+@staff_member_required
+def workspace_dashboard(request):
+    return render(request, "adminpanel/workspace_dashboard.html")
+
+
+@staff_member_required
+def workspace_employees(request):
+    return render(request, "adminpanel/employees.html")
+
+
+@staff_member_required
+def workspace_documents(request):
+    return render(request, "adminpanel/documents.html")
+
+
+@staff_member_required
+def workspace_packages(request):
+    return render(request, "adminpanel/packages_hub.html")
+
+
+@staff_member_required
+def ai_assistant_page(request):
+    return render(request, "adminpanel/ai_assistant.html")
+
+
+@staff_member_required
+def scan_document_page(request):
+    return render(request, "adminpanel/scan_document.html")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # NAS Download Proxy — browser never connects to NAS directly
 # ──────────────────────────────────────────────────────────────────────────────

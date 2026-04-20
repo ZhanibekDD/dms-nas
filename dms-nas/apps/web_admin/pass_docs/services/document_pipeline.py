@@ -106,7 +106,7 @@ def _is_garbage_text(text: str) -> bool:
     return False
 
 
-def _pdf_first_page_png_b64(path: Path) -> str | None:
+def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
     import os
     import tempfile
 
@@ -134,8 +134,47 @@ def _pdf_first_page_png_b64(path: Path) -> str | None:
                 except OSError:
                     pass
     except Exception as exc:
-        logger.debug("PDF first page render failed for %s — %s", path, exc)
+        logger.debug("pdfplumber first-page render failed for %s — %s", path, exc)
         return None
+
+
+def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
+    """Headless-friendly рендер первой страницы (pypdfium2 тянется с pdfplumber)."""
+    try:
+        import pypdfium2 as pdfium
+    except ImportError:
+        return None
+    pdf = None
+    try:
+        pdf = pdfium.PdfDocument(str(path))
+        if len(pdf) < 1:
+            return None
+        page = pdf[0]
+        # ~144 dpi при базовой 72 dpi страницы
+        bitmap = page.render(scale=144 / 72.0)
+        try:
+            pil = bitmap.to_pil()
+            buf = io.BytesIO()
+            pil.save(buf, format="PNG")
+            return vision_client.file_to_base64_from_bytes(buf.getvalue())
+        finally:
+            bitmap.close()
+    except Exception as exc:
+        logger.debug("pypdfium2 first-page render failed for %s — %s", path, exc)
+        return None
+    finally:
+        if pdf is not None:
+            try:
+                pdf.close()
+            except Exception:
+                pass
+
+
+def _pdf_first_page_png_b64(path: Path) -> str | None:
+    b64 = _pdf_first_page_png_b64_pdfplumber(path)
+    if b64:
+        return b64
+    return _pdf_first_page_png_b64_pypdfium(path)
 
 
 def _run_extractor(kind: str, *, vision_json: dict | None, pdf_text: str | None) -> dict[str, Any]:

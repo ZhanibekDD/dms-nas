@@ -70,6 +70,14 @@ def chat_json(
 
     try:
         resp = requests.post(url, json=payload, timeout=timeout)
+        if resp.status_code >= 400:
+            body = (resp.text or "").strip().replace("\n", " ")
+            # error: чаще видно в консоли manage.py, чем warning
+            logger.error(
+                "Ollama HTTP %s (первые 1200 символов тела ответа): %.1200s",
+                resp.status_code,
+                body,
+            )
         resp.raise_for_status()
     except requests.RequestException as exc:
         # Не logger.exception: иначе в консоль Windows уходит полный traceback при выключенном Ollama.

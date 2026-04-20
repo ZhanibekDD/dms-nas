@@ -2,12 +2,26 @@ from django.db import models
 
 
 class DocumentType(models.Model):
-    """Справочник типов документов (паспорт, медсправка и т.д.)."""
+    """Справочник типов документов."""
 
-    code = models.SlugField("код", max_length=64, unique=True)
+    code = models.CharField("код", max_length=64, unique=True)
     name = models.CharField("название", max_length=255)
     description = models.TextField("описание", blank=True)
     sort_order = models.PositiveIntegerField("порядок", default=0)
+    extractor_kind = models.CharField(
+        "тип экстрактора",
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Идентификатор пайплайна извлечения (позже vision и т.д.).",
+    )
+    is_common_document = models.BooleanField("общий документ", default=False)
+    expiry_rule_days = models.PositiveIntegerField(
+        "срок действия, дней",
+        null=True,
+        blank=True,
+        help_text="Опциональное правило: через сколько дней истекает документ.",
+    )
 
     class Meta:
         ordering = ["sort_order", "code"]
@@ -19,18 +33,26 @@ class DocumentType(models.Model):
 
 
 class Employee(models.Model):
-    """Сотрудник в контексте личного дела / pass_docs."""
+    """Сотрудник (личное дело)."""
 
     employee_code = models.CharField("код сотрудника", max_length=64, unique=True)
-    full_name = models.CharField("ФИО", max_length=255)
-    profession_key = models.CharField("ключ профессии", max_length=64, db_index=True)
+    full_name = models.CharField("ФИО (как в источнике)", max_length=512)
+    last_name = models.CharField("фамилия", max_length=128, blank=True)
+    first_name = models.CharField("имя", max_length=128, blank=True)
+    middle_name = models.CharField("отчество", max_length=128, blank=True)
+    profession_key = models.CharField("ключ профессии", max_length=64, blank=True, db_index=True)
     profession_label = models.CharField("профессия (подпись)", max_length=255, blank=True)
+    company = models.CharField("организация", max_length=255, blank=True)
+    birth_date = models.DateField("дата рождения", null=True, blank=True)
+    iin = models.CharField("ИИН/идентификатор", max_length=32, blank=True, db_index=True)
+    passport_series = models.CharField("серия паспорта", max_length=16, blank=True)
+    passport_number = models.CharField("номер паспорта", max_length=32, blank=True)
+    passport_full_number = models.CharField("паспорт полностью", max_length=64, blank=True)
+    is_active = models.BooleanField("активен", default=True)
     notes = models.TextField("заметки", blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["full_name"]
+        ordering = ["full_name", "employee_code"]
         verbose_name = "сотрудник"
         verbose_name_plural = "сотрудники"
 
@@ -39,7 +61,13 @@ class Employee(models.Model):
 
 
 class EmployeeDocument(models.Model):
-    """Факт документа у сотрудника (без файлов и vision на этом этапе)."""
+    """Документ сотрудника (файл на диске + статусы парсинга)."""
+
+    class ParseStatus(models.TextChoices):
+        PENDING = "pending", "ожидает разбора"
+        SKIPPED = "skipped", "пропущен"
+        OK = "ok", "разобран"
+        ERROR = "error", "ошибка"
 
     class Status(models.TextChoices):
         MISSING = "missing", "нет в комплекте"
@@ -60,39 +88,56 @@ class EmployeeDocument(models.Model):
         related_name="employee_documents",
         verbose_name="тип документа",
     )
+    original_file = models.FileField(
+        "файл",
+        upload_to="pass_docs/uploads/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+    source_path = models.TextField("путь к исходному файлу")
+    issue_date = models.DateField("дата выдачи", null=True, blank=True)
+    expiry_date = models.DateField("срок действия", null=True, blank=True)
+    extracted_json = models.JSONField("результат извлечения", default=dict, blank=True)
+    parse_status = models.CharField(
+        "статус разбора",
+        max_length=16,
+        choices=ParseStatus.choices,
+        default=ParseStatus.PENDING,
+    )
     status = models.CharField(
-        "статус",
+        "статус комплекта",
         max_length=16,
         choices=Status.choices,
         default=Status.PENDING,
     )
+    is_actual = models.BooleanField("актуален", default=True)
     external_reference = models.CharField(
         "внешний номер / реквизиты",
         max_length=255,
         blank=True,
     )
-    valid_until = models.DateField("действителен до", null=True, blank=True)
     metadata = models.JSONField("метаданные импорта", default=dict, blank=True)
+    notes = models.TextField("заметки", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["employee", "document_type"]
+        ordering = ["employee", "document_type", "source_path"]
         verbose_name = "документ сотрудника"
         verbose_name_plural = "документы сотрудников"
         constraints = [
             models.UniqueConstraint(
-                fields=["employee", "document_type"],
-                name="pass_docs_unique_employee_document_type",
+                fields=["employee", "source_path"],
+                name="pass_docs_unique_employee_source_path",
             ),
         ]
 
     def __str__(self):
-        return f"{self.employee.employee_code} → {self.document_type.code} ({self.status})"
+        return f"{self.employee.employee_code} → {self.document_type.code} ({self.source_path})"
 
 
 class ProfessionRequirement(models.Model):
-    """Какие типы документов нужны для профессии."""
+    """Требования к комплекту документов по профессии."""
 
     profession_key = models.CharField("ключ профессии", max_length=64, db_index=True)
     profession_label = models.CharField("подпись профессии", max_length=255, blank=True)
@@ -102,7 +147,9 @@ class ProfessionRequirement(models.Model):
         related_name="profession_requirements",
         verbose_name="тип документа",
     )
-    is_required = models.BooleanField("обязателен", default=True)
+    required_for_initial = models.BooleanField("нужен при первичном оформлении", default=True)
+    required_for_renewal = models.BooleanField("нужен при продлении", default=True)
+    required_for_transport = models.BooleanField("нужен для транспорта", default=False)
     notes = models.TextField("заметки", blank=True)
 
     class Meta:
@@ -117,12 +164,11 @@ class ProfessionRequirement(models.Model):
         ]
 
     def __str__(self):
-        req = "обяз." if self.is_required else "опц."
-        return f"{self.profession_key} → {self.document_type.code} ({req})"
+        return f"{self.profession_key} → {self.document_type.code}"
 
 
 class PackageRequest(models.Model):
-    """Заявка на сборку/отправку пакета (без builder integration)."""
+    """Заявка на пакет (без builder / email отправки на этом этапе)."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "черновик"
@@ -137,14 +183,28 @@ class PackageRequest(models.Model):
         related_name="package_requests",
         verbose_name="сотрудник",
     )
+    package_kind = models.CharField("вид пакета", max_length=64, blank=True)
     status = models.CharField(
         "статус",
         max_length=16,
         choices=Status.choices,
         default=Status.DRAFT,
     )
+    payload_json = models.JSONField("данные заявки", default=dict, blank=True)
+    excel_file = models.FileField(
+        "Excel",
+        upload_to="pass_docs/packages/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+    zip_file = models.FileField(
+        "ZIP",
+        upload_to="pass_docs/packages/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+    email_to = models.CharField("email получателя", max_length=512, blank=True)
     notes = models.TextField("заметки", blank=True)
-    meta = models.JSONField("параметры пакета", default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

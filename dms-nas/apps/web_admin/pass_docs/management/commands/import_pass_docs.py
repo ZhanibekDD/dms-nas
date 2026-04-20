@@ -1,213 +1,225 @@
 """
-Импорт справочников и сотрудников из JSON (этап без vision/builder).
+Импорт из папочной структуры документов (без JSON и без vision/builder).
 
-Ожидаемый формат файла (UTF-8):
+Ожидается корень вида:
+  python manage.py import_pass_docs --root "/path/to/Документы/PDF"
 
-{
-  "document_types": [
-    {"code": "passport_rf", "name": "Паспорт РФ", "description": "", "sort_order": 10}
-  ],
-  "profession_requirements": [
-    {
-      "profession_key": "builder",
-      "profession_label": "Монтажник",
-      "document_type_code": "passport_rf",
-      "is_required": true,
-      "notes": ""
-    }
-  ],
-  "employees": [
-    {
-      "employee_code": "E-001",
-      "full_name": "Иванов Иван Иванович",
-      "profession_key": "builder",
-      "profession_label": "Монтажник",
-      "notes": "",
-      "documents": [
-        {
-          "document_type_code": "passport_rf",
-          "status": "ok",
-          "external_reference": "4510 123456",
-          "valid_until": "2030-12-31",
-          "metadata": {}
-        }
-      ]
-    }
-  ]
-}
+Подкаталоги сотрудников: «{employee_code}&{ФИО или фамилия}», например «1&Иванов».
+Имя сотрудника (для full_name и разбора ФИО) — часть после первого «&».
 
-Поля document_types / profession_requirements / employees могут быть пустыми или отсутствовать.
+Общие каталоги: «R&…» и «D&…» — документы организации; записи привязываются к
+служебному сотруднику с кодом __COMMON_ORG__, в metadata фиксируется вид папки.
+
+Файлы: код типа документа — подстрока до первого «&» в имени файла, например
+  PASSPORT_RF&скан.pdf  →  тип PASSPORT_RF
+
+Повторный запуск обновляет те же строки по паре (сотрудник, абсолютный source_path).
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django.utils.dateparse import parse_date
 
-from pass_docs.models import (
-    DocumentType,
-    Employee,
-    EmployeeDocument,
-    ProfessionRequirement,
-)
+from pass_docs.models import DocumentType, Employee, EmployeeDocument
+
+COMMON_EMPLOYEE_CODE = "__COMMON_ORG__"
 
 
-def _parse_date(value: Any):
-    if value is None or value == "":
-        return None
-    if isinstance(value, str):
-        return parse_date(value[:10])
-    return None
+def _normalize_doc_code(raw: str) -> str:
+    s = (raw or "").strip().upper().replace(" ", "_")
+    cleaned = "".join(c for c in s if c.isalnum() or c in "_-")
+    return cleaned[:64] if cleaned else "UNKNOWN"
+
+
+def _split_fio(name_part: str) -> tuple[str, str, str, str]:
+    """Возвращает (full_name, last_name, first_name, middle_name)."""
+    name_part = (name_part or "").strip()
+    if not name_part:
+        return "", "", "", ""
+    parts = name_part.split()
+    if len(parts) >= 3:
+        ln, fn = parts[0], parts[1]
+        mn = " ".join(parts[2:])
+        return name_part, ln, fn, mn
+    if len(parts) == 2:
+        return name_part, parts[0], parts[1], ""
+    return name_part, name_part, "", ""
 
 
 class Command(BaseCommand):
-    help = "Импорт pass_docs из JSON (типы, требования, сотрудники и их документы)."
+    help = "Импорт pass_docs из папочной структуры (--root)."
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "path",
+            "--root",
             type=str,
-            help="Путь к JSON-файлу с данными для импорта",
-        )
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Только показать, что было бы импортировано, без записи в БД",
+            required=True,
+            help='Корень дерева, например "/path/to/Документы/PDF"',
         )
 
     def handle(self, *args, **options):
-        path = Path(options["path"])
-        if not path.is_file():
-            raise CommandError(f"Файл не найден: {path}")
+        root = Path(options["root"]).expanduser()
+        if not root.is_dir():
+            raise CommandError(f"Каталог не найден или не является папкой: {root}")
 
-        try:
-            raw = path.read_text(encoding="utf-8-sig")
-            data = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise CommandError(f"Некорректный JSON: {exc}") from exc
+        self._root = root.resolve()
+        self.stdout.write(self.style.NOTICE(f"Корень импорта: {self._root}"))
 
-        if not isinstance(data, dict):
-            raise CommandError("Корень JSON должен быть объектом { ... }")
-
-        dry_run = options["dry_run"]
-
-        if dry_run:
-            self.stdout.write(self.style.WARNING("Режим dry-run: транзакция будет откатана."))
-
-        with transaction.atomic():
-            stats = self._import_payload(data)
-            if dry_run:
-                transaction.set_rollback(True)
-
-        self.stdout.write(self.style.SUCCESS("Импорт завершён."))
-        for key, val in stats.items():
-            self.stdout.write(f"  {key}: {val}")
-
-    def _import_payload(self, data: dict) -> dict[str, int]:
         stats = {
-            "document_types": 0,
-            "profession_requirements": 0,
-            "employees": 0,
-            "employee_documents": 0,
+            "employee_folders": 0,
+            "common_folders": 0,
+            "files_seen": 0,
+            "documents_upserted": 0,
+            "skipped_dirs": 0,
+            "skipped_files": 0,
         }
 
-        for row in data.get("document_types") or []:
-            if not isinstance(row, dict) or not row.get("code") or not row.get("name"):
-                continue
-            DocumentType.objects.update_or_create(
-                code=str(row["code"]).strip(),
-                defaults={
-                    "name": str(row["name"]).strip(),
-                    "description": str(row.get("description") or "").strip(),
-                    "sort_order": int(row.get("sort_order") or 0),
-                },
-            )
-            stats["document_types"] += 1
+        with transaction.atomic():
+            common_employee = self._ensure_common_employee()
 
-        for row in data.get("profession_requirements") or []:
-            if not isinstance(row, dict):
-                continue
-            code = str(row.get("document_type_code") or "").strip()
-            pkey = str(row.get("profession_key") or "").strip()
-            if not code or not pkey:
-                continue
-            try:
-                dt = DocumentType.objects.get(code=code)
-            except DocumentType.DoesNotExist:
-                self.stderr.write(
-                    self.style.WARNING(
-                        f"Пропуск требования: нет типа документа «{code}» (profession_key={pkey})"
+            for entry in sorted(self._root.iterdir(), key=lambda p: p.name.lower()):
+                if not entry.is_dir():
+                    continue
+                if "&" not in entry.name:
+                    self.stderr.write(self.style.WARNING(f"Пропуск каталога без «&»: {entry.name}"))
+                    stats["skipped_dirs"] += 1
+                    continue
+
+                prefix, rest = entry.name.split("&", 1)
+                prefix = prefix.strip()
+                rest = rest.strip()
+                pfx_up = prefix.upper()
+
+                if pfx_up in ("R", "D"):
+                    stats["common_folders"] += 1
+                    self._import_files_under(
+                        entry,
+                        common_employee,
+                        from_common=True,
+                        common_kind=pfx_up,
+                        folder_label=rest,
+                        stats=stats,
                     )
-                )
-                continue
-            ProfessionRequirement.objects.update_or_create(
-                profession_key=pkey,
-                document_type=dt,
-                defaults={
-                    "profession_label": str(row.get("profession_label") or "").strip(),
-                    "is_required": bool(row.get("is_required", True)),
-                    "notes": str(row.get("notes") or "").strip(),
-                },
-            )
-            stats["profession_requirements"] += 1
-
-        for row in data.get("employees") or []:
-            if not isinstance(row, dict):
-                continue
-            ecode = str(row.get("employee_code") or "").strip()
-            full_name = str(row.get("full_name") or "").strip()
-            pkey = str(row.get("profession_key") or "").strip()
-            if not ecode or not full_name or not pkey:
-                self.stderr.write(self.style.WARNING("Пропуск сотрудника: нужны employee_code, full_name, profession_key"))
-                continue
-            emp, _created = Employee.objects.update_or_create(
-                employee_code=ecode,
-                defaults={
-                    "full_name": full_name,
-                    "profession_key": pkey,
-                    "profession_label": str(row.get("profession_label") or "").strip(),
-                    "notes": str(row.get("notes") or "").strip(),
-                },
-            )
-            stats["employees"] += 1
-
-            for doc_row in row.get("documents") or []:
-                if not isinstance(doc_row, dict):
-                    continue
-                dcode = str(doc_row.get("document_type_code") or "").strip()
-                if not dcode:
-                    continue
-                try:
-                    dt = DocumentType.objects.get(code=dcode)
-                except DocumentType.DoesNotExist:
-                    self.stderr.write(
-                        self.style.WARNING(
-                            f"Пропуск документа сотрудника {ecode}: нет типа «{dcode}»"
-                        )
+                else:
+                    stats["employee_folders"] += 1
+                    employee = self._ensure_personal_employee(prefix, rest)
+                    self._import_files_under(
+                        entry,
+                        employee,
+                        from_common=False,
+                        common_kind="",
+                        folder_label="",
+                        stats=stats,
                     )
-                    continue
-                status = str(doc_row.get("status") or EmployeeDocument.Status.PENDING).strip()
-                allowed = {c for c, _ in EmployeeDocument.Status.choices}
-                if status not in allowed:
-                    status = EmployeeDocument.Status.PENDING
-                meta = doc_row.get("metadata")
-                if meta is None or not isinstance(meta, dict):
-                    meta = {}
-                EmployeeDocument.objects.update_or_create(
-                    employee=emp,
-                    document_type=dt,
-                    defaults={
-                        "status": status,
-                        "external_reference": str(doc_row.get("external_reference") or "").strip(),
-                        "valid_until": _parse_date(doc_row.get("valid_until")),
-                        "metadata": meta,
-                    },
-                )
-                stats["employee_documents"] += 1
 
-        return stats
+        self.stdout.write(self.style.SUCCESS("Импорт завершён."))
+        for k, v in stats.items():
+            self.stdout.write(f"  {k}: {v}")
+
+    def _ensure_common_employee(self) -> Employee:
+        emp, _ = Employee.objects.get_or_create(
+            employee_code=COMMON_EMPLOYEE_CODE,
+            defaults={
+                "full_name": "Общие документы (R/D)",
+                "last_name": "",
+                "first_name": "",
+                "middle_name": "",
+                "is_active": True,
+                "notes": "Служебная запись для файлов из каталогов R& и D&.",
+            },
+        )
+        return emp
+
+    def _ensure_personal_employee(self, employee_code: str, name_part: str) -> Employee:
+        code = (employee_code or "").strip()[:64]
+        if not code:
+            raise CommandError("Пустой employee_code в имени папки сотрудника")
+        full_name, ln, fn, mn = _split_fio(name_part)
+        if not full_name:
+            full_name = code
+        emp, _ = Employee.objects.update_or_create(
+            employee_code=code,
+            defaults={
+                "full_name": full_name,
+                "last_name": ln,
+                "first_name": fn,
+                "middle_name": mn,
+            },
+        )
+        return emp
+
+    def _get_or_create_document_type(self, raw_code: str, *, from_common: bool) -> DocumentType:
+        code = _normalize_doc_code(raw_code)
+        dt, created = DocumentType.objects.get_or_create(
+            code=code,
+            defaults={
+                "name": (raw_code or code).strip() or code,
+                "description": "",
+                "sort_order": 0,
+                "extractor_kind": "",
+                "is_common_document": from_common,
+                "expiry_rule_days": None,
+            },
+        )
+        if not created and from_common and not dt.is_common_document:
+            dt.is_common_document = True
+            dt.save(update_fields=["is_common_document"])
+        return dt
+
+    def _relpath(self, path: Path) -> str:
+        try:
+            return str(path.resolve().relative_to(self._root))
+        except ValueError:
+            return str(path.resolve())
+
+    def _import_files_under(
+        self,
+        folder: Path,
+        employee: Employee,
+        *,
+        from_common: bool,
+        common_kind: str,
+        folder_label: str,
+        stats: dict,
+    ) -> None:
+        for path in sorted(folder.rglob("*")):
+            if not path.is_file():
+                continue
+            stats["files_seen"] += 1
+            name = path.name
+            if "&" not in name:
+                stats["skipped_files"] += 1
+                continue
+
+            raw_code = name.split("&", 1)[0].strip()
+            doc_type = self._get_or_create_document_type(raw_code, from_common=from_common)
+
+            source_path = str(path.resolve())
+            meta: dict = {
+                "import_scope": "common" if from_common else "employee",
+                "path_under_root": self._relpath(path),
+            }
+            if from_common:
+                meta["common_folder_kind"] = common_kind
+                meta["common_folder_label"] = folder_label
+            else:
+                meta["employee_folder"] = folder.name
+
+            EmployeeDocument.objects.update_or_create(
+                employee=employee,
+                source_path=source_path,
+                defaults={
+                    "document_type": doc_type,
+                    "parse_status": EmployeeDocument.ParseStatus.PENDING,
+                    "status": EmployeeDocument.Status.PENDING,
+                    "is_actual": True,
+                    "metadata": meta,
+                    "extracted_json": {},
+                    "external_reference": "",
+                    "notes": "",
+                },
+            )
+            stats["documents_upserted"] += 1

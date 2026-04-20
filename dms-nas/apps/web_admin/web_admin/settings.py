@@ -73,7 +73,8 @@ DATABASES = {
 AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = "ru-RU"
-TIME_ZONE = "Europe/Kiev"
+# IANA: Kyiv — каноническое имя; «Kiev» в zoneinfo (Ubuntu/tzdata) даёт ValueError в Django 5+.
+TIME_ZONE = "Europe/Kyiv"
 USE_I18N = True
 USE_TZ = True
 

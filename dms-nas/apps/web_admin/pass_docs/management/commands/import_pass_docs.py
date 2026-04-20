@@ -14,6 +14,10 @@
   PASSPORT_RF&скан.pdf  →  тип PASSPORT_RF
 
 Повторный запуск обновляет те же строки по паре (сотрудник, абсолютный source_path).
+
+Опции:
+  --dry-run          выполнить импорт в транзакции и откатить (статистика печатается)
+  --only-folder NAME обработать только один подкаталог корня (имя папки, например «1&Гезик» или «R&Регламенты»)
 """
 
 from __future__ import annotations
@@ -49,6 +53,20 @@ def _split_fio(name_part: str) -> tuple[str, str, str, str]:
     return name_part, name_part, "", ""
 
 
+def _empty_stats() -> dict[str, int]:
+    return {
+        "employees_created": 0,
+        "employees_updated": 0,
+        "document_types_created": 0,
+        "document_types_updated": 0,
+        "employee_documents_created": 0,
+        "employee_documents_updated": 0,
+        "files_seen": 0,
+        "skipped_dirs": 0,
+        "skipped_files": 0,
+    }
+
+
 class Command(BaseCommand):
     help = "Импорт pass_docs из папочной структуры (--root)."
 
@@ -59,6 +77,17 @@ class Command(BaseCommand):
             required=True,
             help='Корень дерева, например "/path/to/Документы/PDF"',
         )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Выполнить импорт в транзакции и откатить изменения (статистика всё равно выводится).",
+        )
+        parser.add_argument(
+            "--only-folder",
+            type=str,
+            default="",
+            help='Имя одного подкаталога под --root, например "1&Гезик" или "R&Регламенты"',
+        )
 
     def handle(self, *args, **options):
         root = Path(options["root"]).expanduser()
@@ -66,21 +95,21 @@ class Command(BaseCommand):
             raise CommandError(f"Каталог не найден или не является папкой: {root}")
 
         self._root = root.resolve()
-        self.stdout.write(self.style.NOTICE(f"Корень импорта: {self._root}"))
+        dry_run = bool(options["dry_run"])
+        only_folder = (options.get("only_folder") or "").strip()
 
-        stats = {
-            "employee_folders": 0,
-            "common_folders": 0,
-            "files_seen": 0,
-            "documents_upserted": 0,
-            "skipped_dirs": 0,
-            "skipped_files": 0,
-        }
+        self.stdout.write(self.style.NOTICE(f"Корень импорта: {self._root}"))
+        if dry_run:
+            self.stdout.write(self.style.WARNING("Режим --dry-run: после завершения транзакция будет откатана."))
+        if only_folder:
+            self.stdout.write(self.style.NOTICE(f"Только папка: {only_folder!r}"))
+
+        stats = _empty_stats()
 
         with transaction.atomic():
-            common_employee = self._ensure_common_employee()
+            common_employee = self._ensure_common_employee(stats)
 
-            for entry in sorted(self._root.iterdir(), key=lambda p: p.name.lower()):
+            for entry in self._iter_target_entries(only_folder):
                 if not entry.is_dir():
                     continue
                 if "&" not in entry.name:
@@ -94,7 +123,6 @@ class Command(BaseCommand):
                 pfx_up = prefix.upper()
 
                 if pfx_up in ("R", "D"):
-                    stats["common_folders"] += 1
                     self._import_files_under(
                         entry,
                         common_employee,
@@ -104,8 +132,7 @@ class Command(BaseCommand):
                         stats=stats,
                     )
                 else:
-                    stats["employee_folders"] += 1
-                    employee = self._ensure_personal_employee(prefix, rest)
+                    employee = self._ensure_personal_employee(prefix, rest, stats)
                     self._import_files_under(
                         entry,
                         employee,
@@ -115,12 +142,45 @@ class Command(BaseCommand):
                         stats=stats,
                     )
 
-        self.stdout.write(self.style.SUCCESS("Импорт завершён."))
-        for k, v in stats.items():
-            self.stdout.write(f"  {k}: {v}")
+            if dry_run:
+                transaction.set_rollback(True)
 
-    def _ensure_common_employee(self) -> Employee:
-        emp, _ = Employee.objects.get_or_create(
+        self.stdout.write(self.style.SUCCESS("Импорт завершён."))
+        for key in (
+            "employees_created",
+            "employees_updated",
+            "document_types_created",
+            "document_types_updated",
+            "employee_documents_created",
+            "employee_documents_updated",
+            "files_seen",
+            "skipped_dirs",
+            "skipped_files",
+        ):
+            self.stdout.write(f"  {key}: {stats[key]}")
+
+    def _iter_target_entries(self, only_folder: str):
+        """Подкаталоги корня для обработки (все или один по --only-folder)."""
+        if not only_folder:
+            yield from sorted(self._root.iterdir(), key=lambda p: p.name.lower())
+            return
+
+        direct = self._root / only_folder
+        if direct.is_dir() and direct.parent.resolve() == self._root:
+            yield direct
+            return
+
+        for child in self._root.iterdir():
+            if child.is_dir() and child.name == only_folder:
+                yield child
+                return
+
+        raise CommandError(
+            f"Папка {only_folder!r} не найдена непосредственно под корнем {self._root}"
+        )
+
+    def _ensure_common_employee(self, stats: dict) -> Employee:
+        emp, created = Employee.objects.get_or_create(
             employee_code=COMMON_EMPLOYEE_CODE,
             defaults={
                 "full_name": "Общие документы (R/D)",
@@ -131,16 +191,18 @@ class Command(BaseCommand):
                 "notes": "Служебная запись для файлов из каталогов R& и D&.",
             },
         )
+        if created:
+            stats["employees_created"] += 1
         return emp
 
-    def _ensure_personal_employee(self, employee_code: str, name_part: str) -> Employee:
+    def _ensure_personal_employee(self, employee_code: str, name_part: str, stats: dict) -> Employee:
         code = (employee_code or "").strip()[:64]
         if not code:
             raise CommandError("Пустой employee_code в имени папки сотрудника")
         full_name, ln, fn, mn = _split_fio(name_part)
         if not full_name:
             full_name = code
-        emp, _ = Employee.objects.update_or_create(
+        emp, created = Employee.objects.update_or_create(
             employee_code=code,
             defaults={
                 "full_name": full_name,
@@ -149,9 +211,15 @@ class Command(BaseCommand):
                 "middle_name": mn,
             },
         )
+        if created:
+            stats["employees_created"] += 1
+        else:
+            stats["employees_updated"] += 1
         return emp
 
-    def _get_or_create_document_type(self, raw_code: str, *, from_common: bool) -> DocumentType:
+    def _get_or_create_document_type(
+        self, raw_code: str, *, from_common: bool, stats: dict
+    ) -> DocumentType:
         code = _normalize_doc_code(raw_code)
         dt, created = DocumentType.objects.get_or_create(
             code=code,
@@ -164,9 +232,12 @@ class Command(BaseCommand):
                 "expiry_rule_days": None,
             },
         )
-        if not created and from_common and not dt.is_common_document:
+        if created:
+            stats["document_types_created"] += 1
+        elif from_common and not dt.is_common_document:
             dt.is_common_document = True
             dt.save(update_fields=["is_common_document"])
+            stats["document_types_updated"] += 1
         return dt
 
     def _relpath(self, path: Path) -> str:
@@ -195,7 +266,9 @@ class Command(BaseCommand):
                 continue
 
             raw_code = name.split("&", 1)[0].strip()
-            doc_type = self._get_or_create_document_type(raw_code, from_common=from_common)
+            doc_type = self._get_or_create_document_type(
+                raw_code, from_common=from_common, stats=stats
+            )
 
             source_path = str(path.resolve())
             meta: dict = {
@@ -208,7 +281,7 @@ class Command(BaseCommand):
             else:
                 meta["employee_folder"] = folder.name
 
-            EmployeeDocument.objects.update_or_create(
+            _ed, ed_created = EmployeeDocument.objects.update_or_create(
                 employee=employee,
                 source_path=source_path,
                 defaults={
@@ -222,4 +295,7 @@ class Command(BaseCommand):
                     "notes": "",
                 },
             )
-            stats["documents_upserted"] += 1
+            if ed_created:
+                stats["employee_documents_created"] += 1
+            else:
+                stats["employee_documents_updated"] += 1

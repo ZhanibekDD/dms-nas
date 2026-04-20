@@ -15,6 +15,7 @@ from typing import Any
 
 from pass_docs.models import DocumentType, EmployeeDocument
 from pass_docs.services import vision_client
+from pass_docs.services import employee_extraction_sync
 from pass_docs.services.extractors import EXTRACTOR_REGISTRY
 
 logger = logging.getLogger(__name__)
@@ -130,7 +131,11 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
         doc.extracted_json = {"error": "file_not_found", "path": str(path)}
         doc.parse_status = EmployeeDocument.ParseStatus.ERROR
         doc.save(update_fields=["extracted_json", "parse_status", "updated_at"])
-        return {"parse_status": doc.parse_status, "error": "file_not_found"}
+        return {
+            "parse_status": doc.parse_status,
+            "error": "file_not_found",
+            "employee_sync": {"applied": False, "reason": "file_not_found"},
+        }
 
     if not kind:
         doc.extracted_json = {
@@ -140,7 +145,11 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
         }
         doc.parse_status = EmployeeDocument.ParseStatus.SKIPPED
         doc.save(update_fields=["extracted_json", "parse_status", "updated_at"])
-        return {"parse_status": doc.parse_status, "skipped": True}
+        return {
+            "parse_status": doc.parse_status,
+            "skipped": True,
+            "employee_sync": {"applied": False, "reason": "skipped_no_extractor"},
+        }
 
     ext = path.suffix.lower()
     steps: list[str] = []
@@ -221,9 +230,14 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
         doc.parse_status = EmployeeDocument.ParseStatus.ERROR
 
     doc.save(update_fields=["extracted_json", "parse_status", "updated_at"])
-    return {
+
+    employee_sync = employee_extraction_sync.apply_extracted_normalized_to_employee(doc)
+
+    out: dict[str, Any] = {
         "id": doc.pk,
         "parse_status": doc.parse_status,
         "extractor_kind": kind,
         "keys": list((doc.extracted_json or {}).keys()),
+        "employee_sync": employee_sync,
     }
+    return out

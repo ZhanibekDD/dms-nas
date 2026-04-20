@@ -106,6 +106,22 @@ def _is_garbage_text(text: str) -> bool:
     return False
 
 
+def _pil_to_png_b64_for_vision(pil: Any, *, max_side: int = 1280) -> str:
+    """Уменьшает кадр для vision (меньше трафик и быстрее ответ Ollama), сохраняет PNG → base64."""
+    from PIL import Image
+
+    im = pil.convert("RGB")
+    w, h = im.size
+    if max(w, h) > max_side:
+        ratio = max_side / float(max(w, h))
+        nw, nh = max(1, int(w * ratio)), max(1, int(h * ratio))
+        resample = Image.Resampling.LANCZOS if hasattr(Image, "Resampling") else Image.LANCZOS
+        im = im.resize((nw, nh), resample)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG", optimize=True)
+    return vision_client.file_to_base64_from_bytes(buf.getvalue())
+
+
 def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
     import os
     import tempfile
@@ -120,14 +136,16 @@ def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
             img = page.to_image(resolution=144)
             pil = getattr(img, "original", None)
             if pil is not None and hasattr(pil, "save"):
-                buf = io.BytesIO()
-                pil.save(buf, format="PNG")
-                return vision_client.file_to_base64_from_bytes(buf.getvalue())
+                return _pil_to_png_b64_for_vision(pil)
             fd, tmp_path = tempfile.mkstemp(suffix=".png")
             os.close(fd)
             try:
+                from PIL import Image
+
                 img.save(tmp_path, format="PNG")
-                return vision_client.file_to_base64(Path(tmp_path))
+                with Image.open(tmp_path) as opened:
+                    opened.load()
+                    return _pil_to_png_b64_for_vision(opened)
             finally:
                 try:
                     os.unlink(tmp_path)
@@ -154,9 +172,7 @@ def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
         bitmap = page.render(scale=144 / 72.0)
         try:
             pil = bitmap.to_pil()
-            buf = io.BytesIO()
-            pil.save(buf, format="PNG")
-            return vision_client.file_to_base64_from_bytes(buf.getvalue())
+            return _pil_to_png_b64_for_vision(pil)
         finally:
             bitmap.close()
     except Exception as exc:
@@ -262,7 +278,11 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
 
         elif ext in IMAGE_SUFFIXES:
             steps.append("image_direct_vision")
-            b64 = vision_client.file_to_base64(path)
+            from PIL import Image
+
+            with Image.open(path) as im:
+                im.load()
+                b64 = _pil_to_png_b64_for_vision(im)
             vision_raw = vision_client.chat_json(
                 _vision_prompt(kind),
                 images_b64=[b64],

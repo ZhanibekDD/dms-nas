@@ -36,6 +36,12 @@ class Command(BaseCommand):
                 f"Документ id={doc.pk} type={doc.document_type.code} path={doc.source_path}"
             )
         )
+        self.stdout.write(
+            self.style.WARNING(
+                "Если пойдёт запрос к Ollama (vision), ответ может занять несколько минут — "
+                "не прерывайте без нужды (таймаут чтения по умолчанию 900 с, см. OLLAMA_READ_TIMEOUT)."
+            )
+        )
         summary = run_extraction(doc)
         doc.refresh_from_db()
         self.stdout.write(self.style.SUCCESS("Готово."))

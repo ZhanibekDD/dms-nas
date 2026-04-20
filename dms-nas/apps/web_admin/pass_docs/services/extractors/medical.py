@@ -19,16 +19,24 @@ def _s(v: object) -> str:
     return t
 
 
+_MEDICAL_TEXT_FIELDS: tuple[str, ...] = (
+    "patient_name",
+    "issue_date",
+    "valid_until",
+    "organization",
+    "conclusion",
+    "certificate_number",
+)
+
+
+def _empty_medical_from_text() -> dict[str, str]:
+    """Полный словарь текстовых полей (пустые строки)."""
+    return dict.fromkeys(_MEDICAL_TEXT_FIELDS, "")
+
+
 def _extract_medical_from_text(text: str) -> dict[str, str]:
     """Эвристики по русскоязычному тексту справки."""
-    empty = {
-        "patient_name": "",
-        "issue_date": "",
-        "valid_until": "",
-        "organization": "",
-        "conclusion": "",
-        "certificate_number": "",
-    }
+    empty = _empty_medical_from_text()
     if not text or len(text.strip()) < 10:
         return empty
 
@@ -110,20 +118,22 @@ def extract_medical_certificate(
         raw.update(vision_json)
 
     text = (pdf_text or "").strip()
-    from_text = _extract_medical_from_text(text) if text else {}
+    from_text = _extract_medical_from_text(text) if text else _empty_medical_from_text()
 
-    cert = _s(raw.get("certificate_number") or raw.get("number")) or from_text["certificate_number"]
-    patient = _s(raw.get("patient_name") or raw.get("full_name")) or from_text["patient_name"]
-    org = _s(raw.get("organization") or raw.get("issuer")) or from_text["organization"]
-    conclusion = _s(raw.get("conclusion") or raw.get("result")) or from_text["conclusion"]
+    cert = _s(raw.get("certificate_number") or raw.get("number")) or from_text.get(
+        "certificate_number", ""
+    )
+    patient = _s(raw.get("patient_name") or raw.get("full_name")) or from_text.get("patient_name", "")
+    org = _s(raw.get("organization") or raw.get("issuer")) or from_text.get("organization", "")
+    conclusion = _s(raw.get("conclusion") or raw.get("result")) or from_text.get("conclusion", "")
 
     issue = normalize_date_iso(raw.get("issue_date") or raw.get("date_of_issue"))
     if not issue:
-        issue = from_text["issue_date"]
+        issue = from_text.get("issue_date", "")
 
     valid_until = normalize_date_iso(raw.get("valid_until") or raw.get("expiry_date"))
     if not valid_until:
-        valid_until = from_text["valid_until"]
+        valid_until = from_text.get("valid_until", "")
 
     src = "vision" if vision_json else ("text" if text else "empty")
     if vision_json and text and any(from_text.values()):

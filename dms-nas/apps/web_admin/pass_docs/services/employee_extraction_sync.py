@@ -2,8 +2,8 @@
 Перенос полей из extracted_json.normalized в карточку Employee.
 
 Поддерживаются только extractor_kind:
-  ru_passport
-  medical_certificate
+  ru_passport — ФИО/дата рождения/паспортные поля только в пустые поля; расхождения в notes + conflicts в summary.
+  medical_certificate — как раньше; повтор одного и того же документа в notes не дублируется.
 
 Служебный сотрудник общих документов (__COMMON_ORG__) не обновляется.
 """
@@ -40,6 +40,36 @@ def _s(v: Any) -> str:
     return "" if t.lower() in ("null", "none", "-", "—") else t
 
 
+def _is_empty_employee_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, date):
+        return False
+    return not str(value).strip()
+
+
+def _serialize_for_conflict(value: Any) -> str:
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value).strip()
+
+
+def _passport_id_norm(s: str) -> str:
+    return "".join(c for c in (s or "") if c.isalnum()).lower()
+
+
+def _values_equal_for_passport_sync(field: str, current: Any, incoming: Any) -> bool:
+    if field == "birth_date":
+        return isinstance(current, date) and isinstance(incoming, date) and current == incoming
+    a = _serialize_for_conflict(current)
+    b = _serialize_for_conflict(incoming)
+    if not a and not b:
+        return True
+    if field in ("passport_series", "passport_number", "passport_full_number"):
+        return _passport_id_norm(a) == _passport_id_norm(b)
+    return a.casefold() == b.casefold()
+
+
 def apply_extracted_normalized_to_employee(doc: EmployeeDocument) -> dict[str, Any]:
     """
     Читает doc.extracted_json['normalized'] и doc.extracted_json['extractor_kind'],
@@ -69,52 +99,106 @@ def apply_extracted_normalized_to_employee(doc: EmployeeDocument) -> dict[str, A
 
 
 def _sync_ru_passport(emp: Employee, n: dict[str, Any], *, doc_pk: int) -> dict[str, Any]:
+    """
+    Паспорт: не перетирать уже заполненные поля; расхождения — в notes и в conflicts в summary.
+    """
+    applied_fields: list[str] = []
+    skipped_existing_fields: list[str] = []
+    conflicts: list[dict[str, Any]] = []
     updates: dict[str, Any] = {}
-    fields_out: list[str] = []
 
-    fn = _s(n.get("full_name"))
-    if fn:
-        updates["full_name"] = fn[:512]
-        fields_out.append("full_name")
-    ln = _s(n.get("last_name"))
-    if ln:
-        updates["last_name"] = ln[:128]
-        fields_out.append("last_name")
-    fnm = _s(n.get("first_name"))
-    if fnm:
-        updates["first_name"] = fnm[:128]
-        fields_out.append("first_name")
-    mn = _s(n.get("middle_name"))
-    if mn:
-        updates["middle_name"] = mn[:128]
-        fields_out.append("middle_name")
+    def _inc_str(key: str, maxlen: int) -> str:
+        t = _s(n.get(key))
+        return t[:maxlen] if t else ""
 
-    bd = _parse_iso_date(n.get("birth_date"))
-    if bd is not None:
-        updates["birth_date"] = bd
-        fields_out.append("birth_date")
+    rows: list[tuple[str, Any]] = [
+        ("full_name", _inc_str("full_name", 512)),
+        ("last_name", _inc_str("last_name", 128)),
+        ("first_name", _inc_str("first_name", 128)),
+        ("middle_name", _inc_str("middle_name", 128)),
+        ("birth_date", _parse_iso_date(n.get("birth_date"))),
+        ("passport_series", _inc_str("series", 16)),
+        ("passport_number", _inc_str("number", 32)),
+        ("passport_full_number", _inc_str("full_number", 64)),
+    ]
 
-    ser = _s(n.get("series"))
-    if ser:
-        updates["passport_series"] = ser[:16]
-        fields_out.append("passport_series")
-    num = _s(n.get("number"))
-    if num:
-        updates["passport_number"] = num[:32]
-        fields_out.append("passport_number")
-    pfn = _s(n.get("full_number"))
-    if pfn:
-        updates["passport_full_number"] = pfn[:64]
-        fields_out.append("passport_full_number")
+    for emp_attr, incoming in rows:
+        if emp_attr == "birth_date":
+            if incoming is None:
+                continue
+        elif not incoming:
+            continue
+
+        current = getattr(emp, emp_attr)
+        if _is_empty_employee_value(current):
+            updates[emp_attr] = incoming
+            applied_fields.append(emp_attr)
+        elif _values_equal_for_passport_sync(emp_attr, current, incoming):
+            skipped_existing_fields.append(emp_attr)
+        else:
+            conflicts.append(
+                {
+                    "field": emp_attr,
+                    "existing": _serialize_for_conflict(current),
+                    "incoming": _serialize_for_conflict(incoming),
+                }
+            )
+            skipped_existing_fields.append(emp_attr)
+
+    notes_updated = False
+    conflict_marker = f"--- Паспорт: расхождение (документ id={doc_pk}) ---"
+    if conflicts:
+        existing_notes = (emp.notes or "").rstrip()
+        if conflict_marker not in existing_notes:
+            lines = [
+                f"{c['field']}: в карточке «{c['existing']}»; из паспорта «{c['incoming']}» — не перезаписано."
+                for c in conflicts
+            ]
+            block = conflict_marker + "\n" + "\n".join(lines) + "\n"
+            updates["notes"] = (existing_notes + "\n" + block).strip() if existing_notes else block.strip()
+            notes_updated = True
 
     if not updates:
-        return {"applied": False, "reason": "no_passport_fields_to_write", "document_id": doc_pk}
+        reason = "no_passport_fields_to_write"
+        if conflicts and conflict_marker in (emp.notes or ""):
+            reason = "passport_conflicts_notes_already_present"
+        elif skipped_existing_fields and not conflicts:
+            reason = "incoming_matches_existing_employee"
+        return {
+            "applied": False,
+            "reason": reason,
+            "document_id": doc_pk,
+            "applied_fields": [],
+            "skipped_existing_fields": skipped_existing_fields,
+            "conflicts": conflicts,
+            "employee_id": emp.pk,
+            "extractor_kind": "ru_passport",
+        }
 
     for k, v in updates.items():
         setattr(emp, k, v)
     emp.save(update_fields=list(updates.keys()))
-    logger.debug("Employee pk=%s обновлён из паспорта (документ %s): %s", emp.pk, doc_pk, fields_out)
-    return {"applied": True, "extractor_kind": "ru_passport", "fields": fields_out, "employee_id": emp.pk}
+    logger.debug(
+        "Employee pk=%s sync паспорт (док %s): applied=%s skipped=%s conflicts=%s",
+        emp.pk,
+        doc_pk,
+        applied_fields,
+        skipped_existing_fields,
+        [c["field"] for c in conflicts],
+    )
+
+    out = {
+        "applied": True,
+        "extractor_kind": "ru_passport",
+        "employee_id": emp.pk,
+        "document_id": doc_pk,
+        "applied_fields": applied_fields,
+        "skipped_existing_fields": skipped_existing_fields,
+        "conflicts": conflicts,
+        "notes_updated": notes_updated,
+        "fields": applied_fields,
+    }
+    return out
 
 
 def _sync_medical_certificate(emp: Employee, n: dict[str, Any], *, doc_pk: int) -> dict[str, Any]:
@@ -128,12 +212,12 @@ def _sync_medical_certificate(emp: Employee, n: dict[str, Any], *, doc_pk: int) 
 
     conclusion = _s(n.get("conclusion"))
     if conclusion:
-        marker = f"(документ id={doc_pk})"
+        med_marker = f"--- Медсправка (документ id={doc_pk}) ---"
         existing = (emp.notes or "").rstrip()
-        if marker in existing and conclusion in existing:
+        if med_marker in existing:
             pass
         else:
-            block = f"\n--- Медсправка {marker} ---\nЗаключение: {conclusion}\n"
+            block = f"\n{med_marker}\nЗаключение: {conclusion}\n"
             updates["notes"] = (existing + block).strip() if existing else block.strip()
             fields_out.append("notes")
 

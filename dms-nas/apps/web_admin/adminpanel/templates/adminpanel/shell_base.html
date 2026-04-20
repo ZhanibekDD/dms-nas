@@ -10,14 +10,14 @@
 <div class="workspace-shell">
   <aside class="workspace-sidebar">
     <div class="workspace-sidebar-title">Единая экосистема</div>
-    <a href="/workspace/dashboard/" class="workspace-link">Dashboard</a>
-    <a href="/workspace/employees/" class="workspace-link">Employees</a>
-    <a href="/workspace/documents/" class="workspace-link">Documents</a>
-    <a href="/workspace/packages/" class="workspace-link">Packages</a>
-    <a href="/workspace/ai/" class="workspace-link">AI Assistant</a>
+    <a href="{% url 'workspace_dashboard' %}" class="workspace-link{% if workspace_active == 'dashboard' %} workspace-link--active{% endif %}">Dashboard</a>
+    <a href="{% url 'workspace_employees' %}" class="workspace-link{% if workspace_active == 'employees' %} workspace-link--active{% endif %}">Employees</a>
+    <a href="{% url 'workspace_documents' %}" class="workspace-link{% if workspace_active == 'documents' %} workspace-link--active{% endif %}">Documents</a>
+    <a href="{% url 'workspace_packages' %}" class="workspace-link{% if workspace_active == 'packages' %} workspace-link--active{% endif %}">Packages</a>
+    <a href="{% url 'ai_assistant_page' %}" class="workspace-link{% if workspace_active == 'ai' %} workspace-link--active{% endif %}">AI Assistant</a>
     <div class="workspace-sidebar-sep"></div>
-    <a href="/" class="workspace-link workspace-link-muted">Старый дашборд</a>
-    <a href="/quality/" class="workspace-link workspace-link-muted">Quality Dashboard</a>
+    <a href="{% url 'dashboard' %}" class="workspace-link workspace-link-muted">Старый дашборд</a>
+    <a href="{% url 'quality_dashboard' %}" class="workspace-link workspace-link-muted">Quality Dashboard</a>
   </aside>
 
   <section class="workspace-main">
@@ -27,8 +27,8 @@
         <p class="workspace-subtitle">{% block workspace_subtitle %}Новый UI shell без ломки текущего adminpanel{% endblock %}</p>
       </div>
       <div class="workspace-actions">
-        <a href="/workspace/scan/" class="workspace-btn workspace-btn-primary">Сканировать документ</a>
-        <a href="/workspace/ai/" class="workspace-btn workspace-btn-outline">Спросить ИИ</a>
+        <a href="{% url 'scan_document_page' %}" class="workspace-btn workspace-btn-primary{% if workspace_active == 'scan' %} workspace-btn--active{% endif %}">Сканировать документ</a>
+        <a href="{% url 'ai_assistant_page' %}" class="workspace-btn workspace-btn-outline{% if workspace_active == 'ai' %} workspace-btn--active{% endif %}">Спросить ИИ</a>
       </div>
     </header>
 

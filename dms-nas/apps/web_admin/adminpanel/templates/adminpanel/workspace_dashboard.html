@@ -8,12 +8,12 @@
   <div class="workspace-card">
     <h3>Сканировать документ</h3>
     <p>Отдельный сценарий для будущего OCR/Vision извлечения данных из PDF и изображений.</p>
-    <a href="/workspace/scan/" class="workspace-btn workspace-btn-primary">Открыть сценарий</a>
+    <a href="{% url 'scan_document_page' %}" class="workspace-btn workspace-btn-primary">Открыть сценарий</a>
   </div>
   <div class="workspace-card">
     <h3>Спросить ИИ</h3>
     <p>Отдельный сценарий для советов, проверки комплекта и объяснений по документам.</p>
-    <a href="/workspace/ai/" class="workspace-btn workspace-btn-outline">Открыть AI Assistant</a>
+    <a href="{% url 'ai_assistant_page' %}" class="workspace-btn workspace-btn-outline">Открыть AI Assistant</a>
   </div>
 </div>
 

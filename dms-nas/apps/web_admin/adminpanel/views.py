@@ -134,34 +134,62 @@ def dashboard(request):
     return render(request, "adminpanel/dashboard.html", context)
 
 
+def _workspace_ctx(active: str):
+    return {"workspace_active": active}
+
+
 @staff_member_required
 def workspace_dashboard(request):
-    return render(request, "adminpanel/workspace_dashboard.html")
+    return render(
+        request,
+        "adminpanel/workspace_dashboard.html",
+        _workspace_ctx("dashboard"),
+    )
 
 
 @staff_member_required
 def workspace_employees(request):
-    return render(request, "adminpanel/employees.html")
+    return render(
+        request,
+        "adminpanel/employees.html",
+        _workspace_ctx("employees"),
+    )
 
 
 @staff_member_required
 def workspace_documents(request):
-    return render(request, "adminpanel/documents.html")
+    return render(
+        request,
+        "adminpanel/documents.html",
+        _workspace_ctx("documents"),
+    )
 
 
 @staff_member_required
 def workspace_packages(request):
-    return render(request, "adminpanel/packages_hub.html")
+    return render(
+        request,
+        "adminpanel/packages_hub.html",
+        _workspace_ctx("packages"),
+    )
 
 
 @staff_member_required
 def ai_assistant_page(request):
-    return render(request, "adminpanel/ai_assistant.html")
+    return render(
+        request,
+        "adminpanel/ai_assistant.html",
+        _workspace_ctx("ai"),
+    )
 
 
 @staff_member_required
 def scan_document_page(request):
-    return render(request, "adminpanel/scan_document.html")
+    return render(
+        request,
+        "adminpanel/scan_document.html",
+        _workspace_ctx("scan"),
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

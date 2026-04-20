@@ -461,16 +461,14 @@
 
 <!-- ── Quick actions ─────────────────────────────────────────────────────── -->
 <div class="db-section"><span>🧠</span> Новые сценарии UI shell</div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px">
-  <a href="/workspace/scan/"
-     style="display:block;background:linear-gradient(135deg,#3D5166,#2C3D50);color:#fff;text-decoration:none;padding:16px 18px;border-radius:12px;box-shadow:0 3px 10px rgba(61,81,102,.22)">
-    <div style="font-size:1.1rem;font-weight:800;margin-bottom:4px">Сканировать документ</div>
-    <div style="font-size:.85rem;color:rgba(255,255,255,.82)">Отдельный flow для OCR/Vision обработки документов</div>
+<div class="db-quick-actions">
+  <a href="{% url 'scan_document_page' %}" class="db-quick-action db-quick-action--scan">
+    <div class="db-quick-action-title">Сканировать документ</div>
+    <div class="db-quick-action-desc db-quick-action-desc--on-dark">Отдельный flow для OCR/Vision обработки документов</div>
   </a>
-  <a href="/workspace/ai/"
-     style="display:block;background:linear-gradient(135deg,#FFCC1D,#E0B000);color:#2C3D50;text-decoration:none;padding:16px 18px;border-radius:12px;box-shadow:0 3px 10px rgba(255,204,29,.35)">
-    <div style="font-size:1.1rem;font-weight:800;margin-bottom:4px">Спросить ИИ</div>
-    <div style="font-size:.85rem;color:#2C3D50">Отдельный сценарий для советов и вопросов по документам</div>
+  <a href="{% url 'ai_assistant_page' %}" class="db-quick-action db-quick-action--ai">
+    <div class="db-quick-action-title">Спросить ИИ</div>
+    <div class="db-quick-action-desc">Отдельный сценарий для советов и вопросов по документам</div>
   </a>
 </div>
 
@@ -490,10 +488,10 @@
   <a href="/admin/adminpanel/problem/" class="db-btn db-btn-outline">
     ⚠️ Проблемы
   </a>
-  <a href="/objects/" class="db-btn db-btn-outline">
+  <a href="{% url 'objects_list' %}" class="db-btn db-btn-outline">
     🏗️ Объекты
   </a>
-  <a href="/packages/" class="db-btn db-btn-outline">
+  <a href="{% url 'packages_ui' %}" class="db-btn db-btn-outline">
     📦 Пакеты
   </a>
   <a href="/admin/adminpanel/auditlog/" class="db-btn db-btn-outline">
@@ -502,8 +500,7 @@
   <a href="/admin/adminpanel/ocrresult/" class="db-btn db-btn-outline">
     🔍 OCR
   </a>
-  <a href="/quality/" class="db-btn"
-     style="background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none">
+  <a href="{% url 'quality_dashboard' %}" class="db-btn db-btn-quality">
     🔴 Качество данных
   </a>
 </div>

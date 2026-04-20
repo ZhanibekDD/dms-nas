@@ -39,9 +39,12 @@ def _vision_prompt(kind: str) -> str:
         return (
             "Ты анализируешь изображение российского паспорта (разворот). "
             "Верни СТРОГО один JSON-объект без markdown и без пояснений. Ключи: "
-            "series (4 цифры), number (6 цифр), full_number (серия+номер строкой), "
-            "last_name, first_name, middle_name, birth_date (ГГГГ-ММ-ДД или пусто), "
-            "iin (12 цифр или пусто). Неизвестные поля — пустая строка или null."
+            "series (4 цифры), number (6 цифр), last_name, first_name, middle_name, "
+            "birth_date (только YYYY-MM-DD или пустая строка), "
+            "issue_date (только YYYY-MM-DD или пустая строка), "
+            "issuer_code (6 цифр кода подразделения, можно как 123-456), "
+            "registration_address (одна строка — адрес регистрации как в документе). "
+            "Поле iin не используй. Неизвестные поля — пустая строка или null."
         )
     if kind == "medical_certificate":
         return (

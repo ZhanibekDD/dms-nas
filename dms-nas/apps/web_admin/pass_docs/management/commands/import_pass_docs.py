@@ -4,14 +4,16 @@
 Ожидается корень вида:
   python manage.py import_pass_docs --root "/path/to/Документы/PDF"
 
-Подкаталоги сотрудников: «{employee_code}&{ФИО или фамилия}», например «1&Иванов».
-Имя сотрудника (для full_name и разбора ФИО) — часть после первого «&».
+Подкаталоги сотрудников: полное имя папки «{prefix}&{подпись}», например «1&Гусев», «1&Гезик».
+Уникальность сотрудника при импорте — по полному имени папки (import_key / source_folder_name),
+а не по числу до «&»: префикс «1» может повторяться у разных людей.
 
 Общие каталоги: «R&…» и «D&…» — документы организации; записи привязываются к
-служебному сотруднику с кодом __COMMON_ORG__, в metadata фиксируется вид папки.
+служебному сотруднику с import_key __COMMON_ORG__, в metadata фиксируется вид папки.
 
 Файлы: код типа документа — подстрока до первого «&» в имени файла, например
   PASSPORT_RF&скан.pdf  →  тип PASSPORT_RF
+Поддерживаются все файлы с «&» в имени (PDF, JPG, PNG и т.д.).
 
 Повторный запуск обновляет те же строки по паре (сотрудник, абсолютный source_path).
 
@@ -51,6 +53,14 @@ def _split_fio(name_part: str) -> tuple[str, str, str, str]:
     if len(parts) == 2:
         return name_part, parts[0], parts[1], ""
     return name_part, name_part, "", ""
+
+
+def _split_folder(folder_name: str) -> tuple[str, str]:
+    """Префикс и остаток после первого «&» (информативно)."""
+    if "&" not in folder_name:
+        return folder_name.strip(), ""
+    a, b = folder_name.split("&", 1)
+    return a.strip(), b.strip()
 
 
 def _empty_stats() -> dict[str, int]:
@@ -117,9 +127,7 @@ class Command(BaseCommand):
                     stats["skipped_dirs"] += 1
                     continue
 
-                prefix, rest = entry.name.split("&", 1)
-                prefix = prefix.strip()
-                rest = rest.strip()
+                prefix, rest = _split_folder(entry.name)
                 pfx_up = prefix.upper()
 
                 if pfx_up in ("R", "D"):
@@ -132,7 +140,7 @@ class Command(BaseCommand):
                         stats=stats,
                     )
                 else:
-                    employee = self._ensure_personal_employee(prefix, rest, stats)
+                    employee = self._ensure_personal_employee(entry.name, stats)
                     self._import_files_under(
                         entry,
                         employee,
@@ -181,8 +189,12 @@ class Command(BaseCommand):
 
     def _ensure_common_employee(self, stats: dict) -> Employee:
         emp, created = Employee.objects.get_or_create(
-            employee_code=COMMON_EMPLOYEE_CODE,
+            import_key=COMMON_EMPLOYEE_CODE,
             defaults={
+                "source_folder_name": "",
+                "source_prefix": "",
+                "source_label": "",
+                "employee_code": COMMON_EMPLOYEE_CODE,
                 "full_name": "Общие документы (R/D)",
                 "last_name": "",
                 "first_name": "",
@@ -195,16 +207,26 @@ class Command(BaseCommand):
             stats["employees_created"] += 1
         return emp
 
-    def _ensure_personal_employee(self, employee_code: str, name_part: str, stats: dict) -> Employee:
-        code = (employee_code or "").strip()[:64]
-        if not code:
-            raise CommandError("Пустой employee_code в имени папки сотрудника")
-        full_name, ln, fn, mn = _split_fio(name_part)
+    def _ensure_personal_employee(self, folder_name: str, stats: dict) -> Employee:
+        """
+        Личный сотрудник: уникальность по полному имени папки (например 1&Гусев и 1&Гезик — разные записи).
+        """
+        folder_name = (folder_name or "").strip()
+        if not folder_name or "&" not in folder_name:
+            raise CommandError(f"Некорректное имя папки сотрудника: {folder_name!r}")
+
+        prefix, label = _split_folder(folder_name)
+        full_name, ln, fn, mn = _split_fio(label)
         if not full_name:
-            full_name = code
+            full_name = folder_name
+
         emp, created = Employee.objects.update_or_create(
-            employee_code=code,
+            import_key=folder_name,
             defaults={
+                "source_folder_name": folder_name,
+                "source_prefix": prefix,
+                "source_label": label,
+                "employee_code": None,
                 "full_name": full_name,
                 "last_name": ln,
                 "first_name": fn,

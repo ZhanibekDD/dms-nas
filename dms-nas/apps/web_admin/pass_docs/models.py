@@ -33,9 +33,49 @@ class DocumentType(models.Model):
 
 
 class Employee(models.Model):
-    """Сотрудник (личное дело)."""
+    """Сотрудник (личное дело).
 
-    employee_code = models.CharField("код сотрудника", max_length=64, unique=True)
+    Идентичность при импорте из папок — по import_key / source_folder_name (полное имя каталога,
+    например «1&Гусев»), а не по числу до «&»: префикс может повторяться у разных людей.
+    """
+
+    import_key = models.CharField(
+        "ключ импорта",
+        max_length=512,
+        unique=True,
+        db_index=True,
+        help_text="Уникальный ключ: для личных папок — полное имя каталога (1&Фамилия); для служебной записи общих документов — __COMMON_ORG__.",
+    )
+    source_folder_name = models.CharField(
+        "имя папки в источнике",
+        max_length=512,
+        unique=True,
+        blank=True,
+        default="",
+        help_text="Как в ФС под корнем импорта, напр. 1&Гусев. Пусто только у служебной записи общих документов.",
+    )
+    source_prefix = models.CharField(
+        "префикс до &",
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="Часть до первого «&» в имени папки (информативно, не уникальна).",
+    )
+    source_label = models.CharField(
+        "подпись после &",
+        max_length=512,
+        blank=True,
+        default="",
+        help_text="Часть после первого «&» (ФИО/фамилия из имени папки).",
+    )
+    employee_code = models.CharField(
+        "код сотрудника (legacy)",
+        max_length=64,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="Устаревший короткий код; не использовать как единственный ключ импорта.",
+    )
     full_name = models.CharField("ФИО (как в источнике)", max_length=512)
     last_name = models.CharField("фамилия", max_length=128, blank=True)
     first_name = models.CharField("имя", max_length=128, blank=True)
@@ -52,12 +92,12 @@ class Employee(models.Model):
     notes = models.TextField("заметки", blank=True)
 
     class Meta:
-        ordering = ["full_name", "employee_code"]
+        ordering = ["import_key"]
         verbose_name = "сотрудник"
         verbose_name_plural = "сотрудники"
 
     def __str__(self):
-        return f"{self.full_name} [{self.employee_code}]"
+        return f"{self.full_name} [{self.import_key}]"
 
 
 class EmployeeDocument(models.Model):
@@ -133,7 +173,7 @@ class EmployeeDocument(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.employee.employee_code} → {self.document_type.code} ({self.source_path})"
+        return f"{self.employee.import_key} → {self.document_type.code} ({self.source_path})"
 
 
 class ProfessionRequirement(models.Model):
@@ -214,4 +254,4 @@ class PackageRequest(models.Model):
         verbose_name_plural = "заявки на пакеты"
 
     def __str__(self):
-        return f"Пакет {self.id} — {self.employee.employee_code} ({self.status})"
+        return f"Пакет {self.id} — {self.employee.import_key} ({self.status})"

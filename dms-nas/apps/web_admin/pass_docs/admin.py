@@ -45,6 +45,8 @@ class EmployeeDocumentInline(admin.TabularInline):
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = (
+        "import_key",
+        "source_folder_name",
         "employee_code",
         "full_name",
         "last_name",
@@ -55,6 +57,9 @@ class EmployeeAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_active", "profession_key", "company")
     search_fields = (
+        "import_key",
+        "source_folder_name",
+        "source_label",
         "employee_code",
         "full_name",
         "last_name",
@@ -70,7 +75,9 @@ class EmployeeAdmin(admin.ModelAdmin):
             None,
             {
                 "fields": (
-                    "employee_code",
+                    "import_key",
+                    ("source_folder_name", "employee_code"),
+                    ("source_prefix", "source_label"),
                     "is_active",
                     "full_name",
                     ("last_name", "first_name", "middle_name"),
@@ -109,6 +116,7 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
     )
     list_filter = ("parse_status", "status", "is_actual", "document_type")
     search_fields = (
+        "employee__import_key",
         "employee__employee_code",
         "employee__full_name",
         "source_path",
@@ -149,6 +157,7 @@ class PackageRequestAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "package_kind")
     search_fields = (
+        "employee__import_key",
         "employee__employee_code",
         "employee__full_name",
         "email_to",

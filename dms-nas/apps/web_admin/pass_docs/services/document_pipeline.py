@@ -22,17 +22,28 @@ logger = logging.getLogger(__name__)
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp"}
 
+_TRAINING_KINDS = frozenset(
+    {
+        "safety_protocol_v",
+        "safety_protocol_ab",
+        "electrical_safety",
+        "bdd_protocol",
+        "siz_training_protocol",
+        "umo",
+    }
+)
+
 
 def resolve_extractor_kind(document_type: DocumentType) -> str | None:
+    """Сначала поле DocumentType.extractor_kind, затем каталог кодов, затем эвристики по code."""
     raw = (document_type.extractor_kind or "").strip().lower()
     if raw in EXTRACTOR_REGISTRY:
         return raw
-    # Соглашение импорта из «N&Документ.pdf»: 6 = паспорт, 7 = медсправка (код типа = префикс файла).
-    code_plain = (document_type.code or "").strip()
-    if code_plain == "6":
-        return "ru_passport"
-    if code_plain == "7":
-        return "medical_certificate"
+    from pass_docs.catalog.document_codes import extractor_kind_for_code
+
+    ek = extractor_kind_for_code(document_type.code or "")
+    if ek and ek in EXTRACTOR_REGISTRY:
+        return ek
     code = (document_type.code or "").upper()
     if "PASSPORT" in code or "PASPORT" in code:
         return "ru_passport"
@@ -58,6 +69,15 @@ def _vision_prompt(kind: str) -> str:
             "Ты анализируешь изображение медицинской справки (форма 086/у или аналог). "
             "Верни СТРОГО один JSON-объект. Ключи: certificate_number, issue_date, "
             "valid_until, patient_name, organization, conclusion. Даты в ISO ГГГГ-ММ-ДД или пусто."
+        )
+    if kind in _TRAINING_KINDS:
+        return (
+            "Ты анализируешь скан протокола или удостоверения обучения (РФ). "
+            f"Тип по схеме extractor_kind: {kind}. "
+            "Верни СТРОГО один JSON-объект без markdown. Ключи: "
+            "protocol_number, issue_date, valid_until (только YYYY-MM-DD или пустая строка), "
+            "holder_name, organization, program_name, conclusion. "
+            "Неизвестные поля — пустая строка или null."
         )
     return "Верни JSON-объект с полями документа, которые видишь на изображении."
 

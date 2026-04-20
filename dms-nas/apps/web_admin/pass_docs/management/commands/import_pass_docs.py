@@ -29,6 +29,7 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from pass_docs.catalog.document_codes import catalog_defaults_for_import
 from pass_docs.models import DocumentType, Employee, EmployeeDocument
 
 COMMON_EMPLOYEE_CODE = "__COMMON_ORG__"
@@ -243,23 +244,38 @@ class Command(BaseCommand):
         self, raw_code: str, *, from_common: bool, stats: dict
     ) -> DocumentType:
         code = _normalize_doc_code(raw_code)
+        cat = catalog_defaults_for_import(code)
+        defaults = {
+            "name": (cat.get("name") if cat else None)
+            or ((raw_code or code).strip() or code),
+            "description": "",
+            "sort_order": 0,
+            "extractor_kind": (cat.get("extractor_kind") if cat else None) or "",
+            "is_common_document": from_common,
+            "expiry_rule_days": None,
+        }
         dt, created = DocumentType.objects.get_or_create(
             code=code,
-            defaults={
-                "name": (raw_code or code).strip() or code,
-                "description": "",
-                "sort_order": 0,
-                "extractor_kind": "",
-                "is_common_document": from_common,
-                "expiry_rule_days": None,
-            },
+            defaults=defaults,
         )
         if created:
             stats["document_types_created"] += 1
-        elif from_common and not dt.is_common_document:
-            dt.is_common_document = True
-            dt.save(update_fields=["is_common_document"])
-            stats["document_types_updated"] += 1
+        else:
+            updates: list[str] = []
+            if cat:
+                if not (dt.extractor_kind or "").strip() and cat.get("extractor_kind"):
+                    dt.extractor_kind = cat["extractor_kind"]
+                    updates.append("extractor_kind")
+                trivial_names = {code, (raw_code or "").strip(), ""}
+                if dt.name.strip() in trivial_names and cat.get("name"):
+                    dt.name = cat["name"][:255]
+                    updates.append("name")
+            if from_common and not dt.is_common_document:
+                dt.is_common_document = True
+                updates.append("is_common_document")
+            if updates:
+                dt.save(update_fields=updates)
+                stats["document_types_updated"] += 1
         return dt
 
     def _relpath(self, path: Path) -> str:

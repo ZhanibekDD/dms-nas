@@ -57,7 +57,8 @@ def chat_json(
         resp = requests.post(url, json=payload, timeout=timeout)
         resp.raise_for_status()
     except requests.RequestException as exc:
-        logger.exception("Ollama request failed: %s", exc)
+        # Не logger.exception: иначе в консоль Windows уходит полный traceback при выключенном Ollama.
+        logger.warning("Ollama request failed: %s", exc)
         raise
 
     data = resp.json()

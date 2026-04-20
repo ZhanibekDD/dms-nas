@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 from datetime import date, datetime
 from typing import Any
 
@@ -59,6 +60,11 @@ def _passport_id_norm(s: str) -> str:
     return "".join(c for c in (s or "") if c.isalnum()).lower()
 
 
+def _fio_compare_key(s: str) -> str:
+    """Единый ключ сравнения для ФИО (Unicode NFKC + casefold)."""
+    return unicodedata.normalize("NFKC", (s or "").strip()).casefold()
+
+
 def _values_equal_for_passport_sync(field: str, current: Any, incoming: Any) -> bool:
     if field == "birth_date":
         return isinstance(current, date) and isinstance(incoming, date) and current == incoming
@@ -68,7 +74,7 @@ def _values_equal_for_passport_sync(field: str, current: Any, incoming: Any) -> 
         return True
     if field in ("passport_series", "passport_number", "passport_full_number"):
         return _passport_id_norm(a) == _passport_id_norm(b)
-    return a.casefold() == b.casefold()
+    return _fio_compare_key(a) == _fio_compare_key(b)
 
 
 def apply_extracted_normalized_to_employee(doc: EmployeeDocument) -> dict[str, Any]:
@@ -114,7 +120,11 @@ def _passport_name_preview_from_normalized(n: dict[str, Any]) -> dict[str, str]:
 
 
 def _passport_name_vs_employee(emp: Employee, n: dict[str, Any]) -> list[dict[str, Any]]:
-    """ФИО из normalized не пишется в Employee; только сводка для UI / ручной проверки."""
+    """ФИО из normalized не пишется в Employee; только сводка для UI.
+
+    В список попадают только: пустое поле в карточке + есть из паспорта (suggested),
+    либо реальное расхождение (mismatch). Совпадающие значения не включаются.
+    """
     out: list[dict[str, Any]] = []
     for attr, maxlen in (
         ("full_name", 512),
@@ -135,15 +145,17 @@ def _passport_name_vs_employee(emp: Employee, n: dict[str, Any]) -> list[dict[st
                     "kind": "suggested_not_autofill",
                 }
             )
-        elif not _values_equal_for_passport_sync(attr, cur, inc):
-            out.append(
-                {
-                    "field": attr,
-                    "employee": _serialize_for_conflict(cur),
-                    "passport_suggested": inc,
-                    "kind": "mismatch_not_autofill",
-                }
-            )
+            continue
+        if _values_equal_for_passport_sync(attr, cur, inc):
+            continue
+        out.append(
+            {
+                "field": attr,
+                "employee": _serialize_for_conflict(cur),
+                "passport_suggested": inc,
+                "kind": "mismatch_not_autofill",
+            }
+        )
     return out
 
 

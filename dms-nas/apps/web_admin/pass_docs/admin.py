@@ -1,4 +1,7 @@
+import json
+
 from django.contrib import admin
+from django.utils.html import format_html
 
 from .models import (
     DocumentType,
@@ -107,6 +110,7 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
     list_display = (
         "employee",
         "document_type",
+        "display_extractor_kind",
         "parse_status",
         "status",
         "is_actual",
@@ -123,7 +127,64 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
         "external_reference",
     )
     autocomplete_fields = ("employee", "document_type")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "normalized_preview",
+        "extracted_json_preview",
+    )
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "employee",
+                    "document_type",
+                    "source_path",
+                    ("issue_date", "expiry_date"),
+                    ("parse_status", "status", "is_actual"),
+                    "external_reference",
+                    "notes",
+                )
+            },
+        ),
+        (
+            "Извлечение (просмотр)",
+            {
+                "description": "Training и прочие типы не синхронизируются в карточку сотрудника автоматически — только хранение здесь.",
+                "fields": ("normalized_preview", "extracted_json_preview"),
+            },
+        ),
+        ("Служебное", {"fields": ("metadata", "created_at", "updated_at")}),
+    )
+
+    @admin.display(description="extractor_kind")
+    def display_extractor_kind(self, obj) -> str:
+        payload = obj.extracted_json or {}
+        k = payload.get("extractor_kind") or ""
+        return k if k else "—"
+
+    @admin.display(description="normalized (кратко)")
+    def normalized_preview(self, obj: EmployeeDocument):
+        norm = (obj.extracted_json or {}).get("normalized")
+        if not isinstance(norm, dict) or not norm:
+            return format_html("<em>нет</em>")
+        body = json.dumps(norm, ensure_ascii=False, indent=2)
+        return format_html(
+            '<pre style="max-height:22em;overflow:auto;white-space:pre-wrap;font-size:12px;margin:0">{}</pre>',
+            body,
+        )
+
+    @admin.display(description="полный extracted_json")
+    def extracted_json_preview(self, obj: EmployeeDocument):
+        data = obj.extracted_json or {}
+        if not data:
+            return format_html("<em>пусто</em>")
+        body = json.dumps(data, ensure_ascii=False, indent=2)
+        return format_html(
+            '<pre style="max-height:28em;overflow:auto;white-space:pre-wrap;font-size:11px;margin:0">{}</pre>',
+            body,
+        )
 
 
 @admin.register(ProfessionRequirement)

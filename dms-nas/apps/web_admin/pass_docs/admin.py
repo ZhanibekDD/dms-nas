@@ -244,7 +244,7 @@ class PackageRequestAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     actions = ("action_build_package_artifacts",)
 
-    @admin.action(description="Собрать Excel + ZIP (submitted; draft — только для draft)")
+    @admin.action(description="Собрать Excel + ZIP (статус submitted или draft)")
     def action_build_package_artifacts(self, request, queryset):
         if queryset.count() != 1:
             self.message_user(request, "Выберите ровно одну заявку.", level=messages.ERROR)

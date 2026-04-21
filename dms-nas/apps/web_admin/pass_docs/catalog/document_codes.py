@@ -20,6 +20,10 @@ DOCUMENT_CODE_CATALOG: dict[str, CatalogEntry] = {
     "7": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
     "13": {"name": "Охрана труда (программа В)", "extractor_kind": "safety_protocol_v"},
     "14": {"name": "Охрана труда (программы А, Б)", "extractor_kind": "safety_protocol_ab"},
+    # Частые коды из комплектов: имя по подписи файла; extractor — тот же «протокол/обучение», что и для 13/14/57.
+    "17": {"name": "Общие требования промышленной безопасности", "extractor_kind": "safety_protocol_v"},
+    "19": {"name": "ОПП (протокол / удостоверение)", "extractor_kind": "umo"},
+    "20": {"name": "Подъёмные сооружения (протокол / обучение)", "extractor_kind": "siz_training_protocol"},
     "26": {"name": "Электробезопасность", "extractor_kind": "electrical_safety"},
     "31": {"name": "БДД", "extractor_kind": "bdd_protocol"},
     "57": {"name": "СИЗ (протокол / обучение)", "extractor_kind": "siz_training_protocol"},

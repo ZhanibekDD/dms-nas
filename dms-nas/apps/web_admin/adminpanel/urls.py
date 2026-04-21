@@ -10,6 +10,11 @@ urlpatterns = [
     path("workspace/pass-docs/documents/<int:doc_id>/", views.pass_docs_document_detail, name="pass_docs_document_detail"),
     path("workspace/pass-docs/document-types/", views.pass_docs_document_types, name="pass_docs_document_types"),
     path("workspace/pass-docs/package-requests/", views.pass_docs_package_requests, name="pass_docs_package_requests"),
+    path(
+        "workspace/pass-docs/package-requests/<int:request_id>/build/",
+        views.pass_docs_package_request_build,
+        name="pass_docs_package_request_build",
+    ),
     path("workspace/employees/", views.workspace_employees, name="workspace_employees"),
     path("workspace/documents/", views.workspace_documents, name="workspace_documents"),
     path("workspace/packages/", views.workspace_packages, name="workspace_packages"),

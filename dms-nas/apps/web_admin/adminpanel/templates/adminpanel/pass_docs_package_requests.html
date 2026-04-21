@@ -4,6 +4,13 @@
 {% block pass_docs_subtitle %}Операторский список заявок и статус исполнения{% endblock %}
 
 {% block pass_docs_content %}
+{% if messages %}
+<ul class="pd-flash-messages">
+  {% for message in messages %}
+  <li class="pd-flash-messages__item pd-flash-messages__item--{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
 <section class="pd-card">
   <form method="get" class="pd-filters pd-filters--grid3">
     <label class="pd-field">
@@ -57,7 +64,15 @@
           <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status }}</span></td>
           <td>{{ r.email_to|default:"—" }}</td>
           <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
-          <td class="pd-right"><a class="pd-link" href="{% url 'admin:pass_docs_packagerequest_change' r.id %}">Открыть</a></td>
+          <td class="pd-right pd-cell-actions">
+            {% if r.status == "draft" or r.status == "submitted" %}
+            <form method="post" action="{% url 'pass_docs_package_request_build' r.id %}" class="pd-inline-form">
+              {% csrf_token %}
+              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel+ZIP</button>
+            </form>
+            {% endif %}
+            <a class="pd-link" href="{% url 'admin:pass_docs_packagerequest_change' r.id %}">Админ</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 from datetime import datetime
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.http import HttpResponse, Http404, JsonResponse
@@ -337,6 +338,36 @@ def pass_docs_package_requests(request):
         "requests_total": requests_qs.count(),
     }
     return render(request, "adminpanel/pass_docs_package_requests.html", context)
+
+
+@staff_member_required
+@require_POST
+def pass_docs_package_request_build(request, request_id: int):
+    """Запуск сборки Excel+ZIP для одной заявки (draft / submitted), без нового UI-слоя."""
+    from pass_docs.models import PackageRequest
+    from pass_docs.services.package_builder import PackageBuildError, build_package_for_request
+
+    pr = PackageRequest.objects.filter(pk=request_id).first()
+    if not pr:
+        raise Http404("Заявка не найдена")
+    allow_draft = pr.status == PackageRequest.Status.DRAFT
+    try:
+        summary = build_package_for_request(pr.pk, allow_draft=allow_draft)
+    except PackageBuildError as exc:
+        messages.error(request, str(exc))
+        return redirect("pass_docs_package_requests")
+    if summary.get("ok"):
+        messages.success(
+            request,
+            f"Пакет #{pr.pk}: готово, документов {summary.get('documents_included')}, "
+            f"ZIP {summary.get('zip_root')!r}.",
+        )
+    else:
+        messages.error(
+            request,
+            summary.get("last_error") or "Сборка завершилась с ошибкой (см. payload_json.last_error).",
+        )
+    return redirect("pass_docs_package_requests")
 
 
 @staff_member_required

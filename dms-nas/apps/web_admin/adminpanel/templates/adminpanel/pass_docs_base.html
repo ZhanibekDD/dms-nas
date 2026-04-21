@@ -1,6 +1,8 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
+{% block bodyclass %}{{ block.super }} pass-docs-workspace{% endblock %}
+
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">

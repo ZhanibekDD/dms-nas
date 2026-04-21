@@ -18,17 +18,32 @@ body,
   background: var(--pd-bg) !important;
 }
 
+body.pass-docs-workspace .main-header,
+body.pass-docs-workspace .main-sidebar,
+body.pass-docs-workspace .content-header {
+  display: none !important;
+}
+
+body.pass-docs-workspace .content-wrapper,
+body.pass-docs-workspace .main-footer {
+  margin-left: 0 !important;
+}
+
+body.pass-docs-workspace .content-wrapper > .content {
+  padding-top: 10px !important;
+}
+
 .pd-shell {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 18px;
+  grid-template-columns: 228px minmax(0, 1fr);
+  gap: 14px;
 }
 
 .pd-sidebar {
   background: var(--pd-panel);
   border: 1px solid var(--pd-line);
   border-radius: var(--pd-radius);
-  padding: 14px;
+  padding: 12px;
   position: sticky;
   top: 12px;
   height: fit-content;
@@ -98,12 +113,12 @@ body,
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .pd-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1.1;
   font-weight: 800;
   color: var(--pd-text);
@@ -126,8 +141,8 @@ body,
   border: 1px solid var(--pd-line);
   border-radius: var(--pd-radius);
   box-shadow: 0 4px 14px rgba(16, 24, 40, 0.05);
-  margin-bottom: 14px;
-  padding: 14px;
+  margin-bottom: 10px;
+  padding: 12px;
 }
 
 .pd-summary {
@@ -141,7 +156,8 @@ body,
   background: var(--pd-panel);
   border: 1px solid var(--pd-line);
   border-radius: 12px;
-  padding: 12px;
+  padding: 13px 12px;
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.04);
 }
 
 .pd-summary__label {
@@ -152,9 +168,10 @@ body,
 }
 
 .pd-summary__value {
-  font-size: 24px;
+  font-size: 28px;
   line-height: 1;
   color: var(--pd-text);
+  letter-spacing: 0.01em;
 }
 
 .pd-card__header {
@@ -247,6 +264,8 @@ body,
 
 .pd-table-wrap {
   overflow: auto;
+  border: 1px solid #edf1f7;
+  border-radius: 12px;
 }
 
 .pd-table {
@@ -262,15 +281,23 @@ body,
   text-transform: uppercase;
   letter-spacing: 0.03em;
   border-bottom: 1px solid var(--pd-line);
-  padding: 10px 8px;
+  padding: 9px 8px;
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .pd-table td {
   border-bottom: 1px solid #eef2f7;
-  padding: 10px 8px;
+  padding: 8px 8px;
   vertical-align: top;
   font-size: 14px;
   color: var(--pd-text);
+}
+
+.pd-table tbody tr:hover td {
+  background: #f8fbff;
 }
 
 .pd-strong {
@@ -407,6 +434,8 @@ body,
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 10px;
+  border-bottom: 1px solid var(--pd-line);
+  padding-bottom: 8px;
 }
 
 .pd-tab {
@@ -418,6 +447,12 @@ body,
   font-size: 12px;
   font-weight: 700;
   background: #fff;
+}
+
+.pd-tab.is-active {
+  background: var(--pd-primary-soft);
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .pd-pane h3 {
@@ -441,9 +476,9 @@ body,
 }
 
 .pd-details {
-  margin-top: 10px;
+  margin-top: 12px;
   border-top: 1px solid var(--pd-line);
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .pd-details summary {
@@ -465,7 +500,7 @@ body,
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .pd-page-link {
@@ -487,6 +522,19 @@ body,
 .pd-empty-state {
   text-align: center;
   padding: 30px 20px;
+}
+
+.pd-sticky-actions {
+  position: sticky;
+  top: 10px;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+  background: rgba(245, 247, 251, 0.92);
+  backdrop-filter: blur(2px);
+  padding: 6px 2px;
 }
 
 .pd-empty-state h3 {
@@ -514,6 +562,11 @@ body,
   }
   .pd-sidebar {
     position: static;
+  }
+  .pd-sticky-actions {
+    position: static;
+    justify-content: flex-start;
+    padding: 0;
   }
   .pd-meta-grid {
     grid-template-columns: repeat(2, minmax(140px, 1fr));

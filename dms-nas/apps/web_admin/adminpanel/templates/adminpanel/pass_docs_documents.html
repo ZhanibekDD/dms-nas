@@ -4,6 +4,25 @@
 {% block pass_docs_subtitle %}Фильтрация комплекта, parse_status и extraction-превью{% endblock %}
 
 {% block pass_docs_content %}
+<section class="pd-summary">
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">Всего документов</span>
+    <strong class="pd-summary__value">{{ documents_total }}</strong>
+  </article>
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">parse ok</span>
+    <strong class="pd-summary__value">{{ documents_ok }}</strong>
+  </article>
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">parse error</span>
+    <strong class="pd-summary__value">{{ documents_error }}</strong>
+  </article>
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">parse pending</span>
+    <strong class="pd-summary__value">{{ documents_pending }}</strong>
+  </article>
+</section>
+
 <section class="pd-card">
   <form method="get" class="pd-filters pd-filters--grid5">
     <label class="pd-field">
@@ -86,8 +105,8 @@
               <span class="pd-muted">—</span>
             {% endif %}
           </td>
-          <td><span class="pd-badge pd-badge--{{ doc.parse_status }}">{{ doc.parse_status }}</span></td>
-          <td><span class="pd-badge pd-badge--{{ doc.status }}">{{ doc.status }}</span></td>
+          <td><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status }}</span></td>
+          <td><span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status }}</span></td>
           <td>
             {% if doc.is_actual %}
               <span class="pd-badge pd-badge--ok">yes</span>
@@ -108,5 +127,6 @@
       </tbody>
     </table>
   </div>
+  {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
 </section>
 {% endblock %}

@@ -1,0 +1,11 @@
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<nav class="pd-pagination">
+  {% if page_obj.has_previous %}
+    <a class="pd-page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if company %}&company={{ company|urlencode }}{% endif %}{% if active %}&active={{ active|urlencode }}{% endif %}{% if parse_status %}&parse_status={{ parse_status|urlencode }}{% endif %}{% if status %}&status={{ status|urlencode }}{% endif %}{% if actual %}&actual={{ actual|urlencode }}{% endif %}{% if extractor_kind %}&extractor_kind={{ extractor_kind|urlencode }}{% endif %}{% if is_common %}&is_common={{ is_common|urlencode }}{% endif %}">←</a>
+  {% endif %}
+  <span class="pd-page-current">Стр. {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a class="pd-page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if company %}&company={{ company|urlencode }}{% endif %}{% if active %}&active={{ active|urlencode }}{% endif %}{% if parse_status %}&parse_status={{ parse_status|urlencode }}{% endif %}{% if status %}&status={{ status|urlencode }}{% endif %}{% if actual %}&actual={{ actual|urlencode }}{% endif %}{% if extractor_kind %}&extractor_kind={{ extractor_kind|urlencode }}{% endif %}{% if is_common %}&is_common={{ is_common|urlencode }}{% endif %}">→</a>
+  {% endif %}
+</nav>
+{% endif %}

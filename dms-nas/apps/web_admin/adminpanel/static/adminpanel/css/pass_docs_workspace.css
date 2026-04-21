@@ -130,6 +130,33 @@ body,
   padding: 14px;
 }
 
+.pd-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  margin-bottom: 14px;
+}
+
+.pd-summary__card {
+  background: var(--pd-panel);
+  border: 1px solid var(--pd-line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.pd-summary__label {
+  display: block;
+  font-size: 12px;
+  color: var(--pd-muted);
+  margin-bottom: 4px;
+}
+
+.pd-summary__value {
+  font-size: 24px;
+  line-height: 1;
+  color: var(--pd-text);
+}
+
 .pd-card__header {
   display: flex;
   justify-content: space-between;
@@ -281,23 +308,48 @@ body,
   color: #166534;
 }
 
-.pd-badge--warn,
+.pd-badge--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .pd-badge--pending,
-.pd-badge--missing {
+.pd-badge--missing,
+.pd-badge--status-pending,
+.pd-badge--status-missing,
+.pd-badge--status-draft,
+.pd-badge--status-submitted {
   background: #fef3c7;
   color: #92400e;
 }
 
 .pd-badge--error,
 .pd-badge--rejected,
-.pd-badge--expired {
+.pd-badge--expired,
+.pd-badge--parse-error,
+.pd-badge--status-rejected,
+.pd-badge--status-cancelled {
   background: #fee2e2;
   color: #991b1b;
 }
 
-.pd-badge--skipped {
+.pd-badge--skipped,
+.pd-badge--parse-skipped {
   background: #e2e8f0;
   color: #334155;
+}
+
+.pd-badge--parse-ok,
+.pd-badge--status-ok,
+.pd-badge--status-ready,
+.pd-badge--status-sent {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pd-badge--parse-pending {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .pd-tag {
@@ -408,9 +460,51 @@ body,
   gap: 10px;
 }
 
+.pd-pagination {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.pd-page-link {
+  text-decoration: none;
+  border: 1px solid var(--pd-line);
+  border-radius: 8px;
+  color: var(--pd-text);
+  padding: 5px 10px;
+  font-weight: 700;
+  background: #fff;
+}
+
+.pd-page-current {
+  font-size: 13px;
+  color: var(--pd-muted);
+  font-weight: 600;
+}
+
+.pd-empty-state {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.pd-empty-state h3 {
+  margin: 0 0 6px;
+  color: var(--pd-text);
+}
+
+.pd-empty-state p {
+  margin: 0 0 12px;
+  color: var(--pd-muted);
+}
+
 @media (max-width: 1200px) {
   .pd-filters--grid5 {
     grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+  .pd-summary {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
   }
 }
 
@@ -432,6 +526,9 @@ body,
     grid-template-columns: 1fr;
   }
   .pd-meta-grid {
+    grid-template-columns: 1fr;
+  }
+  .pd-summary {
     grid-template-columns: 1fr;
   }
 }

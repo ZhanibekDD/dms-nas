@@ -16,8 +16,8 @@
     <nav class="pd-nav">
       <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}" href="{% url 'pass_docs_employees' %}">Сотрудники</a>
       <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}" href="{% url 'pass_docs_documents' %}">Документы сотрудников</a>
-      <a class="pd-nav__link" href="{% url 'admin:pass_docs_documenttype_changelist' %}">Типы документов</a>
-      <a class="pd-nav__link" href="{% url 'admin:pass_docs_packagerequest_changelist' %}">Заявки на пакеты</a>
+      <a class="pd-nav__link{% if pass_docs_active == 'types' %} is-active{% endif %}" href="{% url 'pass_docs_document_types' %}">Типы документов</a>
+      <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}" href="{% url 'pass_docs_package_requests' %}">Заявки на пакеты</a>
     </nav>
     <div class="pd-sidebar__footer">
       <a href="{% url 'admin:index' %}" class="pd-link-muted">Техпанель Django Admin</a>

@@ -4,6 +4,21 @@
 {% block pass_docs_subtitle %}Личные дела и состояние комплектов документов{% endblock %}
 
 {% block pass_docs_content %}
+<section class="pd-summary">
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">Всего сотрудников</span>
+    <strong class="pd-summary__value">{{ employees_total }}</strong>
+  </article>
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">Активные</span>
+    <strong class="pd-summary__value">{{ employees_active }}</strong>
+  </article>
+  <article class="pd-summary__card">
+    <span class="pd-summary__label">С документами</span>
+    <strong class="pd-summary__value">{{ employees_with_docs }}</strong>
+  </article>
+</section>
+
 <section class="pd-card">
   <form method="get" class="pd-filters pd-filters--grid3">
     <label class="pd-field">
@@ -77,5 +92,6 @@
       </tbody>
     </table>
   </div>
+  {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
 </section>
 {% endblock %}

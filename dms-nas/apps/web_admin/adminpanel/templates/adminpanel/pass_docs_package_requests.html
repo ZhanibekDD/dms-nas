@@ -1,0 +1,75 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block pass_docs_title %}Заявки на пакеты{% endblock %}
+{% block pass_docs_subtitle %}Операторский список заявок и статус исполнения{% endblock %}
+
+{% block pass_docs_content %}
+<section class="pd-card">
+  <form method="get" class="pd-filters pd-filters--grid3">
+    <label class="pd-field">
+      <span>Поиск</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, import_key, email, тип">
+    </label>
+    <label class="pd-field">
+      <span>Статус</span>
+      <select name="status">
+        <option value="">Все</option>
+        {% for value,label in status_choices %}
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="pd-filter-actions">
+      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
+      <a href="{% url 'pass_docs_package_requests' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+    </div>
+  </form>
+</section>
+
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Список заявок</h2>
+    <span class="pd-counter">{{ requests_total }}</span>
+  </div>
+  {% if package_requests %}
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Сотрудник</th>
+          <th>Вид пакета</th>
+          <th>Статус</th>
+          <th>Email</th>
+          <th>Создана</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in package_requests %}
+        <tr>
+          <td><code>#{{ r.id }}</code></td>
+          <td>
+            <div class="pd-strong">{{ r.employee.full_name }}</div>
+            <div class="pd-muted"><code>{{ r.employee.import_key }}</code></div>
+          </td>
+          <td>{{ r.package_kind|default:"—" }}</td>
+          <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status }}</span></td>
+          <td>{{ r.email_to|default:"—" }}</td>
+          <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
+          <td class="pd-right"><a class="pd-link" href="{% url 'admin:pass_docs_packagerequest_change' r.id %}">Открыть</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="pd-empty-state">
+    <h3>Пока нет заявок</h3>
+    <p>Когда оператор создаст первую заявку, она появится в этом списке.</p>
+    <a href="{% url 'admin:pass_docs_packagerequest_add' %}" class="pd-btn pd-btn--primary">Создать заявку</a>
+  </div>
+  {% endif %}
+  {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
+</section>
+{% endblock %}

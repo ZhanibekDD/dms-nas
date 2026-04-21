@@ -11,6 +11,7 @@ import sys
 import logging
 from datetime import datetime
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.paginator import Paginator
 from django.http import HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_GET, require_POST
@@ -193,15 +194,23 @@ def pass_docs_employees(request):
     if active in ("1", "0"):
         qs = qs.filter(is_active=(active == "1"))
 
-    employees = qs.order_by("full_name", "import_key")[:400]
+    employees_qs = qs.order_by("full_name", "import_key")
+    paginator = Paginator(employees_qs, 40)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    employees_with_docs = employees_qs.filter(documents_count__gt=0).count()
+    employees_active = employees_qs.filter(is_active=True).count()
 
     context = {
         **_pass_docs_shell_ctx("employees"),
-        "employees": employees,
+        "employees": page_obj.object_list,
+        "page_obj": page_obj,
         "q": q,
         "company": company,
         "active": active,
-        "employees_total": qs.count(),
+        "employees_total": employees_qs.count(),
+        "employees_active": employees_active,
+        "employees_with_docs": employees_with_docs,
     }
     return render(request, "adminpanel/pass_docs_employees.html", context)
 
@@ -235,11 +244,18 @@ def pass_docs_documents(request):
     if extractor_kind:
         qs = qs.filter(document_type__extractor_kind=extractor_kind)
 
-    documents = qs.order_by("-updated_at", "-id")[:500]
+    documents_qs = qs.order_by("-updated_at", "-id")
+    paginator = Paginator(documents_qs, 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    documents_ok = documents_qs.filter(parse_status=EmployeeDocument.ParseStatus.OK).count()
+    documents_error = documents_qs.filter(parse_status=EmployeeDocument.ParseStatus.ERROR).count()
+    documents_pending = documents_qs.filter(parse_status=EmployeeDocument.ParseStatus.PENDING).count()
 
     context = {
         **_pass_docs_shell_ctx("documents"),
-        "documents": documents,
+        "documents": page_obj.object_list,
+        "page_obj": page_obj,
         "q": q,
         "parse_status": parse_status,
         "status": status,
@@ -247,9 +263,80 @@ def pass_docs_documents(request):
         "extractor_kind": extractor_kind,
         "parse_status_choices": EmployeeDocument.ParseStatus.choices,
         "status_choices": EmployeeDocument.Status.choices,
-        "documents_total": qs.count(),
+        "documents_total": documents_qs.count(),
+        "documents_ok": documents_ok,
+        "documents_error": documents_error,
+        "documents_pending": documents_pending,
     }
     return render(request, "adminpanel/pass_docs_documents.html", context)
+
+
+@staff_member_required
+def pass_docs_document_types(request):
+    from django.db.models import Q
+    from pass_docs.models import DocumentType
+
+    q = (request.GET.get("q") or "").strip()
+    is_common = (request.GET.get("is_common") or "").strip()
+    extractor_kind = (request.GET.get("extractor_kind") or "").strip()
+
+    qs = DocumentType.objects.all()
+    if q:
+        qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(description__icontains=q))
+    if is_common in ("1", "0"):
+        qs = qs.filter(is_common_document=(is_common == "1"))
+    if extractor_kind:
+        qs = qs.filter(extractor_kind__icontains=extractor_kind)
+
+    types_qs = qs.order_by("sort_order", "code")
+    paginator = Paginator(types_qs, 40)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        **_pass_docs_shell_ctx("types"),
+        "document_types": page_obj.object_list,
+        "page_obj": page_obj,
+        "q": q,
+        "is_common": is_common,
+        "extractor_kind": extractor_kind,
+        "types_total": types_qs.count(),
+    }
+    return render(request, "adminpanel/pass_docs_document_types.html", context)
+
+
+@staff_member_required
+def pass_docs_package_requests(request):
+    from django.db.models import Q
+    from pass_docs.models import PackageRequest
+
+    q = (request.GET.get("q") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+
+    qs = PackageRequest.objects.select_related("employee")
+    if q:
+        qs = qs.filter(
+            Q(employee__full_name__icontains=q)
+            | Q(employee__import_key__icontains=q)
+            | Q(email_to__icontains=q)
+            | Q(package_kind__icontains=q)
+        )
+    if status:
+        qs = qs.filter(status=status)
+
+    requests_qs = qs.order_by("-created_at", "-id")
+    paginator = Paginator(requests_qs, 30)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        **_pass_docs_shell_ctx("packages"),
+        "package_requests": page_obj.object_list,
+        "page_obj": page_obj,
+        "q": q,
+        "status": status,
+        "status_choices": PackageRequest.Status.choices,
+        "requests_total": requests_qs.count(),
+    }
+    return render(request, "adminpanel/pass_docs_package_requests.html", context)
 
 
 @staff_member_required

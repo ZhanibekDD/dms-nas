@@ -2,7 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path("", views.dashboard, name="dashboard"),
+    path("", views.root_pass_docs_redirect, name="root"),
+    path("dashboard/", views.dashboard, name="dashboard"),
     path("workspace/dashboard/", views.workspace_dashboard, name="workspace_dashboard"),
     path("workspace/pass-docs/", views.pass_docs_home, name="pass_docs_home"),
     path("workspace/pass-docs/employees/", views.pass_docs_employees, name="pass_docs_employees"),

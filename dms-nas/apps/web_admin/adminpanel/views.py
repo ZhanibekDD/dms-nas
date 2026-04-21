@@ -42,6 +42,13 @@ def _nas():
 # Dashboard
 # ──────────────────────────────────────────────────────────────────────────────
 
+
+@staff_member_required
+def root_pass_docs_redirect(request):
+    """GET / → рабочая область pass_docs (основной сценарий MVP)."""
+    return redirect("pass_docs_documents")
+
+
 def _dashboard_missing_schema_redirect(request, exc) -> Optional[HttpResponse]:
     """Если схема adminpanel не прогнана (нет таблиц) — не даём 500 на `/`."""
     from django.db.utils import OperationalError

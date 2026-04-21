@@ -65,11 +65,13 @@ def build_package_for_request(
     request_id: int,
     *,
     allow_draft: bool = False,
+    allow_ready: bool = False,
 ) -> dict[str, Any]:
     """
     Полная сборка одной заявки.
 
-    Допустимые старты: ``submitted``; при ``allow_draft=True`` ещё ``draft``.
+    Допустимые старты: ``submitted``; при ``allow_draft=True`` ещё ``draft``;
+    при ``allow_ready=True`` ещё ``ready`` (пересборка артефактов).
     В процессе: ``building`` → ``ready`` или ``failed``.
     """
     summary: dict[str, Any] = {"request_id": request_id, "ok": False}
@@ -83,11 +85,18 @@ def build_package_for_request(
         allowed = {PackageRequest.Status.SUBMITTED}
         if allow_draft:
             allowed.add(PackageRequest.Status.DRAFT)
+        if allow_ready:
+            allowed.add(PackageRequest.Status.READY)
 
         if request.status not in allowed:
+            parts = ["submitted"]
+            if allow_draft:
+                parts.append("draft (--allow-draft)")
+            if allow_ready:
+                parts.append("ready (--allow-ready)")
             raise PackageBuildError(
                 f"Сборка недоступна для status={request.status!r}. "
-                f"Ожидается submitted{' или draft (с --allow-draft)' if allow_draft else ''}."
+                f"Допустимо: {', '.join(parts)}."
             )
 
         payload = _payload_copy(request)

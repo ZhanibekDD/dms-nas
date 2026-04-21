@@ -6,12 +6,14 @@
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class CatalogEntry(TypedDict):
+    """extractor_kind можно не указывать — тогда в БД/extraction не подставляется."""
+
     name: str
-    extractor_kind: str
+    extractor_kind: NotRequired[str]
 
 
 # Ключи — нормализованный код (как после import_pass_docs._normalize_doc_code: 6, 7, 13, …).
@@ -41,10 +43,18 @@ DOCUMENT_CODE_CATALOG: dict[str, CatalogEntry] = {
     "23": {"name": "Специальная оценка условий труда (документ)", "extractor_kind": "umo"},
     "26": {"name": "Электробезопасность", "extractor_kind": "electrical_safety"},
     "31": {"name": "БДД", "extractor_kind": "bdd_protocol"},
+    "37": {"name": "Квалификационное удостоверение", "extractor_kind": "umo"},
+    "44": {"name": "Трудовой договор"},
+    "45": {"name": "Согласие на обработку персональных данных"},
+    "46": {"name": "Договор МО"},
+    "52": {"name": "Фото сотрудника"},
     "57": {"name": "СИЗ (протокол / обучение)", "extractor_kind": "siz_training_protocol"},
+    "59": {"name": "ПТМ (пожарно-технический минимум)", "extractor_kind": "safety_protocol_v"},
+    "61": {"name": "ПБ1 (промышленная безопасность)", "extractor_kind": "safety_protocol_v"},
     "74": {"name": "УМО", "extractor_kind": "umo"},
+    "78": {"name": "Нефтепромысловые трубопроводы (протокол / обучение)", "extractor_kind": "safety_protocol_v"},
     # Общие документы из каталогов R&/D& (часто без отдельного экстрактора)
-    "UNKNOWN": {"name": "Тип документа (не классифицирован)", "extractor_kind": ""},
+    "UNKNOWN": {"name": "Тип документа (не классифицирован)"},
     "RULE01": {"name": "Внутренний регламент (RULE01)", "extractor_kind": "umo"},
     "RULE_01": {"name": "Внутренний регламент (RULE_01)", "extractor_kind": "umo"},
 }

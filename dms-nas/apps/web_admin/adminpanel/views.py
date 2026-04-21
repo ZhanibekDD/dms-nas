@@ -385,8 +385,11 @@ def pass_docs_package_request_build(request, request_id: int):
     if not pr:
         raise Http404("Заявка не найдена")
     allow_draft = pr.status == PackageRequest.Status.DRAFT
+    allow_ready = pr.status == PackageRequest.Status.READY
     try:
-        summary = build_package_for_request(pr.pk, allow_draft=allow_draft)
+        summary = build_package_for_request(
+            pr.pk, allow_draft=allow_draft, allow_ready=allow_ready
+        )
     except PackageBuildError as exc:
         messages.error(request, str(exc))
         return redirect("pass_docs_package_requests")

@@ -21,6 +21,14 @@ def _safe_segment(s: str, max_len: int = 96) -> str:
     return t[:max_len]
 
 
+def _zip_extractor_folder_segment(doc: EmployeeDocument) -> str:
+    """Подпапка в ZIP: extractor_kind или slug по названию типа (без «unknown»)."""
+    raw = (extractor_kind_for_document(doc) or "").strip()
+    if raw:
+        return _safe_segment(raw, 48)
+    return _safe_segment(doc.document_type.name or "doc", 48)
+
+
 def _zip_root_name(request: PackageRequest) -> str:
     key = _safe_segment(request.employee.import_key, 80)
     return f"package_{request.pk}_{key}"
@@ -68,7 +76,7 @@ def build_package_zip_bytes(
                 continue
 
             code = _safe_segment(doc.document_type.code or "doc", 48)
-            ek = _safe_segment(extractor_kind_for_document(doc) or "unknown", 48)
+            ek = _zip_extractor_folder_segment(doc)
             rel_dir = f"{root}/documents/{code}_{ek}"
 
             orig_name = fs_path.name or f"document_{doc.pk}"
@@ -109,7 +117,7 @@ def describe_zip_example_structure(request: PackageRequest) -> str:
             "  manifest.json",
             "  summary.xlsx",
             "  documents/",
-            "    <doc_code>_<extractor_kind>/",
+            "    <doc_code>_<extractor_kind|name_slug>/",
             "      <original_filename>   # при коллизии: <document_id>_<original_filename>",
         ]
     )

@@ -3,6 +3,7 @@
 
   python manage.py build_package_request --id 123
   python manage.py build_package_request --id 123 --allow-draft
+  python manage.py build_package_request --id 123 --allow-ready
 """
 
 from __future__ import annotations
@@ -24,12 +25,20 @@ class Command(BaseCommand):
             action="store_true",
             help="Разрешить сборку из статуса draft (для отладки).",
         )
+        parser.add_argument(
+            "--allow-ready",
+            action="store_true",
+            help="Разрешить пересборку из статуса ready (обновить Excel/ZIP).",
+        )
 
     def handle(self, *args, **options):
         rid = options["id"]
         allow_draft = bool(options["allow_draft"])
+        allow_ready = bool(options["allow_ready"])
         try:
-            summary = build_package_for_request(rid, allow_draft=allow_draft)
+            summary = build_package_for_request(
+                rid, allow_draft=allow_draft, allow_ready=allow_ready
+            )
         except PackageBuildError as exc:
             raise CommandError(str(exc)) from exc
 

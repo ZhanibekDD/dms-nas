@@ -244,15 +244,18 @@ class PackageRequestAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     actions = ("action_build_package_artifacts",)
 
-    @admin.action(description="Собрать Excel + ZIP (статус submitted или draft)")
+    @admin.action(description="Собрать Excel + ZIP (submitted, draft или ready)")
     def action_build_package_artifacts(self, request, queryset):
         if queryset.count() != 1:
             self.message_user(request, "Выберите ровно одну заявку.", level=messages.ERROR)
             return
         pr = queryset.first()
         allow_draft = pr.status == PackageRequest.Status.DRAFT
+        allow_ready = pr.status == PackageRequest.Status.READY
         try:
-            summary = build_package_for_request(pr.pk, allow_draft=allow_draft)
+            summary = build_package_for_request(
+                pr.pk, allow_draft=allow_draft, allow_ready=allow_ready
+            )
         except PackageBuildError as exc:
             self.message_user(request, str(exc), level=messages.ERROR)
             return

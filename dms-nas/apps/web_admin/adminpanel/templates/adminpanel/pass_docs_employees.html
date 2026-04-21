@@ -1,0 +1,81 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block pass_docs_title %}Сотрудники{% endblock %}
+{% block pass_docs_subtitle %}Личные дела и состояние комплектов документов{% endblock %}
+
+{% block pass_docs_content %}
+<section class="pd-card">
+  <form method="get" class="pd-filters pd-filters--grid3">
+    <label class="pd-field">
+      <span>Поиск</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, import_key, папка, организация">
+    </label>
+    <label class="pd-field">
+      <span>Организация</span>
+      <input type="text" name="company" value="{{ company }}" placeholder="ООО ДНЕПР...">
+    </label>
+    <label class="pd-field">
+      <span>Статус</span>
+      <select name="active">
+        <option value="">Все</option>
+        <option value="1" {% if active == "1" %}selected{% endif %}>Активные</option>
+        <option value="0" {% if active == "0" %}selected{% endif %}>Неактивные</option>
+      </select>
+    </label>
+    <div class="pd-filter-actions">
+      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
+      <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+    </div>
+  </form>
+</section>
+
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Список сотрудников</h2>
+    <span class="pd-counter">{{ employees_total }}</span>
+  </div>
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>ФИО</th>
+          <th>import_key</th>
+          <th>Организация</th>
+          <th>Документов</th>
+          <th>Разобрано</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        <tr>
+          <td>
+            <div class="pd-strong">{{ emp.full_name }}</div>
+            <div class="pd-muted">{{ emp.source_folder_name|default:"—" }}</div>
+          </td>
+          <td><code>{{ emp.import_key }}</code></td>
+          <td>{{ emp.company|default:"—" }}</td>
+          <td>{{ emp.documents_count }}</td>
+          <td>{{ emp.documents_ok_count }}</td>
+          <td>
+            {% if emp.is_active %}
+              <span class="pd-badge pd-badge--ok">active</span>
+            {% else %}
+              <span class="pd-badge pd-badge--warn">inactive</span>
+            {% endif %}
+          </td>
+          <td class="pd-right">
+            <a class="pd-link" href="{% url 'pass_docs_documents' %}?q={{ emp.import_key|urlencode }}">Документы</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="pd-empty">По выбранным фильтрам ничего не найдено.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block pass_docs_title %}Карточка документа{% endblock %}
+{% block pass_docs_subtitle %}Операторский просмотр extraction и служебных данных{% endblock %}
+
+{% block pass_docs_actions %}
+  <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">К реестру</a>
+  <a href="{% url 'admin:pass_docs_employeedocument_change' doc.id %}" class="pd-btn pd-btn--primary">Открыть в admin</a>
+{% endblock %}
+
+{% block pass_docs_content %}
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>{{ doc.document_type.code }} — {{ doc.document_type.name }}</h2>
+    <span class="pd-counter">id={{ doc.id }}</span>
+  </div>
+  <div class="pd-meta-grid">
+    <div><span class="pd-k">Сотрудник</span><span class="pd-v">{{ doc.employee.full_name }}</span></div>
+    <div><span class="pd-k">import_key</span><span class="pd-v"><code>{{ doc.employee.import_key }}</code></span></div>
+    <div><span class="pd-k">parse_status</span><span class="pd-v"><span class="pd-badge pd-badge--{{ doc.parse_status }}">{{ doc.parse_status }}</span></span></div>
+    <div><span class="pd-k">Статус комплекта</span><span class="pd-v"><span class="pd-badge pd-badge--{{ doc.status }}">{{ doc.status }}</span></span></div>
+    <div><span class="pd-k">Актуален</span><span class="pd-v">{% if doc.is_actual %}Да{% else %}Нет{% endif %}</span></div>
+    <div><span class="pd-k">Extractor</span><span class="pd-v">{% if extractor_kind %}<span class="pd-tag">{{ extractor_kind }}</span>{% else %}—{% endif %}</span></div>
+    <div><span class="pd-k">Дата выдачи</span><span class="pd-v">{{ doc.issue_date|default:"—" }}</span></div>
+    <div><span class="pd-k">Срок действия</span><span class="pd-v">{{ doc.expiry_date|default:"—" }}</span></div>
+  </div>
+  <div class="pd-source-path">{{ doc.source_path }}</div>
+</section>
+
+<section class="pd-card">
+  <div class="pd-tabs">
+    <a href="#normalized" class="pd-tab">Normalized</a>
+    <a href="#raw" class="pd-tab">Raw vision</a>
+    <a href="#json" class="pd-tab">Full JSON</a>
+    <a href="#service" class="pd-tab">Служебное</a>
+  </div>
+
+  <div class="pd-pane" id="normalized">
+    <h3>Extraction / AI preview: normalized</h3>
+    {% if normalized %}
+      <pre class="pd-code">{{ normalized|pprint }}</pre>
+    {% else %}
+      <p class="pd-empty">normalized ещё не сформирован.</p>
+    {% endif %}
+  </div>
+
+  <details class="pd-details" id="raw" open>
+    <summary>raw_vision</summary>
+    {% if raw_vision %}
+      <pre class="pd-code">{{ raw_vision|pprint }}</pre>
+    {% else %}
+      <p class="pd-empty">raw_vision отсутствует (возможен text-only путь).</p>
+    {% endif %}
+  </details>
+
+  <details class="pd-details" id="json">
+    <summary>Полный extracted_json</summary>
+    {% if payload %}
+      <pre class="pd-code">{{ payload|pprint }}</pre>
+    {% else %}
+      <p class="pd-empty">extracted_json пустой.</p>
+    {% endif %}
+  </details>
+
+  <details class="pd-details" id="service">
+    <summary>Служебное</summary>
+    <div class="pd-service-grid">
+      <div>
+        <span class="pd-k">metadata</span>
+        <pre class="pd-code">{{ doc.metadata|pprint }}</pre>
+      </div>
+      <div>
+        <span class="pd-k">notes</span>
+        <pre class="pd-code">{{ doc.notes|default:"" }}</pre>
+      </div>
+    </div>
+  </details>
+</section>
+{% endblock %}

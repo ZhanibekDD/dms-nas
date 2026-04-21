@@ -4,6 +4,10 @@ from . import views
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("workspace/dashboard/", views.workspace_dashboard, name="workspace_dashboard"),
+    path("workspace/pass-docs/", views.pass_docs_home, name="pass_docs_home"),
+    path("workspace/pass-docs/employees/", views.pass_docs_employees, name="pass_docs_employees"),
+    path("workspace/pass-docs/documents/", views.pass_docs_documents, name="pass_docs_documents"),
+    path("workspace/pass-docs/documents/<int:doc_id>/", views.pass_docs_document_detail, name="pass_docs_document_detail"),
     path("workspace/employees/", views.workspace_employees, name="workspace_employees"),
     path("workspace/documents/", views.workspace_documents, name="workspace_documents"),
     path("workspace/packages/", views.workspace_packages, name="workspace_packages"),

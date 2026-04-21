@@ -1,0 +1,112 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block pass_docs_title %}Документы сотрудников{% endblock %}
+{% block pass_docs_subtitle %}Фильтрация комплекта, parse_status и extraction-превью{% endblock %}
+
+{% block pass_docs_content %}
+<section class="pd-card">
+  <form method="get" class="pd-filters pd-filters--grid5">
+    <label class="pd-field">
+      <span>Поиск</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, import_key, код, путь">
+    </label>
+    <label class="pd-field">
+      <span>parse_status</span>
+      <select name="parse_status">
+        <option value="">Все</option>
+        {% for value,label in parse_status_choices %}
+          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="pd-field">
+      <span>Статус комплекта</span>
+      <select name="status">
+        <option value="">Все</option>
+        {% for value,label in status_choices %}
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="pd-field">
+      <span>Актуальность</span>
+      <select name="actual">
+        <option value="">Все</option>
+        <option value="1" {% if actual == "1" %}selected{% endif %}>Актуальные</option>
+        <option value="0" {% if actual == "0" %}selected{% endif %}>Неактуальные</option>
+      </select>
+    </label>
+    <label class="pd-field">
+      <span>extractor_kind</span>
+      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="ru_passport, umo...">
+    </label>
+    <div class="pd-filter-actions">
+      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
+      <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+    </div>
+  </form>
+</section>
+
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Реестр документов</h2>
+    <span class="pd-counter">{{ documents_total }}</span>
+  </div>
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>Сотрудник</th>
+          <th>Тип</th>
+          <th>extractor</th>
+          <th>parse</th>
+          <th>Комплект</th>
+          <th>Актуален</th>
+          <th>Обновлён</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in documents %}
+        <tr>
+          <td>
+            <div class="pd-strong">{{ doc.employee.full_name }}</div>
+            <div class="pd-muted"><code>{{ doc.employee.import_key }}</code></div>
+          </td>
+          <td>
+            <div class="pd-strong">{{ doc.document_type.code }}</div>
+            <div class="pd-muted">{{ doc.document_type.name }}</div>
+          </td>
+          <td>
+            {% if doc.extracted_json.extractor_kind %}
+              <span class="pd-tag">{{ doc.extracted_json.extractor_kind }}</span>
+            {% elif doc.document_type.extractor_kind %}
+              <span class="pd-tag pd-tag--muted">{{ doc.document_type.extractor_kind }}</span>
+            {% else %}
+              <span class="pd-muted">—</span>
+            {% endif %}
+          </td>
+          <td><span class="pd-badge pd-badge--{{ doc.parse_status }}">{{ doc.parse_status }}</span></td>
+          <td><span class="pd-badge pd-badge--{{ doc.status }}">{{ doc.status }}</span></td>
+          <td>
+            {% if doc.is_actual %}
+              <span class="pd-badge pd-badge--ok">yes</span>
+            {% else %}
+              <span class="pd-badge pd-badge--warn">no</span>
+            {% endif %}
+          </td>
+          <td>{{ doc.updated_at|date:"d.m.Y H:i" }}</td>
+          <td class="pd-right">
+            <a class="pd-link" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="pd-empty">Документы по выбранным фильтрам не найдены.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

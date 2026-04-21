@@ -138,6 +138,10 @@ def _workspace_ctx(active: str):
     return {"workspace_active": active}
 
 
+def _pass_docs_shell_ctx(active: str) -> dict:
+    return {"pass_docs_active": active}
+
+
 @staff_member_required
 def workspace_dashboard(request):
     return render(
@@ -149,20 +153,127 @@ def workspace_dashboard(request):
 
 @staff_member_required
 def workspace_employees(request):
-    return render(
-        request,
-        "adminpanel/employees.html",
-        _workspace_ctx("employees"),
-    )
+    return redirect("pass_docs_employees")
 
 
 @staff_member_required
 def workspace_documents(request):
-    return render(
-        request,
-        "adminpanel/documents.html",
-        _workspace_ctx("documents"),
+    return redirect("pass_docs_documents")
+
+
+@staff_member_required
+def pass_docs_home(request):
+    return redirect("pass_docs_documents")
+
+
+@staff_member_required
+def pass_docs_employees(request):
+    from django.db.models import Count, Q
+    from pass_docs.models import Employee
+
+    q = (request.GET.get("q") or "").strip()
+    company = (request.GET.get("company") or "").strip()
+    active = (request.GET.get("active") or "").strip()
+
+    qs = Employee.objects.annotate(
+        documents_count=Count("documents"),
+        documents_ok_count=Count("documents", filter=Q(documents__parse_status="ok")),
     )
+    if q:
+        qs = qs.filter(
+            Q(import_key__icontains=q)
+            | Q(full_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(first_name__icontains=q)
+            | Q(source_folder_name__icontains=q)
+            | Q(company__icontains=q)
+        )
+    if company:
+        qs = qs.filter(company__icontains=company)
+    if active in ("1", "0"):
+        qs = qs.filter(is_active=(active == "1"))
+
+    employees = qs.order_by("full_name", "import_key")[:400]
+
+    context = {
+        **_pass_docs_shell_ctx("employees"),
+        "employees": employees,
+        "q": q,
+        "company": company,
+        "active": active,
+        "employees_total": qs.count(),
+    }
+    return render(request, "adminpanel/pass_docs_employees.html", context)
+
+
+@staff_member_required
+def pass_docs_documents(request):
+    from django.db.models import Q
+    from pass_docs.models import EmployeeDocument
+
+    q = (request.GET.get("q") or "").strip()
+    parse_status = (request.GET.get("parse_status") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+    actual = (request.GET.get("actual") or "").strip()
+    extractor_kind = (request.GET.get("extractor_kind") or "").strip()
+
+    qs = EmployeeDocument.objects.select_related("employee", "document_type")
+    if q:
+        qs = qs.filter(
+            Q(employee__full_name__icontains=q)
+            | Q(employee__import_key__icontains=q)
+            | Q(document_type__code__icontains=q)
+            | Q(document_type__name__icontains=q)
+            | Q(source_path__icontains=q)
+        )
+    if parse_status:
+        qs = qs.filter(parse_status=parse_status)
+    if status:
+        qs = qs.filter(status=status)
+    if actual in ("1", "0"):
+        qs = qs.filter(is_actual=(actual == "1"))
+    if extractor_kind:
+        qs = qs.filter(document_type__extractor_kind=extractor_kind)
+
+    documents = qs.order_by("-updated_at", "-id")[:500]
+
+    context = {
+        **_pass_docs_shell_ctx("documents"),
+        "documents": documents,
+        "q": q,
+        "parse_status": parse_status,
+        "status": status,
+        "actual": actual,
+        "extractor_kind": extractor_kind,
+        "parse_status_choices": EmployeeDocument.ParseStatus.choices,
+        "status_choices": EmployeeDocument.Status.choices,
+        "documents_total": qs.count(),
+    }
+    return render(request, "adminpanel/pass_docs_documents.html", context)
+
+
+@staff_member_required
+def pass_docs_document_detail(request, doc_id: int):
+    from pass_docs.models import EmployeeDocument
+
+    doc = (
+        EmployeeDocument.objects.select_related("employee", "document_type")
+        .filter(pk=doc_id)
+        .first()
+    )
+    if not doc:
+        raise Http404(f"Документ сотрудника #{doc_id} не найден")
+
+    payload = doc.extracted_json or {}
+    context = {
+        **_pass_docs_shell_ctx("documents"),
+        "doc": doc,
+        "payload": payload,
+        "normalized": payload.get("normalized"),
+        "raw_vision": payload.get("raw_vision"),
+        "extractor_kind": payload.get("extractor_kind") or doc.document_type.extractor_kind or "",
+    }
+    return render(request, "adminpanel/pass_docs_document_detail.html", context)
 
 
 @staff_member_required

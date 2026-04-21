@@ -13,7 +13,7 @@ from datetime import datetime
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
-from django.http import HttpResponse, Http404, JsonResponse
+from django.http import FileResponse, HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
@@ -368,6 +368,44 @@ def pass_docs_package_request_build(request, request_id: int):
             summary.get("last_error") or "Сборка завершилась с ошибкой (см. payload_json.last_error).",
         )
     return redirect("pass_docs_package_requests")
+
+
+@staff_member_required
+@require_GET
+def pass_docs_package_request_download(request, request_id: int, kind: str):
+    """Скачивание Excel или ZIP для заявки в статусе ready (только staff)."""
+    import mimetypes
+
+    from pass_docs.models import PackageRequest
+
+    kind = (kind or "").strip().lower()
+    if kind not in ("excel", "zip"):
+        raise Http404("Неизвестный тип файла")
+    pr = PackageRequest.objects.filter(pk=request_id).first()
+    if not pr:
+        raise Http404("Заявка не найдена")
+    if pr.status != PackageRequest.Status.READY:
+        raise Http404("Скачивание доступно только для заявок в статусе ready")
+    if kind == "excel":
+        f = pr.excel_file
+        fallback = f"package_{pr.pk}_summary.xlsx"
+        ctype_default = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        f = pr.zip_file
+        fallback = f"package_{pr.pk}.zip"
+        ctype_default = "application/zip"
+    if not f or not f.name:
+        raise Http404("Файл ещё не сформирован")
+    download_name = os.path.basename(f.name) if f.name else fallback
+    ctype, _ = mimetypes.guess_type(download_name)
+    if not ctype:
+        ctype = ctype_default
+    return FileResponse(
+        f.open("rb"),
+        as_attachment=True,
+        filename=download_name,
+        content_type=ctype,
+    )
 
 
 @staff_member_required

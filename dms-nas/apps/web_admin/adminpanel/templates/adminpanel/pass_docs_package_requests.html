@@ -71,6 +71,18 @@
               <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel+ZIP</button>
             </form>
             {% endif %}
+            {% if r.status == "ready" %}
+            {% if r.excel_file or r.zip_file %}
+            <span class="pd-artifact-links">
+              {% if r.excel_file %}
+              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">Скачать Excel</a>
+              {% endif %}
+              {% if r.zip_file %}
+              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">Скачать ZIP</a>
+              {% endif %}
+            </span>
+            {% endif %}
+            {% endif %}
             <a class="pd-link" href="{% url 'admin:pass_docs_packagerequest_change' r.id %}">Админ</a>
           </td>
         </tr>

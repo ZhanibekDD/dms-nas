@@ -15,6 +15,11 @@ urlpatterns = [
         views.pass_docs_package_request_build,
         name="pass_docs_package_request_build",
     ),
+    path(
+        "workspace/pass-docs/package-requests/<int:request_id>/download/<slug:kind>/",
+        views.pass_docs_package_request_download,
+        name="pass_docs_package_request_download",
+    ),
     path("workspace/employees/", views.workspace_employees, name="workspace_employees"),
     path("workspace/documents/", views.workspace_documents, name="workspace_documents"),
     path("workspace/packages/", views.workspace_packages, name="workspace_packages"),

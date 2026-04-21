@@ -140,6 +140,15 @@ body.pass-docs-workspace .content-wrapper > .content {
   white-space: nowrap;
 }
 
+.pd-artifact-links {
+  display: inline-flex;
+  gap: 10px;
+  margin-right: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  vertical-align: middle;
+}
+
 .pd-main {
   min-width: 0;
 }

@@ -213,7 +213,9 @@ class PackageRequest(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "черновик"
         SUBMITTED = "submitted", "отправлена"
+        BUILDING = "building", "сборка"
         READY = "ready", "готова"
+        FAILED = "failed", "ошибка сборки"
         SENT = "sent", "отправлено"
         CANCELLED = "cancelled", "отменена"
 

@@ -1,7 +1,9 @@
 import json
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
+
+from pass_docs.services.package_builder import PackageBuildError, build_package_for_request
 
 from .models import (
     DocumentType,
@@ -240,3 +242,30 @@ class PackageRequestAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("employee",)
     readonly_fields = ("created_at", "updated_at")
+    actions = ("action_build_package_artifacts",)
+
+    @admin.action(description="Собрать Excel + ZIP (submitted; draft — только для draft)")
+    def action_build_package_artifacts(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(request, "Выберите ровно одну заявку.", level=messages.ERROR)
+            return
+        pr = queryset.first()
+        allow_draft = pr.status == PackageRequest.Status.DRAFT
+        try:
+            summary = build_package_for_request(pr.pk, allow_draft=allow_draft)
+        except PackageBuildError as exc:
+            self.message_user(request, str(exc), level=messages.ERROR)
+            return
+        if summary.get("ok"):
+            self.message_user(
+                request,
+                f"Сборка завершена: {summary.get('documents_included')} док., "
+                f"ZIP root={summary.get('zip_root')!r}.",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                summary.get("last_error") or "Сборка не удалась (см. payload_json.last_error).",
+                level=messages.ERROR,
+            )

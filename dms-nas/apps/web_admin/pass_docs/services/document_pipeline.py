@@ -14,9 +14,14 @@ from pathlib import Path
 from typing import Any
 
 from pass_docs.models import DocumentType, EmployeeDocument
-from pass_docs.services import vision_client
 from pass_docs.services import employee_extraction_sync
+from pass_docs.services import vision_client
 from pass_docs.services.extractors import EXTRACTOR_REGISTRY
+from pass_docs.services.passport_image_preprocessing import (
+    PIPELINE_VERSION,
+    choose_passport_rotation,
+    compute_name_mismatch_warning,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +127,7 @@ def _pil_to_png_b64_for_vision(pil: Any, *, max_side: int = 1280) -> str:
     return vision_client.file_to_base64_from_bytes(buf.getvalue())
 
 
-def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
+def _pdf_first_page_pil_pdfplumber(path: Path) -> Any | None:
     import os
     import tempfile
 
@@ -136,7 +141,7 @@ def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
             img = page.to_image(resolution=144)
             pil = getattr(img, "original", None)
             if pil is not None and hasattr(pil, "save"):
-                return _pil_to_png_b64_for_vision(pil)
+                return pil.convert("RGB")
             fd, tmp_path = tempfile.mkstemp(suffix=".png")
             os.close(fd)
             try:
@@ -145,7 +150,7 @@ def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
                 img.save(tmp_path, format="PNG")
                 with Image.open(tmp_path) as opened:
                     opened.load()
-                    return _pil_to_png_b64_for_vision(opened)
+                    return opened.convert("RGB")
             finally:
                 try:
                     os.unlink(tmp_path)
@@ -156,7 +161,7 @@ def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
         return None
 
 
-def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
+def _pdf_first_page_pil_pypdfium(path: Path) -> Any | None:
     """Headless-friendly рендер первой страницы (pypdfium2 тянется с pdfplumber)."""
     try:
         import pypdfium2 as pdfium
@@ -168,11 +173,10 @@ def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
         if len(pdf) < 1:
             return None
         page = pdf[0]
-        # ~144 dpi при базовой 72 dpi страницы
         bitmap = page.render(scale=144 / 72.0)
         try:
             pil = bitmap.to_pil()
-            return _pil_to_png_b64_for_vision(pil)
+            return pil.convert("RGB")
         finally:
             bitmap.close()
     except Exception as exc:
@@ -186,11 +190,49 @@ def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
                 pass
 
 
+def _pdf_first_page_pil(path: Path) -> Any | None:
+    pil = _pdf_first_page_pil_pdfplumber(path)
+    if pil is not None:
+        return pil
+    return _pdf_first_page_pil_pypdfium(path)
+
+
+def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
+    pil = _pdf_first_page_pil_pdfplumber(path)
+    return _pil_to_png_b64_for_vision(pil) if pil is not None else None
+
+
+def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
+    pil = _pdf_first_page_pil_pypdfium(path)
+    return _pil_to_png_b64_for_vision(pil) if pil is not None else None
+
+
 def _pdf_first_page_png_b64(path: Path) -> str | None:
     b64 = _pdf_first_page_png_b64_pdfplumber(path)
     if b64:
         return b64
     return _pdf_first_page_png_b64_pypdfium(path)
+
+
+def _passport_pre_meta_text_only() -> dict[str, Any]:
+    return {
+        "rotation_applied": None,
+        "variant": "skipped_text_only_pdf",
+        "note": "Ориентация по изображению не применялась (извлечение только из текста PDF).",
+    }
+
+
+def _merge_passport_meta(
+    doc: EmployeeDocument,
+    *,
+    normalized: dict[str, Any],
+    preprocessing: dict[str, Any],
+    base: dict[str, Any],
+) -> dict[str, Any]:
+    nm = compute_name_mismatch_warning(doc.employee, normalized)
+    out = {**base, "pipeline_version": PIPELINE_VERSION, "preprocessing": preprocessing}
+    out.update(nm)
+    return out
 
 
 def _run_extractor(kind: str, *, vision_json: dict | None, pdf_text: str | None) -> dict[str, Any]:
@@ -244,17 +286,26 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
             if pdf_text and not _is_garbage_text(pdf_text):
                 steps.append("text_only_path")
                 normalized = _run_extractor(kind, vision_json=None, pdf_text=pdf_text)
-                doc.extracted_json = {
+                base: dict[str, Any] = {
                     "pipeline": steps,
                     "extractor_kind": kind,
                     "normalized": normalized,
                     "pdf_text_preview": pdf_text[:500],
                 }
+                if kind == "ru_passport":
+                    doc.extracted_json = _merge_passport_meta(
+                        doc,
+                        normalized=normalized,
+                        preprocessing=_passport_pre_meta_text_only(),
+                        base=base,
+                    )
+                else:
+                    doc.extracted_json = {**base, "pipeline_version": PIPELINE_VERSION}
                 doc.parse_status = EmployeeDocument.ParseStatus.OK
             else:
                 steps.append("pdf_text_weak_or_empty_try_vision")
-                b64 = _pdf_first_page_png_b64(path)
-                if not b64:
+                pil_page = _pdf_first_page_pil(path)
+                if pil_page is None:
                     doc.extracted_json = {
                         "pipeline": steps,
                         "error": "pdf_first_page_render_failed",
@@ -262,18 +313,38 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                     }
                     doc.parse_status = EmployeeDocument.ParseStatus.ERROR
                 else:
+                    if kind == "ru_passport":
+                        pil_for_vision, pre_meta = choose_passport_rotation(pil_page)
+                        steps.append("passport_orientation_heuristic")
+                    else:
+                        pil_for_vision = pil_page
+                        pre_meta = {
+                            "rotation_applied": 0,
+                            "variant": "no_passport_skip_orientation",
+                            "note": "Только ru_passport проходит выбор ориентации.",
+                        }
+                    b64 = _pil_to_png_b64_for_vision(pil_for_vision)
                     vision_raw = vision_client.chat_json(
                         _vision_prompt(kind),
                         images_b64=[b64],
                     )
                     steps.append("vision_ok")
                     normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
-                    doc.extracted_json = {
+                    base = {
                         "pipeline": steps,
                         "extractor_kind": kind,
                         "raw_vision": vision_raw,
                         "normalized": normalized,
                     }
+                    if kind == "ru_passport":
+                        doc.extracted_json = _merge_passport_meta(
+                            doc,
+                            normalized=normalized,
+                            preprocessing=pre_meta,
+                            base=base,
+                        )
+                    else:
+                        doc.extracted_json = {**base, "pipeline_version": PIPELINE_VERSION}
                     doc.parse_status = EmployeeDocument.ParseStatus.OK
 
         elif ext in IMAGE_SUFFIXES:
@@ -282,19 +353,39 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
 
             with Image.open(path) as im:
                 im.load()
-                b64 = _pil_to_png_b64_for_vision(im)
+                pil_page = im.convert("RGB")
+            if kind == "ru_passport":
+                pil_for_vision, pre_meta = choose_passport_rotation(pil_page)
+                steps.append("passport_orientation_heuristic")
+            else:
+                pil_for_vision = pil_page
+                pre_meta = {
+                    "rotation_applied": 0,
+                    "variant": "no_passport_skip_orientation",
+                    "note": "Только ru_passport проходит выбор ориентации.",
+                }
+            b64 = _pil_to_png_b64_for_vision(pil_for_vision)
             vision_raw = vision_client.chat_json(
                 _vision_prompt(kind),
                 images_b64=[b64],
             )
             steps.append("vision_ok")
             normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
-            doc.extracted_json = {
+            base = {
                 "pipeline": steps,
                 "extractor_kind": kind,
                 "raw_vision": vision_raw,
                 "normalized": normalized,
             }
+            if kind == "ru_passport":
+                doc.extracted_json = _merge_passport_meta(
+                    doc,
+                    normalized=normalized,
+                    preprocessing=pre_meta,
+                    base=base,
+                )
+            else:
+                doc.extracted_json = {**base, "pipeline_version": PIPELINE_VERSION}
             doc.parse_status = EmployeeDocument.ParseStatus.OK
         else:
             doc.extracted_json = {

@@ -16,8 +16,17 @@ class CatalogEntry(TypedDict):
 
 # Ключи — нормализованный код (как после import_pass_docs._normalize_doc_code: 6, 7, 13, …).
 DOCUMENT_CODE_CATALOG: dict[str, CatalogEntry] = {
+    # Числовые коды из имён файлов «6&…», «7&…»
     "6": {"name": "Паспорт РФ", "extractor_kind": "ru_passport"},
     "7": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
+    # Текстовые синонимы (PASSPORT_RF&… и т.п.)
+    "PASSPORT_RF": {"name": "Паспорт РФ", "extractor_kind": "ru_passport"},
+    "PASPORT_RF": {"name": "Паспорт РФ", "extractor_kind": "ru_passport"},
+    "MED": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
+    "MEDICAL": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
+    "MEDICAL_CERTIFICATE": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
+    "MED_SPRAVKA": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
+    "SPRAVKA086": {"name": "Медицинская справка (086/у)", "extractor_kind": "medical_certificate"},
     "13": {"name": "Охрана труда (программа В)", "extractor_kind": "safety_protocol_v"},
     "14": {"name": "Охрана труда (программы А, Б)", "extractor_kind": "safety_protocol_ab"},
     "15": {"name": "Пожарная безопасность (протокол / удостоверение)", "extractor_kind": "safety_protocol_v"},
@@ -34,6 +43,10 @@ DOCUMENT_CODE_CATALOG: dict[str, CatalogEntry] = {
     "31": {"name": "БДД", "extractor_kind": "bdd_protocol"},
     "57": {"name": "СИЗ (протокол / обучение)", "extractor_kind": "siz_training_protocol"},
     "74": {"name": "УМО", "extractor_kind": "umo"},
+    # Общие документы из каталогов R&/D& (часто без отдельного экстрактора)
+    "UNKNOWN": {"name": "Тип документа (не классифицирован)", "extractor_kind": ""},
+    "RULE01": {"name": "Внутренний регламент (RULE01)", "extractor_kind": "umo"},
+    "RULE_01": {"name": "Внутренний регламент (RULE_01)", "extractor_kind": "umo"},
 }
 
 
@@ -51,7 +64,8 @@ def extractor_kind_for_code(code: str) -> str | None:
     entry = get_catalog_entry(code)
     if not entry:
         return None
-    return entry["extractor_kind"]
+    ek = (entry.get("extractor_kind") or "").strip()
+    return ek or None
 
 
 def catalog_defaults_for_import(code: str) -> dict[str, Any]:
@@ -59,7 +73,8 @@ def catalog_defaults_for_import(code: str) -> dict[str, Any]:
     entry = get_catalog_entry(code)
     if not entry:
         return {}
-    return {
-        "name": entry["name"][:255],
-        "extractor_kind": entry["extractor_kind"][:64],
-    }
+    out: dict[str, Any] = {"name": entry["name"][:255]}
+    ek = (entry.get("extractor_kind") or "").strip()
+    if ek:
+        out["extractor_kind"] = ek[:64]
+    return out

@@ -131,6 +131,7 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "normalized_preview",
+        "raw_vision_preview",
         "extracted_json_preview",
     )
     fieldsets = (
@@ -152,7 +153,7 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
             "Извлечение (просмотр)",
             {
                 "description": "Training и прочие типы не синхронизируются в карточку сотрудника автоматически — только хранение здесь.",
-                "fields": ("normalized_preview", "extracted_json_preview"),
+                "fields": ("normalized_preview", "raw_vision_preview", "extracted_json_preview"),
             },
         ),
         ("Служебное", {"fields": ("metadata", "created_at", "updated_at")}),
@@ -170,6 +171,19 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
         if not isinstance(norm, dict) or not norm:
             return format_html("<em>нет</em>")
         body = json.dumps(norm, ensure_ascii=False, indent=2)
+        return format_html(
+            '<pre style="max-height:22em;overflow:auto;white-space:pre-wrap;font-size:12px;margin:0">{}</pre>',
+            body,
+        )
+
+    @admin.display(description="raw_vision (ответ модели)")
+    def raw_vision_preview(self, obj: EmployeeDocument):
+        raw = (obj.extracted_json or {}).get("raw_vision")
+        if raw is None:
+            return format_html("<em>нет</em>")
+        if not isinstance(raw, (dict, list)):
+            raw = {"value": raw}
+        body = json.dumps(raw, ensure_ascii=False, indent=2)
         return format_html(
             '<pre style="max-height:22em;overflow:auto;white-space:pre-wrap;font-size:12px;margin:0">{}</pre>',
             body,

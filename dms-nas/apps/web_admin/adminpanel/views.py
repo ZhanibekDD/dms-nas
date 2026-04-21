@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import logging
+from typing import Optional
 from datetime import datetime
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
@@ -41,6 +42,24 @@ def _nas():
 # Dashboard
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _dashboard_missing_schema_redirect(request, exc) -> Optional[HttpResponse]:
+    """Если схема adminpanel не прогнана (нет таблиц) — не даём 500 на `/`."""
+    from django.db.utils import OperationalError
+
+    if not isinstance(exc, OperationalError):
+        return None
+    msg = str(exc).lower()
+    if "no such table" not in msg and "does not exist" not in msg:
+        return None
+    logger.warning("dashboard: incomplete DB schema (%s) — redirect to pass_docs", exc)
+    messages.info(
+        request,
+        "Главный дашборд сейчас недоступен: в базе нет нужных таблиц. "
+        "Открыта рабочая область pass_docs. Для полного дашборда выполните migrate.",
+    )
+    return redirect("pass_docs_documents")
+
+
 @staff_member_required
 def dashboard(request):
     from .models import UploadLog, ExpiryItem, FinanceDoc, Problem, Document
@@ -49,91 +68,99 @@ def dashboard(request):
 
     today = date.today().isoformat()
 
-    # ── Загрузки ──
-    total_docs    = UploadLog.objects.count()
-    pending_docs  = UploadLog.objects.filter(review_status="pending").count()
-    approved      = UploadLog.objects.filter(review_status="approved").count()
-    rejected      = UploadLog.objects.filter(review_status="rejected").count()
-    today_uploads = UploadLog.objects.filter(uploaded_at__startswith=today).count()
+    from django.db.utils import OperationalError
 
-    # ── Сроки ──
-    expiry_active  = ExpiryItem.objects.filter(status="active").count()
-    expiry_overdue = sum(
-        1 for e in ExpiryItem.objects.filter(status="active")
-        if e.expires_at < today
-    )
-    expiry_soon = sum(
-        1 for e in ExpiryItem.objects.filter(status="active")
-        if today <= e.expires_at <= (date.today().replace(day=date.today().day)).isoformat()
-        or 0 <= (
-            (date.fromisoformat(e.expires_at) - date.today()).days
-        ) <= 7
-    )
-
-    # ── Финансы ──
-    fin_total    = FinanceDoc.objects.count()
-    fin_draft    = FinanceDoc.objects.filter(status="черновик").count()
-    fin_review   = FinanceDoc.objects.filter(status="на_проверке").count()
-    fin_approved = FinanceDoc.objects.filter(status="утверждён").count()
-    fin_paid     = FinanceDoc.objects.filter(status="оплачен").count()
-
-    # ── Проблемы ──
-    open_problems = Problem.objects.filter(status="open").count()
-
-    # ── Sprint 11: Document Registry ──
-    registry_total   = Document.objects.count()
-    registry_pending = Document.objects.filter(status="pending").count()
-    registry_approved = Document.objects.filter(status="approved").count()
-    # дубликаты — файлы с одинаковым хэшем
     try:
-        dupes = (
-            Document.objects
-            .exclude(file_hash__isnull=True)
-            .exclude(file_hash="")
-            .values("file_hash")
-            .annotate(cnt=Count("id"))
-            .filter(cnt__gt=1)
-            .count()
+        # ── Загрузки ──
+        total_docs    = UploadLog.objects.count()
+        pending_docs  = UploadLog.objects.filter(review_status="pending").count()
+        approved      = UploadLog.objects.filter(review_status="approved").count()
+        rejected      = UploadLog.objects.filter(review_status="rejected").count()
+        today_uploads = UploadLog.objects.filter(uploaded_at__startswith=today).count()
+
+        # ── Сроки ──
+        expiry_active  = ExpiryItem.objects.filter(status="active").count()
+        expiry_overdue = sum(
+            1 for e in ExpiryItem.objects.filter(status="active")
+            if e.expires_at < today
         )
-    except Exception:
-        dupes = 0
+        expiry_soon = sum(
+            1 for e in ExpiryItem.objects.filter(status="active")
+            if today <= e.expires_at <= (date.today().replace(day=date.today().day)).isoformat()
+            or 0 <= (
+                (date.fromisoformat(e.expires_at) - date.today()).days
+            ) <= 7
+        )
 
-    # ── Топ объектов по активности ──
-    top_objects = (
-        UploadLog.objects
-        .exclude(object_name="")
-        .values("object_name")
-        .annotate(cnt=Count("id"))
-        .order_by("-cnt")[:5]
-    )
+        # ── Финансы ──
+        fin_total    = FinanceDoc.objects.count()
+        fin_draft    = FinanceDoc.objects.filter(status="черновик").count()
+        fin_review   = FinanceDoc.objects.filter(status="на_проверке").count()
+        fin_approved = FinanceDoc.objects.filter(status="утверждён").count()
+        fin_paid     = FinanceDoc.objects.filter(status="оплачен").count()
 
-    recent_uploads = UploadLog.objects.order_by("-id")[:10]
+        # ── Проблемы ──
+        open_problems = Problem.objects.filter(status="open").count()
 
-    context = {
-        "total_docs":       total_docs,
-        "pending_docs":     pending_docs,
-        "approved":         approved,
-        "rejected":         rejected,
-        "today_uploads":    today_uploads,
-        "expiry_active":    expiry_active,
-        "expiry_overdue":   expiry_overdue,
-        "expiry_soon":      expiry_soon,
-        "fin_total":        fin_total,
-        "fin_draft":        fin_draft,
-        "fin_review":       fin_review,
-        "fin_approved":     fin_approved,
-        "fin_paid":         fin_paid,
-        "open_problems":    open_problems,
-        # Registry
-        "registry_total":   registry_total,
-        "registry_pending": registry_pending,
-        "registry_approved": registry_approved,
-        "registry_dupes":   dupes,
-        # Top objects
-        "top_objects":      top_objects,
-        "recent_uploads":   recent_uploads,
-    }
-    return render(request, "adminpanel/dashboard.html", context)
+        # ── Sprint 11: Document Registry ──
+        registry_total   = Document.objects.count()
+        registry_pending = Document.objects.filter(status="pending").count()
+        registry_approved = Document.objects.filter(status="approved").count()
+        # дубликаты — файлы с одинаковым хэшем
+        try:
+            dupes = (
+                Document.objects
+                .exclude(file_hash__isnull=True)
+                .exclude(file_hash="")
+                .values("file_hash")
+                .annotate(cnt=Count("id"))
+                .filter(cnt__gt=1)
+                .count()
+            )
+        except Exception:
+            dupes = 0
+
+        # ── Топ объектов по активности ──
+        top_objects = (
+            UploadLog.objects
+            .exclude(object_name="")
+            .values("object_name")
+            .annotate(cnt=Count("id"))
+            .order_by("-cnt")[:5]
+        )
+
+        recent_uploads = UploadLog.objects.order_by("-id")[:10]
+
+        context = {
+            "total_docs":       total_docs,
+            "pending_docs":     pending_docs,
+            "approved":         approved,
+            "rejected":         rejected,
+            "today_uploads":    today_uploads,
+            "expiry_active":    expiry_active,
+            "expiry_overdue":   expiry_overdue,
+            "expiry_soon":      expiry_soon,
+            "fin_total":        fin_total,
+            "fin_draft":        fin_draft,
+            "fin_review":       fin_review,
+            "fin_approved":     fin_approved,
+            "fin_paid":         fin_paid,
+            "open_problems":    open_problems,
+            # Registry
+            "registry_total":   registry_total,
+            "registry_pending": registry_pending,
+            "registry_approved": registry_approved,
+            "registry_dupes":   dupes,
+            # Top objects
+            "top_objects":      top_objects,
+            "recent_uploads":   recent_uploads,
+        }
+        return render(request, "adminpanel/dashboard.html", context)
+    except OperationalError as exc:
+        redir = _dashboard_missing_schema_redirect(request, exc)
+        if redir is not None:
+            return redir
+        raise
 
 
 def _workspace_ctx(active: str):

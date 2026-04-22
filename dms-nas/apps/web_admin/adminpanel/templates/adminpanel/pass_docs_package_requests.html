@@ -1,18 +1,11 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 {% load pass_docs_i18n %}
 
+{% block html_title %}Заявки на пакеты{% endblock %}
 {% block pass_docs_title %}Заявки на пакеты{% endblock %}
 {% block pass_docs_subtitle %}Сборка Excel и архива{% endblock %}
 
 {% block pass_docs_content %}
-{% if messages %}
-<ul class="pd-flash-messages">
-  {% for message in messages %}
-  <li class="pd-flash-messages__item pd-flash-messages__item--{{ message.tags }}">{{ message }}</li>
-  {% endfor %}
-</ul>
-{% endif %}
-
 {% if employee_filter %}
 <p class="pd-muted pd-filter-banner">Показаны заявки выбранного сотрудника.</p>
 {% endif %}
@@ -24,7 +17,7 @@
     {% endif %}
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, организация, email">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или email">
     </label>
     <label class="pd-field">
       <span>Статус заявки</span>
@@ -56,7 +49,7 @@
           <th>Сотрудник</th>
           <th>Вид пакета</th>
           <th>Статус</th>
-          <th>Получатель email</th>
+          <th>Email получателя</th>
           <th>Создана</th>
           <th></th>
         </tr>
@@ -102,7 +95,7 @@
   {% else %}
   <div class="pd-empty-state">
     <h3>Заявок пока нет</h3>
-    <p>Начните со страницы сотрудника и нажмите «Собрать пакет», либо обратитесь к администратору.</p>
+    <p>Откройте карточку сотрудника и нажмите «Собрать пакет».</p>
   </div>
   {% endif %}
   {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}

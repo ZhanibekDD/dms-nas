@@ -1,18 +1,11 @@
 {% extends "adminpanel/pass_docs_base.html" %}
-{% load static pass_docs_i18n %}
+{% load pass_docs_i18n %}
 
+{% block html_title %}{{ employee.full_name }}{% endblock %}
 {% block pass_docs_title %}{{ employee.full_name }}{% endblock %}
-{% block pass_docs_subtitle %}Карточка сотрудника и документы{% endblock %}
+{% block pass_docs_subtitle %}Документы и пакеты{% endblock %}
 
 {% block pass_docs_content %}
-{% if messages %}
-<ul class="pd-flash-messages">
-  {% for message in messages %}
-  <li class="pd-flash-messages__item pd-flash-messages__item--{{ message.tags }}">{{ message }}</li>
-  {% endfor %}
-</ul>
-{% endif %}
-
 <section class="pd-employee-hero">
   <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-back-link">← К списку сотрудников</a>
   <h2 class="pd-employee-title">{{ employee.full_name }}</h2>
@@ -22,7 +15,6 @@
 <section class="pd-card pd-employee-meta">
   <div class="pd-meta-grid pd-meta-grid--employee">
     <div><span class="pd-k">Организация</span><span class="pd-v">{{ employee.company|default:"—" }}</span></div>
-    <div><span class="pd-k">Папка в источнике</span><span class="pd-v">{{ employee.source_folder_name|default:"—" }}</span></div>
     <div><span class="pd-k">Статус комплекта</span><span class="pd-v">{{ bundle_summary }}</span></div>
     <div><span class="pd-k">Учётная запись</span><span class="pd-v">{% if employee.is_active %}Активен{% else %}Неактивен{% endif %}</span></div>
   </div>

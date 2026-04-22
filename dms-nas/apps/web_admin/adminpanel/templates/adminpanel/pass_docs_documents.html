@@ -1,8 +1,9 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 {% load pass_docs_i18n %}
 
+{% block html_title %}Все документы{% endblock %}
 {% block pass_docs_title %}Все документы{% endblock %}
-{% block pass_docs_subtitle %}Полный реестр (для поиска и сверки){% endblock %}
+{% block pass_docs_subtitle %}Поиск по всем документам{% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-summary">
@@ -25,10 +26,10 @@
 </section>
 
 <section class="pd-card">
-  <form method="get" class="pd-filters pd-filters--grid5">
+  <form method="get" class="pd-filters pd-filters--grid4">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, код типа, название, путь">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, название типа, путь к файлу">
     </label>
     <label class="pd-field">
       <span>Статус распознавания</span>
@@ -56,10 +57,6 @@
         <option value="0" {% if actual == "0" %}selected{% endif %}>Только неактуальные</option>
       </select>
     </label>
-    <label class="pd-field pd-field--technical">
-      <span>Служебный фильтр (тип обработки)</span>
-      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="Только для поддержки">
-    </label>
     <div class="pd-filter-actions">
       <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
       <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">Сброс</a>
@@ -69,7 +66,7 @@
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Реестр документов</h2>
+    <h2>Список</h2>
     <span class="pd-counter">{{ documents_total }}</span>
   </div>
   <div class="pd-table-wrap pd-table-wrap--docs">
@@ -91,7 +88,6 @@
           <td class="pd-td pd-td--employee">
             <div class="pd-cell-stack">
               <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' doc.employee_id %}">{{ doc.employee.full_name }}</a>
-              <span class="pd-muted">{{ doc.employee.source_folder_name|default:"" }}</span>
             </div>
           </td>
           <td class="pd-td pd-td--type">
@@ -107,12 +103,12 @@
           </td>
           <td class="pd-td pd-td--updated"><span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y H:i" }}</span></td>
           <td class="pd-td pd-td--action pd-right">
-            <a class="pd-btn pd-btn--ghost pd-btn--table" href="{% url 'pass_docs_document_detail' doc.id %}">Просмотр</a>
+            <a class="pd-btn pd-btn--ghost pd-btn--table" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="pd-empty">Документы по выбранным фильтрам не найдены.</td>
+          <td colspan="7" class="pd-empty">Ничего не найдено.</td>
         </tr>
         {% endfor %}
       </tbody>

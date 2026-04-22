@@ -197,6 +197,10 @@ JAZZMIN_UI_TWEAKS = {
     },
 }
 
+# Вход для @staff_member_required вне админки — тот же логин, что и у Django Admin
+LOGIN_URL = "/admin/login/"
+LOGOUT_REDIRECT_URL = "/workspace/pass-docs/employees/"
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOGGING = {
     "version": 1,

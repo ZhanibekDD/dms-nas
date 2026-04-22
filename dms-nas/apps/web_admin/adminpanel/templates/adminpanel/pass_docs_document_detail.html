@@ -1,6 +1,7 @@
 {% extends "adminpanel/pass_docs_base.html" %}
-{% load static pass_docs_i18n %}
+{% load pass_docs_i18n %}
 
+{% block html_title %}Документ{% endblock %}
 {% block pass_docs_title %}Просмотр документа{% endblock %}
 {% block pass_docs_subtitle %}{{ doc.document_type.name }}{% endblock %}
 
@@ -79,10 +80,7 @@
 
 <details class="pd-details pd-details--collapsible pd-service-block">
   <summary>Служебная информация</summary>
-  <p class="pd-muted pd-service-intro">Технические данные для поддержки. Обычной работе не нужны.</p>
-  {% if service_extractor_display %}
-  <p class="pd-service-line"><span class="pd-k">Внутренний тип обработки</span> <code>{{ service_extractor_display }}</code></p>
-  {% endif %}
+  <p class="pd-muted pd-service-intro">Только для ИТ-поддержки. В обычной работе не требуется.</p>
   <details class="pd-details pd-details--nested">
     <summary>Результат дополнительного распознавания (сырой текст)</summary>
     {% if raw_vision %}

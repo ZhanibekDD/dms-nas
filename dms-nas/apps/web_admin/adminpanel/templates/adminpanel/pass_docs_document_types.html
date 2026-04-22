@@ -1,5 +1,6 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 
+{% block html_title %}Типы документов{% endblock %}
 {% block pass_docs_title %}Типы документов{% endblock %}
 {% block pass_docs_subtitle %}Справочник кодов и названий{% endblock %}
 
@@ -17,10 +18,6 @@
         <option value="1" {% if is_common == "1" %}selected{% endif %}>Только общие</option>
         <option value="0" {% if is_common == "0" %}selected{% endif %}>Только личные</option>
       </select>
-    </label>
-    <label class="pd-field pd-field--technical">
-      <span>Служебный фильтр</span>
-      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="Только для поддержки">
     </label>
     <div class="pd-filter-actions">
       <button type="submit" class="pd-btn pd-btn--primary">Применить</button>

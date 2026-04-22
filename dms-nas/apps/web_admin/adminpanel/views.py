@@ -16,6 +16,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.http import FileResponse, HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, redirect
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 
@@ -369,6 +370,7 @@ def _pass_docs_document_file_response(request, doc_id: int, *, attachment: bool)
 
 
 @staff_member_required
+@xframe_options_sameorigin
 @require_GET
 def pass_docs_document_file_inline(request, doc_id: int):
     """Встроенный просмотр (PDF / изображение)."""
@@ -391,7 +393,6 @@ def pass_docs_documents(request):
     parse_status = (request.GET.get("parse_status") or "").strip()
     status = (request.GET.get("status") or "").strip()
     actual = (request.GET.get("actual") or "").strip()
-    extractor_kind = (request.GET.get("extractor_kind") or "").strip()
 
     qs = EmployeeDocument.objects.select_related("employee", "document_type")
     if q:
@@ -408,8 +409,6 @@ def pass_docs_documents(request):
         qs = qs.filter(status=status)
     if actual in ("1", "0"):
         qs = qs.filter(is_actual=(actual == "1"))
-    if extractor_kind:
-        qs = qs.filter(document_type__extractor_kind=extractor_kind)
 
     documents_qs = qs.order_by("-updated_at", "-id")
     paginator = Paginator(documents_qs, 50)
@@ -427,7 +426,6 @@ def pass_docs_documents(request):
         "parse_status": parse_status,
         "status": status,
         "actual": actual,
-        "extractor_kind": extractor_kind,
         "parse_status_choices": EmployeeDocument.ParseStatus.choices,
         "status_choices": EmployeeDocument.Status.choices,
         "documents_total": documents_qs.count(),
@@ -445,15 +443,12 @@ def pass_docs_document_types(request):
 
     q = (request.GET.get("q") or "").strip()
     is_common = (request.GET.get("is_common") or "").strip()
-    extractor_kind = (request.GET.get("extractor_kind") or "").strip()
 
     qs = DocumentType.objects.all()
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(description__icontains=q))
     if is_common in ("1", "0"):
         qs = qs.filter(is_common_document=(is_common == "1"))
-    if extractor_kind:
-        qs = qs.filter(extractor_kind__icontains=extractor_kind)
 
     types_qs = qs.order_by("sort_order", "code")
     paginator = Paginator(types_qs, 40)
@@ -465,7 +460,6 @@ def pass_docs_document_types(request):
         "page_obj": page_obj,
         "q": q,
         "is_common": is_common,
-        "extractor_kind": extractor_kind,
         "types_total": types_qs.count(),
     }
     return render(request, "adminpanel/pass_docs_document_types.html", context)
@@ -616,12 +610,7 @@ def pass_docs_document_detail(request, doc_id: int):
         "raw_vision": payload.get("raw_vision"),
         "viewer_kind": vk,
         "viewer_has_file": has_file,
-        "service_extractor_display": "",
     }
-    kind_display = (
-        payload.get("extractor_kind") if isinstance(payload, dict) else ""
-    ) or doc.document_type.extractor_kind or ""
-    context["service_extractor_display"] = kind_display.strip()
     return render(request, "adminpanel/pass_docs_document_detail.html", context)
 
 

@@ -1,0 +1,142 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+{% load static pass_docs_i18n %}
+
+{% block pass_docs_title %}{{ employee.full_name }}{% endblock %}
+{% block pass_docs_subtitle %}Карточка сотрудника и документы{% endblock %}
+
+{% block pass_docs_content %}
+{% if messages %}
+<ul class="pd-flash-messages">
+  {% for message in messages %}
+  <li class="pd-flash-messages__item pd-flash-messages__item--{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<section class="pd-employee-hero">
+  <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-back-link">← К списку сотрудников</a>
+  <h2 class="pd-employee-title">{{ employee.full_name }}</h2>
+  {% if employee.company %}<p class="pd-employee-org">{{ employee.company }}</p>{% endif %}
+</section>
+
+<section class="pd-card pd-employee-meta">
+  <div class="pd-meta-grid pd-meta-grid--employee">
+    <div><span class="pd-k">Организация</span><span class="pd-v">{{ employee.company|default:"—" }}</span></div>
+    <div><span class="pd-k">Папка в источнике</span><span class="pd-v">{{ employee.source_folder_name|default:"—" }}</span></div>
+    <div><span class="pd-k">Статус комплекта</span><span class="pd-v">{{ bundle_summary }}</span></div>
+    <div><span class="pd-k">Учётная запись</span><span class="pd-v">{% if employee.is_active %}Активен{% else %}Неактивен{% endif %}</span></div>
+  </div>
+</section>
+
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Действия с пакетом</h2>
+  </div>
+  <div class="pd-employee-actions">
+    <form method="post" action="{% url 'pass_docs_employee_quick_build' employee.pk %}" class="pd-inline-form">
+      {% csrf_token %}
+      <button type="submit" class="pd-btn pd-btn--primary">Собрать пакет</button>
+    </form>
+    <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_requests' %}?employee={{ employee.pk }}">Открыть заявки</a>
+    {% if ready_package %}
+    <span class="pd-artifact-links pd-artifact-links--hero">
+      {% if ready_package.excel_file %}
+      <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_request_download' ready_package.id 'excel' %}">Скачать Excel</a>
+      {% endif %}
+      {% if ready_package.zip_file %}
+      <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_request_download' ready_package.id 'zip' %}">Скачать ZIP</a>
+      {% endif %}
+    </span>
+    {% endif %}
+  </div>
+  {% if ready_package %}
+  <p class="pd-muted pd-actions-hint">Последний готовый пакет: заявка №{{ ready_package.id }}, статус «{{ ready_package.status|package_status_ru }}».</p>
+  {% else %}
+  <p class="pd-muted pd-actions-hint">Чтобы появились файлы Excel и ZIP, нажмите «Собрать пакет».</p>
+  {% endif %}
+</section>
+
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Документы сотрудника</h2>
+    <span class="pd-counter">{{ documents|length }}</span>
+  </div>
+  {% if documents %}
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>Тип документа</th>
+          <th>Статус распознавания</th>
+          <th>Статус проверки</th>
+          <th>Актуальность</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in documents %}
+        <tr>
+          <td>
+            <span class="pd-type-code">{{ d.document_type.code }}</span>
+            <div class="pd-strong">{{ d.document_type.name }}</div>
+          </td>
+          <td><span class="pd-badge pd-badge--parse-{{ d.parse_status }}">{{ d.parse_status|parse_status_ru }}</span></td>
+          <td><span class="pd-badge pd-badge--status-{{ d.status }}">{{ d.status|doc_status_ru }}</span></td>
+          <td>{% if d.is_actual %}Да{% else %}Нет{% endif %}</td>
+          <td class="pd-right"><a class="pd-link" href="{% url 'pass_docs_document_detail' d.id %}">Просмотр документа</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="pd-empty">У этого сотрудника пока нет загруженных документов.</p>
+  {% endif %}
+</section>
+
+{% if package_requests %}
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Заявки на пакеты</h2>
+  </div>
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>Номер</th>
+          <th>Статус</th>
+          <th>Создана</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in package_requests %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
+          <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
+          <td class="pd-right pd-cell-actions">
+            {% if r.status == "draft" or r.status == "submitted" %}
+            <form method="post" action="{% url 'pass_docs_package_request_build' r.id %}" class="pd-inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'pass_docs_employee_detail' employee.pk %}" />
+              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel и ZIP</button>
+            </form>
+            {% endif %}
+            {% if r.status == "ready" %}
+              {% if r.excel_file %}
+              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">Excel</a>
+              {% endif %}
+              {% if r.zip_file %}
+              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">ZIP</a>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

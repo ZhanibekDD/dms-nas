@@ -1,24 +1,25 @@
 {% extends "adminpanel/pass_docs_base.html" %}
+{% load pass_docs_i18n %}
 
-{% block pass_docs_title %}Документы сотрудников{% endblock %}
-{% block pass_docs_subtitle %}Фильтрация комплекта, parse_status и extraction-превью{% endblock %}
+{% block pass_docs_title %}Все документы{% endblock %}
+{% block pass_docs_subtitle %}Полный реестр (для поиска и сверки){% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-summary">
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Всего документов</span>
+    <span class="pd-summary__label">Всего</span>
     <strong class="pd-summary__value">{{ documents_total }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">parse ok</span>
+    <span class="pd-summary__label">Распознано</span>
     <strong class="pd-summary__value">{{ documents_ok }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">parse error</span>
+    <span class="pd-summary__label">С ошибкой</span>
     <strong class="pd-summary__value">{{ documents_error }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">parse pending</span>
+    <span class="pd-summary__label">В очереди</span>
     <strong class="pd-summary__value">{{ documents_pending }}</strong>
   </article>
 </section>
@@ -27,23 +28,23 @@
   <form method="get" class="pd-filters pd-filters--grid5">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, import_key, код, путь">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, код типа, название, путь">
     </label>
     <label class="pd-field">
-      <span>parse_status</span>
+      <span>Статус распознавания</span>
       <select name="parse_status">
         <option value="">Все</option>
         {% for value,label in parse_status_choices %}
-          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
+          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
     <label class="pd-field">
-      <span>Статус комплекта</span>
+      <span>Статус проверки</span>
       <select name="status">
         <option value="">Все</option>
         {% for value,label in status_choices %}
-          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
@@ -51,13 +52,13 @@
       <span>Актуальность</span>
       <select name="actual">
         <option value="">Все</option>
-        <option value="1" {% if actual == "1" %}selected{% endif %}>Актуальные</option>
-        <option value="0" {% if actual == "0" %}selected{% endif %}>Неактуальные</option>
+        <option value="1" {% if actual == "1" %}selected{% endif %}>Только актуальные</option>
+        <option value="0" {% if actual == "0" %}selected{% endif %}>Только неактуальные</option>
       </select>
     </label>
-    <label class="pd-field">
-      <span>extractor_kind</span>
-      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="ru_passport, umo...">
+    <label class="pd-field pd-field--technical">
+      <span>Служебный фильтр (тип обработки)</span>
+      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="Только для поддержки">
     </label>
     <div class="pd-filter-actions">
       <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
@@ -72,15 +73,14 @@
     <span class="pd-counter">{{ documents_total }}</span>
   </div>
   <div class="pd-table-wrap pd-table-wrap--docs">
-    <table class="pd-table pd-table--docs">
+    <table class="pd-table pd-table--docs pd-table--docs-v2">
       <thead>
         <tr>
           <th class="pd-th pd-th--employee">Сотрудник</th>
-          <th class="pd-th pd-th--type">Тип</th>
-          <th class="pd-th pd-th--extractor">Extractor</th>
-          <th class="pd-th pd-th--flag">parse</th>
-          <th class="pd-th pd-th--flag">Комплект</th>
-          <th class="pd-th pd-th--flag">Актуален</th>
+          <th class="pd-th pd-th--type">Тип документа</th>
+          <th class="pd-th pd-th--flag">Распознавание</th>
+          <th class="pd-th pd-th--flag">Проверка</th>
+          <th class="pd-th pd-th--flag">Актуально</th>
           <th class="pd-th pd-th--updated">Обновлён</th>
           <th class="pd-th pd-th--action"></th>
         </tr>
@@ -90,8 +90,8 @@
         <tr class="pd-row-doc">
           <td class="pd-td pd-td--employee">
             <div class="pd-cell-stack">
-              <span class="pd-strong">{{ doc.employee.full_name }}</span>
-              <span class="pd-muted pd-code-keyline"><code>{{ doc.employee.import_key }}</code></span>
+              <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' doc.employee_id %}">{{ doc.employee.full_name }}</a>
+              <span class="pd-muted">{{ doc.employee.source_folder_name|default:"" }}</span>
             </div>
           </td>
           <td class="pd-td pd-td--type">
@@ -100,32 +100,19 @@
               <span class="pd-muted pd-type-name">{{ doc.document_type.name }}</span>
             </div>
           </td>
-          <td class="pd-td pd-td--extractor">
-            {% if doc.extracted_json.extractor_kind %}
-              <span class="pd-tag" title="Из extracted_json">{{ doc.extracted_json.extractor_kind }}</span>
-            {% elif doc.document_type.extractor_kind %}
-              <span class="pd-tag pd-tag--muted" title="По типу документа">{{ doc.document_type.extractor_kind }}</span>
-            {% else %}
-              <span class="pd-muted">—</span>
-            {% endif %}
-          </td>
-          <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status }}</span></td>
-          <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status }}</span></td>
+          <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span></td>
+          <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status|doc_status_ru }}</span></td>
           <td class="pd-td pd-td--flag">
-            {% if doc.is_actual %}
-              <span class="pd-badge pd-badge--ok">yes</span>
-            {% else %}
-              <span class="pd-badge pd-badge--warn">no</span>
-            {% endif %}
+            {% if doc.is_actual %}Да{% else %}Нет{% endif %}
           </td>
           <td class="pd-td pd-td--updated"><span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y H:i" }}</span></td>
           <td class="pd-td pd-td--action pd-right">
-            <a class="pd-btn pd-btn--ghost pd-btn--table" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
+            <a class="pd-btn pd-btn--ghost pd-btn--table" href="{% url 'pass_docs_document_detail' doc.id %}">Просмотр</a>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="pd-empty">Документы по выбранным фильтрам не найдены.</td>
+          <td colspan="7" class="pd-empty">Документы по выбранным фильтрам не найдены.</td>
         </tr>
         {% endfor %}
       </tbody>

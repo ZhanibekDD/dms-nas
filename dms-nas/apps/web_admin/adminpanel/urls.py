@@ -7,7 +7,27 @@ urlpatterns = [
     path("workspace/dashboard/", views.workspace_dashboard, name="workspace_dashboard"),
     path("workspace/pass-docs/", views.pass_docs_home, name="pass_docs_home"),
     path("workspace/pass-docs/employees/", views.pass_docs_employees, name="pass_docs_employees"),
+    path(
+        "workspace/pass-docs/employees/<int:employee_id>/quick-build/",
+        views.pass_docs_employee_quick_build,
+        name="pass_docs_employee_quick_build",
+    ),
+    path(
+        "workspace/pass-docs/employees/<int:employee_id>/",
+        views.pass_docs_employee_detail,
+        name="pass_docs_employee_detail",
+    ),
     path("workspace/pass-docs/documents/", views.pass_docs_documents, name="pass_docs_documents"),
+    path(
+        "workspace/pass-docs/documents/<int:doc_id>/file/",
+        views.pass_docs_document_file_inline,
+        name="pass_docs_document_file_inline",
+    ),
+    path(
+        "workspace/pass-docs/documents/<int:doc_id>/download/",
+        views.pass_docs_document_download,
+        name="pass_docs_document_download",
+    ),
     path("workspace/pass-docs/documents/<int:doc_id>/", views.pass_docs_document_detail, name="pass_docs_document_detail"),
     path("workspace/pass-docs/document-types/", views.pass_docs_document_types, name="pass_docs_document_types"),
     path("workspace/pass-docs/package-requests/", views.pass_docs_package_requests, name="pass_docs_package_requests"),

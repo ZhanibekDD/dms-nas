@@ -361,8 +361,20 @@ body.pass-docs-workspace .content-wrapper > .content {
   width: 18%;
 }
 
-.pd-table--docs .pd-th--extractor {
-  width: 16%;
+.pd-table--docs-v2 .pd-th--employee {
+  width: 22%;
+}
+
+.pd-table--docs-v2 .pd-th--type {
+  width: 26%;
+}
+
+.pd-table--docs-v2 .pd-th--updated {
+  width: 13%;
+}
+
+.pd-table--docs-v2 .pd-th--action {
+  width: 10%;
 }
 
 .pd-table--docs .pd-th--flag {
@@ -463,6 +475,21 @@ body.pass-docs-workspace .content-wrapper > .content {
   font-weight: 600;
 }
 
+.pd-link-inline {
+  color: var(--pd-primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.pd-link-inline:hover {
+  text-decoration: underline;
+}
+
+.pd-filter-banner {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
 .pd-badge {
   display: inline-flex;
   align-items: center;
@@ -470,7 +497,7 @@ body.pass-docs-workspace .content-wrapper > .content {
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 700;
-  text-transform: lowercase;
+  text-transform: none;
 }
 
 .pd-badge--ok,
@@ -871,4 +898,152 @@ body.pass-docs-workspace .content-wrapper > .content {
   .pd-summary {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Карточка сотрудника и просмотр документа (UX v2) ── */
+
+.pd-employee-hero {
+  margin-bottom: 12px;
+}
+
+.pd-back-link {
+  margin-bottom: 8px;
+}
+
+.pd-employee-title {
+  margin: 6px 0 4px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--pd-text);
+  line-height: 1.15;
+}
+
+.pd-employee-org {
+  margin: 0;
+  font-size: 15px;
+  color: var(--pd-muted);
+}
+
+.pd-meta-grid--employee {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.pd-employee-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.pd-actions-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
+.pd-artifact-links--hero .pd-btn {
+  font-weight: 700;
+}
+
+.pd-doc-actions {
+  justify-content: space-between;
+}
+
+.pd-meta-dl--doc {
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+}
+
+.pd-doc-viewer-card .pd-card__header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.pd-viewer-frame-wrap {
+  border: 1px solid var(--pd-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f172a;
+  min-height: min(72vh, 720px);
+}
+
+.pd-viewer-frame {
+  width: 100%;
+  height: min(72vh, 720px);
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+.pd-viewer-image-wrap {
+  text-align: center;
+  border: 1px solid var(--pd-line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.pd-viewer-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.pd-viewer-fallback {
+  text-align: center;
+  padding: 28px 16px;
+}
+
+.pd-btn--large {
+  padding: 12px 22px;
+  font-size: 15px;
+}
+
+.pd-human-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 12px 18px;
+}
+
+.pd-human-dl dt {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pd-muted);
+}
+
+.pd-human-dl dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pd-text);
+}
+
+.pd-warning-list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  color: var(--pd-warn);
+  font-size: 13px;
+}
+
+.pd-service-block {
+  margin-top: 12px;
+}
+
+.pd-service-intro {
+  margin-top: 8px;
+}
+
+.pd-service-line {
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.pd-details--nested {
+  margin-top: 10px;
+}
+
+.pd-details--nested summary {
+  font-weight: 600;
+  font-size: 13px;
 }

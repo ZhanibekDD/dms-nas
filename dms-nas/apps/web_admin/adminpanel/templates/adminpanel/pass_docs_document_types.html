@@ -1,26 +1,26 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 
 {% block pass_docs_title %}Типы документов{% endblock %}
-{% block pass_docs_subtitle %}Справочник кодов, экстракторов и правил сроков{% endblock %}
+{% block pass_docs_subtitle %}Справочник кодов и названий{% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-card">
   <form method="get" class="pd-filters pd-filters--grid3">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="Код, название, описание">
+      <input type="text" name="q" value="{{ q }}" placeholder="Код или название">
     </label>
     <label class="pd-field">
-      <span>Общий документ</span>
+      <span>Общий документ организации</span>
       <select name="is_common">
         <option value="">Все</option>
         <option value="1" {% if is_common == "1" %}selected{% endif %}>Только общие</option>
         <option value="0" {% if is_common == "0" %}selected{% endif %}>Только личные</option>
       </select>
     </label>
-    <label class="pd-field">
-      <span>extractor_kind</span>
-      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="ru_passport, umo...">
+    <label class="pd-field pd-field--technical">
+      <span>Служебный фильтр</span>
+      <input type="text" name="extractor_kind" value="{{ extractor_kind }}" placeholder="Только для поддержки">
     </label>
     <div class="pd-filter-actions">
       <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
@@ -31,7 +31,7 @@
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Типы документов</h2>
+    <h2>Справочник</h2>
     <span class="pd-counter">{{ types_total }}</span>
   </div>
   <div class="pd-table-wrap">
@@ -40,10 +40,8 @@
         <tr>
           <th>Код</th>
           <th>Название</th>
-          <th>extractor_kind</th>
           <th>Срок (дней)</th>
           <th>Общий</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -52,15 +50,13 @@
           <td><code>{{ t.code }}</code></td>
           <td>
             <div class="pd-strong">{{ t.name }}</div>
-            <div class="pd-muted">{{ t.description|truncatechars:120|default:"—" }}</div>
+            {% if t.description %}<div class="pd-muted">{{ t.description|truncatechars:160 }}</div>{% endif %}
           </td>
-          <td>{% if t.extractor_kind %}<span class="pd-tag">{{ t.extractor_kind }}</span>{% else %}<span class="pd-muted">—</span>{% endif %}</td>
           <td>{{ t.expiry_rule_days|default:"—" }}</td>
-          <td>{% if t.is_common_document %}<span class="pd-badge pd-badge--ok">yes</span>{% else %}<span class="pd-badge pd-badge--warn">no</span>{% endif %}</td>
-          <td class="pd-right"><a class="pd-link" href="{% url 'admin:pass_docs_documenttype_change' t.id %}">Открыть</a></td>
+          <td>{% if t.is_common_document %}Да{% else %}Нет{% endif %}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="pd-empty">Ничего не найдено.</td></tr>
+        <tr><td colspan="4" class="pd-empty">Ничего не найдено.</td></tr>
         {% endfor %}
       </tbody>
     </table>

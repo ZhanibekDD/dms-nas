@@ -1,12 +1,12 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 
 {% block pass_docs_title %}Сотрудники{% endblock %}
-{% block pass_docs_subtitle %}Личные дела и состояние комплектов документов{% endblock %}
+{% block pass_docs_subtitle %}Выберите сотрудника, чтобы открыть документы{% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-summary">
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Всего сотрудников</span>
+    <span class="pd-summary__label">Всего в списке</span>
     <strong class="pd-summary__value">{{ employees_total }}</strong>
   </article>
   <article class="pd-summary__card">
@@ -14,7 +14,7 @@
     <strong class="pd-summary__value">{{ employees_active }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">С документами</span>
+    <span class="pd-summary__label">С загруженными документами</span>
     <strong class="pd-summary__value">{{ employees_with_docs }}</strong>
   </article>
 </section>
@@ -23,18 +23,18 @@
   <form method="get" class="pd-filters pd-filters--grid3">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, import_key, папка, организация">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, организация, имя папки">
     </label>
     <label class="pd-field">
       <span>Организация</span>
-      <input type="text" name="company" value="{{ company }}" placeholder="ООО ДНЕПР...">
+      <input type="text" name="company" value="{{ company }}" placeholder="Начните вводить название">
     </label>
     <label class="pd-field">
-      <span>Статус</span>
+      <span>Учётная запись</span>
       <select name="active">
         <option value="">Все</option>
-        <option value="1" {% if active == "1" %}selected{% endif %}>Активные</option>
-        <option value="0" {% if active == "0" %}selected{% endif %}>Неактивные</option>
+        <option value="1" {% if active == "1" %}selected{% endif %}>Только активные</option>
+        <option value="0" {% if active == "0" %}selected{% endif %}>Только неактивные</option>
       </select>
     </label>
     <div class="pd-filter-actions">
@@ -54,10 +54,10 @@
       <thead>
         <tr>
           <th>ФИО</th>
-          <th>import_key</th>
+          <th>Папка в источнике</th>
           <th>Организация</th>
           <th>Документов</th>
-          <th>Разобрано</th>
+          <th>Распознано</th>
           <th>Статус</th>
           <th></th>
         </tr>
@@ -66,22 +66,21 @@
         {% for emp in employees %}
         <tr>
           <td>
-            <div class="pd-strong">{{ emp.full_name }}</div>
-            <div class="pd-muted">{{ emp.source_folder_name|default:"—" }}</div>
+            <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' emp.pk %}">{{ emp.full_name }}</a>
           </td>
-          <td><code>{{ emp.import_key }}</code></td>
+          <td>{{ emp.source_folder_name|default:"—" }}</td>
           <td>{{ emp.company|default:"—" }}</td>
           <td>{{ emp.documents_count }}</td>
           <td>{{ emp.documents_ok_count }}</td>
           <td>
             {% if emp.is_active %}
-              <span class="pd-badge pd-badge--ok">active</span>
+              <span class="pd-badge pd-badge--ok">Активен</span>
             {% else %}
-              <span class="pd-badge pd-badge--warn">inactive</span>
+              <span class="pd-badge pd-badge--warn">Неактивен</span>
             {% endif %}
           </td>
           <td class="pd-right">
-            <a class="pd-link" href="{% url 'pass_docs_documents' %}?q={{ emp.import_key|urlencode }}">Документы</a>
+            <a class="pd-link" href="{% url 'pass_docs_employee_detail' emp.pk %}">Открыть</a>
           </td>
         </tr>
         {% empty %}

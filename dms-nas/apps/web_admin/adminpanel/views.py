@@ -45,8 +45,8 @@ def _nas():
 
 @staff_member_required
 def root_pass_docs_redirect(request):
-    """GET / → рабочая область pass_docs (основной сценарий MVP)."""
-    return redirect("pass_docs_documents")
+    """GET / → список сотрудников (основной сценарий оператора)."""
+    return redirect("pass_docs_employees")
 
 
 def _dashboard_missing_schema_redirect(request, exc) -> Optional[HttpResponse]:
@@ -62,9 +62,9 @@ def _dashboard_missing_schema_redirect(request, exc) -> Optional[HttpResponse]:
     messages.info(
         request,
         "Главный дашборд сейчас недоступен: в базе нет нужных таблиц. "
-        "Открыта рабочая область pass_docs. Для полного дашборда выполните migrate.",
+        "Открыт список сотрудников. Для полного дашборда выполните migrate.",
     )
-    return redirect("pass_docs_documents")
+    return redirect("pass_docs_employees")
 
 
 @staff_member_required
@@ -199,7 +199,14 @@ def workspace_documents(request):
 
 @staff_member_required
 def pass_docs_home(request):
-    return redirect("pass_docs_documents")
+    return redirect("pass_docs_employees")
+
+
+def _pass_docs_safe_local_redirect(request, target: str):
+    """Только относительные пути внутри workspace — после POST сборки пакета."""
+    if target.startswith("/workspace/"):
+        return redirect(target)
+    return redirect("pass_docs_package_requests")
 
 
 @staff_member_required
@@ -248,6 +255,131 @@ def pass_docs_employees(request):
         "employees_with_docs": employees_with_docs,
     }
     return render(request, "adminpanel/pass_docs_employees.html", context)
+
+
+@staff_member_required
+def pass_docs_employee_detail(request, employee_id: int):
+    from django.db.models import Count
+    from pass_docs.models import Employee, EmployeeDocument, PackageRequest
+
+    from adminpanel.pass_docs_display import employee_bundle_line
+
+    emp = (
+        Employee.objects.filter(pk=employee_id)
+        .annotate(
+            documents_count=Count("documents", distinct=True),
+        )
+        .first()
+    )
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    docs = (
+        EmployeeDocument.objects.filter(employee=emp)
+        .select_related("document_type")
+        .order_by("document_type__code", "id")
+    )
+    dtot = docs.count()
+    parse_ok = docs.filter(parse_status=EmployeeDocument.ParseStatus.OK).count()
+    parse_pending = docs.filter(parse_status=EmployeeDocument.ParseStatus.PENDING).count()
+    parse_err = docs.filter(parse_status=EmployeeDocument.ParseStatus.ERROR).count()
+    doc_ok = docs.filter(status=EmployeeDocument.Status.OK).count()
+
+    package_qs = (
+        PackageRequest.objects.filter(employee=emp)
+        .order_by("-created_at", "-id")[:20]
+    )
+    ready_with_files = None
+    for pr in package_qs:
+        if pr.status == PackageRequest.Status.READY and (pr.excel_file or pr.zip_file):
+            ready_with_files = pr
+            break
+
+    context = {
+        **_pass_docs_shell_ctx("employees"),
+        "employee": emp,
+        "documents": docs,
+        "package_requests": package_qs,
+        "ready_package": ready_with_files,
+        "bundle_summary": employee_bundle_line(
+            documents_total=dtot,
+            parse_ok=parse_ok,
+            parse_pending=parse_pending,
+            parse_err=parse_err,
+            doc_ok=doc_ok,
+        ),
+    }
+    return render(request, "adminpanel/pass_docs_employee_detail.html", context)
+
+
+@staff_member_required
+@require_POST
+def pass_docs_employee_quick_build(request, employee_id: int):
+    from pass_docs.models import Employee, PackageRequest
+    from pass_docs.services.package_builder import PackageBuildError, build_package_for_request
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    pr = PackageRequest.objects.create(
+        employee=emp,
+        package_kind="",
+        status=PackageRequest.Status.SUBMITTED,
+        payload_json={
+            "employee_id": emp.pk,
+            "employee_import_key": emp.import_key,
+        },
+    )
+    try:
+        summary = build_package_for_request(pr.pk, allow_draft=False, allow_ready=False)
+    except PackageBuildError as exc:
+        messages.error(request, str(exc))
+        return redirect("pass_docs_employee_detail", employee_id=emp.pk)
+
+    if summary.get("ok"):
+        messages.success(
+            request,
+            f"Пакет собран (заявка №{pr.pk}). Документов в архиве: {summary.get('documents_included')}.",
+        )
+    else:
+        messages.error(request, summary.get("last_error") or "Не удалось собрать пакет.")
+    return redirect("pass_docs_employee_detail", employee_id=emp.pk)
+
+
+def _pass_docs_document_file_response(request, doc_id: int, *, attachment: bool):
+    from adminpanel.pass_docs_display import guess_mime_for_path
+
+    from pass_docs.models import EmployeeDocument
+
+    doc = EmployeeDocument.objects.filter(pk=doc_id).first()
+    if not doc:
+        raise Http404("Документ не найден")
+    f = doc.original_file
+    if not f or not f.name:
+        raise Http404("Файл не загружен")
+
+    fh = f.open("rb")
+    download_name = os.path.basename(f.name)
+    ctype = guess_mime_for_path(download_name)
+    resp = FileResponse(fh, content_type=ctype or "application/octet-stream")
+    disp_type = "attachment" if attachment else "inline"
+    resp["Content-Disposition"] = f'{disp_type}; filename="{download_name}"'
+    return resp
+
+
+@staff_member_required
+@require_GET
+def pass_docs_document_file_inline(request, doc_id: int):
+    """Встроенный просмотр (PDF / изображение)."""
+    return _pass_docs_document_file_response(request, doc_id, attachment=False)
+
+
+@staff_member_required
+@require_GET
+def pass_docs_document_download(request, doc_id: int):
+    """Скачать исходный файл."""
+    return _pass_docs_document_file_response(request, doc_id, attachment=True)
 
 
 @staff_member_required
@@ -346,8 +478,11 @@ def pass_docs_package_requests(request):
 
     q = (request.GET.get("q") or "").strip()
     status = (request.GET.get("status") or "").strip()
+    employee_pk = (request.GET.get("employee") or "").strip()
 
     qs = PackageRequest.objects.select_related("employee")
+    if employee_pk.isdigit():
+        qs = qs.filter(employee_id=int(employee_pk))
     if q:
         qs = qs.filter(
             Q(employee__full_name__icontains=q)
@@ -368,6 +503,7 @@ def pass_docs_package_requests(request):
         "page_obj": page_obj,
         "q": q,
         "status": status,
+        "employee_filter": employee_pk,
         "status_choices": PackageRequest.Status.choices,
         "requests_total": requests_qs.count(),
     }
@@ -392,19 +528,21 @@ def pass_docs_package_request_build(request, request_id: int):
         )
     except PackageBuildError as exc:
         messages.error(request, str(exc))
-        return redirect("pass_docs_package_requests")
+        return _pass_docs_safe_local_redirect(
+            request, (request.POST.get("next") or "").strip()
+        )
     if summary.get("ok"):
         messages.success(
             request,
-            f"Пакет #{pr.pk}: готово, документов {summary.get('documents_included')}, "
-            f"ZIP {summary.get('zip_root')!r}.",
+            f"Пакет №{pr.pk}: готово. Документов в архиве: {summary.get('documents_included')}.",
         )
     else:
         messages.error(
             request,
-            summary.get("last_error") or "Сборка завершилась с ошибкой (см. payload_json.last_error).",
+            summary.get("last_error") or "Сборка завершилась с ошибкой.",
         )
-    return redirect("pass_docs_package_requests")
+    next_path = (request.POST.get("next") or "").strip()
+    return _pass_docs_safe_local_redirect(request, next_path)
 
 
 @staff_member_required
@@ -447,6 +585,12 @@ def pass_docs_package_request_download(request, request_id: int, kind: str):
 
 @staff_member_required
 def pass_docs_document_detail(request, doc_id: int):
+    from adminpanel.pass_docs_display import (
+        normalized_pairs_for_ui,
+        normalized_warnings,
+        viewer_kind_for_document,
+    )
+
     from pass_docs.models import EmployeeDocument
 
     doc = (
@@ -455,17 +599,29 @@ def pass_docs_document_detail(request, doc_id: int):
         .first()
     )
     if not doc:
-        raise Http404(f"Документ сотрудника #{doc_id} не найден")
+        raise Http404(f"Документ не найден")
 
     payload = doc.extracted_json or {}
+    normalized = payload.get("normalized") if isinstance(payload.get("normalized"), dict) else {}
+    vk = viewer_kind_for_document(doc.original_file)
+    has_file = bool(doc.original_file and doc.original_file.name)
+
     context = {
         **_pass_docs_shell_ctx("documents"),
         "doc": doc,
         "payload": payload,
-        "normalized": payload.get("normalized"),
+        "normalized": normalized,
+        "normalized_rows": normalized_pairs_for_ui(normalized),
+        "warnings": normalized_warnings(normalized),
         "raw_vision": payload.get("raw_vision"),
-        "extractor_kind": payload.get("extractor_kind") or doc.document_type.extractor_kind or "",
+        "viewer_kind": vk,
+        "viewer_has_file": has_file,
+        "service_extractor_display": "",
     }
+    kind_display = (
+        payload.get("extractor_kind") if isinstance(payload, dict) else ""
+    ) or doc.document_type.extractor_kind or ""
+    context["service_extractor_display"] = kind_display.strip()
     return render(request, "adminpanel/pass_docs_document_detail.html", context)
 
 

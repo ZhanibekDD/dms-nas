@@ -1,14 +1,17 @@
 {% extends "adminpanel/pass_docs_base.html" %}
+{% load static pass_docs_i18n %}
 
-{% block pass_docs_title %}Карточка документа{% endblock %}
-{% block pass_docs_subtitle %}Операторский просмотр extraction и служебных данных{% endblock %}
+{% block pass_docs_title %}Просмотр документа{% endblock %}
+{% block pass_docs_subtitle %}{{ doc.document_type.name }}{% endblock %}
 
 {% block pass_docs_actions %}{% endblock %}
 
 {% block pass_docs_content %}
-<section class="pd-sticky-actions">
-  <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">← К реестру</a>
-  <a href="{% url 'admin:pass_docs_employeedocument_change' doc.id %}" class="pd-btn pd-btn--primary">Редактировать в admin</a>
+<section class="pd-sticky-actions pd-doc-actions">
+  <a href="{% url 'pass_docs_employee_detail' doc.employee_id %}" class="pd-btn pd-btn--ghost">← Назад к сотруднику</a>
+  {% if viewer_has_file %}
+  <a href="{% url 'pass_docs_document_download' doc.id %}" class="pd-btn pd-btn--primary">Скачать оригинал</a>
+  {% endif %}
 </section>
 
 <section class="pd-card pd-card--detail-head">
@@ -17,71 +20,92 @@
       <span class="pd-type-code">{{ doc.document_type.code }}</span>
       <h2>{{ doc.document_type.name }}</h2>
     </div>
-    <span class="pd-counter">id={{ doc.id }}</span>
   </div>
-  <dl class="pd-meta-dl">
+  <dl class="pd-meta-dl pd-meta-dl--doc">
     <div><dt>Сотрудник</dt><dd>{{ doc.employee.full_name }}</dd></div>
-    <div><dt>import_key</dt><dd><code class="pd-code-inline">{{ doc.employee.import_key }}</code></dd></div>
-    <div><dt>parse_status</dt><dd><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status }}</span></dd></div>
-    <div><dt>Статус комплекта</dt><dd><span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status }}</span></dd></div>
-    <div><dt>Актуален</dt><dd>{% if doc.is_actual %}Да{% else %}Нет{% endif %}</dd></div>
-    <div><dt>Extractor</dt><dd>{% if extractor_kind %}<span class="pd-tag">{{ extractor_kind }}</span>{% else %}—{% endif %}</dd></div>
+    <div><dt>Статус распознавания</dt><dd><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span></dd></div>
+    <div><dt>Статус проверки</dt><dd><span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status|doc_status_ru }}</span></dd></div>
+    <div><dt>Актуальность</dt><dd>{% if doc.is_actual %}Да{% else %}Нет{% endif %}</dd></div>
     <div><dt>Дата выдачи</dt><dd>{{ doc.issue_date|default:"—" }}</dd></div>
     <div><dt>Срок действия</dt><dd>{{ doc.expiry_date|default:"—" }}</dd></div>
   </dl>
-  <div class="pd-source-path" title="Исходный путь">{{ doc.source_path }}</div>
 </section>
 
-<section class="pd-card pd-card--primary-block">
+{% if viewer_has_file %}
+<section class="pd-card pd-doc-viewer-card">
   <div class="pd-card__header">
-    <h2>Normalized</h2>
-    <span class="pd-muted pd-card__hint">основной результат extraction</span>
+    <h2>Просмотр файла</h2>
   </div>
-  {% if normalized %}
-    <pre class="pd-code pd-code--primary">{{ normalized|pprint }}</pre>
+  {% if viewer_kind == "pdf" %}
+  <div class="pd-viewer-frame-wrap">
+    <iframe class="pd-viewer-frame" title="Документ PDF" src="{% url 'pass_docs_document_file_inline' doc.id %}"></iframe>
+  </div>
+  {% elif viewer_kind == "image" %}
+  <div class="pd-viewer-image-wrap">
+    <img class="pd-viewer-image" src="{% url 'pass_docs_document_file_inline' doc.id %}" alt="Документ" loading="lazy" />
+  </div>
   {% else %}
-    <p class="pd-empty">normalized ещё не сформирован.</p>
+  <div class="pd-viewer-fallback">
+    <p class="pd-muted">Встроенный просмотр для этого типа файла недоступен.</p>
+    <a href="{% url 'pass_docs_document_download' doc.id %}" class="pd-btn pd-btn--primary pd-btn--large">Открыть оригинал</a>
+  </div>
+  {% endif %}
+</section>
+{% else %}
+<section class="pd-card">
+  <p class="pd-empty">Файл не загружен в систему.</p>
+</section>
+{% endif %}
+
+<section class="pd-card pd-card--recognized">
+  <div class="pd-card__header">
+    <h2>Распознанные данные</h2>
+  </div>
+  {% if warnings %}
+  <ul class="pd-warning-list">
+    {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if normalized_rows %}
+  <dl class="pd-human-dl">
+    {% for label, value in normalized_rows %}
+    <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% else %}
+  <p class="pd-muted">Данные распознавания пока не заполнены или документ не обрабатывался.</p>
   {% endif %}
 </section>
 
-<section class="pd-card pd-card--secondary">
-  <h3 class="pd-secondary-heading">Дополнительные данные</h3>
-  <p class="pd-muted pd-secondary-lead">raw_vision и полный JSON — для отладки; по умолчанию свёрнуты.</p>
-
-  <details class="pd-details pd-details--collapsible" id="raw">
-    <summary>raw_vision</summary>
+<details class="pd-details pd-details--collapsible pd-service-block">
+  <summary>Служебная информация</summary>
+  <p class="pd-muted pd-service-intro">Технические данные для поддержки. Обычной работе не нужны.</p>
+  {% if service_extractor_display %}
+  <p class="pd-service-line"><span class="pd-k">Внутренний тип обработки</span> <code>{{ service_extractor_display }}</code></p>
+  {% endif %}
+  <details class="pd-details pd-details--nested">
+    <summary>Результат дополнительного распознавания (сырой текст)</summary>
     {% if raw_vision %}
       <pre class="pd-code pd-code--secondary">{{ raw_vision|pprint }}</pre>
     {% else %}
-      <p class="pd-empty">raw_vision отсутствует (возможен text-only путь).</p>
+      <p class="pd-muted">Нет данных.</p>
     {% endif %}
   </details>
-
-  <details class="pd-details pd-details--collapsible" id="json">
-    <summary>Полный extracted_json</summary>
+  <details class="pd-details pd-details--nested">
+    <summary>Полный ответ системы (JSON)</summary>
     {% if payload %}
       <pre class="pd-code pd-code--secondary">{{ payload|pprint }}</pre>
     {% else %}
-      <p class="pd-empty">extracted_json пустой.</p>
+      <p class="pd-muted">Пусто.</p>
     {% endif %}
   </details>
-
-  <details class="pd-details pd-details--collapsible" id="service">
-    <summary>Служебное: metadata и notes</summary>
-    <div class="pd-service-panels">
-      <div class="pd-service-panel">
-        <span class="pd-k">metadata</span>
-        <pre class="pd-code pd-code--secondary">{{ doc.metadata|pprint }}</pre>
-      </div>
-      <div class="pd-service-panel">
-        <span class="pd-k">notes</span>
-        {% if doc.notes %}
-          <div class="pd-notes-body">{{ doc.notes }}</div>
-        {% else %}
-          <p class="pd-muted pd-notes-empty">Заметок нет.</p>
-        {% endif %}
-      </div>
-    </div>
+  <details class="pd-details pd-details--nested">
+    <summary>Метаданные импорта</summary>
+    {% if doc.metadata %}
+      <pre class="pd-code pd-code--secondary">{{ doc.metadata|pprint }}</pre>
+    {% else %}
+      <p class="pd-muted">Нет метаданных.</p>
+    {% endif %}
   </details>
-</section>
+</details>
 {% endblock %}

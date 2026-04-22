@@ -11,26 +11,23 @@
 {% block content %}
 <div class="pd-shell">
   <aside class="pd-sidebar">
-    <a href="{% url 'pass_docs_home' %}" class="pd-brand">
+    <a href="{% url 'pass_docs_employees' %}" class="pd-brand">
       <span class="pd-brand__dot"></span>
-      <span>pass_docs workspace</span>
+      <span>Документы сотрудников</span>
     </a>
     <nav class="pd-nav">
       <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}" href="{% url 'pass_docs_employees' %}">Сотрудники</a>
-      <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}" href="{% url 'pass_docs_documents' %}">Документы сотрудников</a>
+      <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}" href="{% url 'pass_docs_documents' %}">Все документы</a>
       <a class="pd-nav__link{% if pass_docs_active == 'types' %} is-active{% endif %}" href="{% url 'pass_docs_document_types' %}">Типы документов</a>
       <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}" href="{% url 'pass_docs_package_requests' %}">Заявки на пакеты</a>
     </nav>
-    <div class="pd-sidebar__footer">
-      <a href="{% url 'admin:index' %}" class="pd-link-muted">Техпанель Django Admin</a>
-    </div>
   </aside>
 
   <section class="pd-main">
     <header class="pd-topbar">
       <div>
-        <h1 class="pd-title">{% block pass_docs_title %}pass_docs{% endblock %}</h1>
-        <p class="pd-subtitle">{% block pass_docs_subtitle %}Операторский интерфейс документов{% endblock %}</p>
+        <h1 class="pd-title">{% block pass_docs_title %}Документы{% endblock %}</h1>
+        <p class="pd-subtitle">{% block pass_docs_subtitle %}Работа с комплектами и распознаванием{% endblock %}</p>
       </div>
       <div class="pd-actions">
         {% block pass_docs_actions %}{% endblock %}

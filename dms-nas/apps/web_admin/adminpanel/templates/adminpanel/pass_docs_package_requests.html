@@ -1,7 +1,8 @@
 {% extends "adminpanel/pass_docs_base.html" %}
+{% load pass_docs_i18n %}
 
 {% block pass_docs_title %}Заявки на пакеты{% endblock %}
-{% block pass_docs_subtitle %}Операторский список заявок и статус исполнения{% endblock %}
+{% block pass_docs_subtitle %}Сборка Excel и архива{% endblock %}
 
 {% block pass_docs_content %}
 {% if messages %}
@@ -11,24 +12,32 @@
   {% endfor %}
 </ul>
 {% endif %}
+
+{% if employee_filter %}
+<p class="pd-muted pd-filter-banner">Показаны заявки выбранного сотрудника.</p>
+{% endif %}
+
 <section class="pd-card">
   <form method="get" class="pd-filters pd-filters--grid3">
+    {% if employee_filter %}
+    <input type="hidden" name="employee" value="{{ employee_filter }}" />
+    {% endif %}
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, import_key, email, тип">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, организация, email">
     </label>
     <label class="pd-field">
-      <span>Статус</span>
+      <span>Статус заявки</span>
       <select name="status">
         <option value="">Все</option>
         {% for value,label in status_choices %}
-          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
     <div class="pd-filter-actions">
       <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
-      <a href="{% url 'pass_docs_package_requests' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+      <a href="{% url 'pass_docs_package_requests' %}{% if employee_filter %}?employee={{ employee_filter }}{% endif %}" class="pd-btn pd-btn--ghost">Сброс</a>
     </div>
   </form>
 </section>
@@ -43,11 +52,11 @@
     <table class="pd-table">
       <thead>
         <tr>
-          <th>ID</th>
+          <th>Номер</th>
           <th>Сотрудник</th>
           <th>Вид пакета</th>
           <th>Статус</th>
-          <th>Email</th>
+          <th>Получатель email</th>
           <th>Создана</th>
           <th></th>
         </tr>
@@ -55,20 +64,21 @@
       <tbody>
         {% for r in package_requests %}
         <tr>
-          <td><code>#{{ r.id }}</code></td>
+          <td>{{ r.id }}</td>
           <td>
-            <div class="pd-strong">{{ r.employee.full_name }}</div>
-            <div class="pd-muted"><code>{{ r.employee.import_key }}</code></div>
+            <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' r.employee_id %}">{{ r.employee.full_name }}</a>
+            <div class="pd-muted">{{ r.employee.company|default:"" }}</div>
           </td>
           <td>{{ r.package_kind|default:"—" }}</td>
-          <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status }}</span></td>
+          <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
           <td>{{ r.email_to|default:"—" }}</td>
           <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
           <td class="pd-right pd-cell-actions">
             {% if r.status == "draft" or r.status == "submitted" %}
             <form method="post" action="{% url 'pass_docs_package_request_build' r.id %}" class="pd-inline-form">
               {% csrf_token %}
-              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel+ZIP</button>
+              <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel и ZIP</button>
             </form>
             {% endif %}
             {% if r.status == "ready" %}
@@ -83,7 +93,6 @@
             </span>
             {% endif %}
             {% endif %}
-            <a class="pd-link" href="{% url 'admin:pass_docs_packagerequest_change' r.id %}">Админ</a>
           </td>
         </tr>
         {% endfor %}
@@ -92,9 +101,8 @@
   </div>
   {% else %}
   <div class="pd-empty-state">
-    <h3>Пока нет заявок</h3>
-    <p>Когда оператор создаст первую заявку, она появится в этом списке.</p>
-    <a href="{% url 'admin:pass_docs_packagerequest_add' %}" class="pd-btn pd-btn--primary">Создать заявку</a>
+    <h3>Заявок пока нет</h3>
+    <p>Начните со страницы сотрудника и нажмите «Собрать пакет», либо обратитесь к администратору.</p>
   </div>
   {% endif %}
   {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}

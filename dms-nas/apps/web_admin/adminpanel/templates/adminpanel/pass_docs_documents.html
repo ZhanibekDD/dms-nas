@@ -8,19 +8,19 @@
 {% block pass_docs_content %}
 <section class="pd-summary">
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Всего</span>
+    <span class="pd-summary__label">Всего в списке</span>
     <strong class="pd-summary__value">{{ documents_total }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Распознано</span>
+    <span class="pd-summary__label">Успешно распознано</span>
     <strong class="pd-summary__value">{{ documents_ok }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">С ошибкой</span>
+    <span class="pd-summary__label">Ошибка распознавания</span>
     <strong class="pd-summary__value">{{ documents_error }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">В очереди</span>
+    <span class="pd-summary__label">Ожидают распознавания</span>
     <strong class="pd-summary__value">{{ documents_pending }}</strong>
   </article>
 </section>
@@ -29,14 +29,14 @@
   <form method="get" class="pd-filters pd-filters--grid4">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО, название типа, путь к файлу">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО сотрудника или название документа">
     </label>
     <label class="pd-field">
       <span>Статус распознавания</span>
       <select name="parse_status">
         <option value="">Все</option>
         {% for value,label in parse_status_choices %}
-          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ label }}</option>
+          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ value|parse_status_ru }}</option>
         {% endfor %}
       </select>
     </label>
@@ -45,7 +45,7 @@
       <select name="status">
         <option value="">Все</option>
         {% for value,label in status_choices %}
-          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|doc_status_ru }}</option>
         {% endfor %}
       </select>
     </label>
@@ -92,8 +92,7 @@
           </td>
           <td class="pd-td pd-td--type">
             <div class="pd-cell-stack">
-              <span class="pd-type-code">{{ doc.document_type.code }}</span>
-              <span class="pd-muted pd-type-name">{{ doc.document_type.name }}</span>
+              <span class="pd-strong">{{ doc.document_type.name }}</span>
             </div>
           </td>
           <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span></td>

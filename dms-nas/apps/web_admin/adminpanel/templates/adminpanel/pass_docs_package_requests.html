@@ -17,14 +17,14 @@
     {% endif %}
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или email">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или электронная почта">
     </label>
     <label class="pd-field">
       <span>Статус заявки</span>
       <select name="status">
         <option value="">Все</option>
         {% for value,label in status_choices %}
-          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|package_status_ru }}</option>
         {% endfor %}
       </select>
     </label>
@@ -47,9 +47,9 @@
         <tr>
           <th>Номер</th>
           <th>Сотрудник</th>
-          <th>Вид пакета</th>
+          <th>Вид комплекта</th>
           <th>Статус</th>
-          <th>Email получателя</th>
+          <th>Электронная почта получателя</th>
           <th>Создана</th>
           <th></th>
         </tr>
@@ -62,7 +62,7 @@
             <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' r.employee_id %}">{{ r.employee.full_name }}</a>
             <div class="pd-muted">{{ r.employee.company|default:"" }}</div>
           </td>
-          <td>{{ r.package_kind|default:"—" }}</td>
+          <td>{{ r.package_kind|package_kind_ru }}</td>
           <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
           <td>{{ r.email_to|default:"—" }}</td>
           <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
@@ -95,7 +95,7 @@
   {% else %}
   <div class="pd-empty-state">
     <h3>Заявок пока нет</h3>
-    <p>Откройте карточку сотрудника и нажмите «Собрать пакет».</p>
+    <p>Откройте карточку сотрудника и нажмите «Собрать комплект».</p>
   </div>
   {% endif %}
   {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}

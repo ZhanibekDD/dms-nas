@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import mimetypes
 import os
-import re
 from pathlib import Path
 from typing import Any
 
@@ -62,19 +61,22 @@ FIELD_LABELS_RU: dict[str, str] = {
 def ru_parse_status(code: str | None) -> str:
     if not code:
         return "—"
-    return PARSE_STATUS_RU.get(str(code).strip(), str(code))
+    k = str(code).strip()
+    return PARSE_STATUS_RU.get(k, "Уточняется")
 
 
 def ru_doc_status(code: str | None) -> str:
     if not code:
         return "—"
-    return DOC_STATUS_RU.get(str(code).strip(), str(code))
+    k = str(code).strip()
+    return DOC_STATUS_RU.get(k, "Уточняется")
 
 
 def ru_package_status(code: str | None) -> str:
     if not code:
         return "—"
-    return PACKAGE_STATUS_RU.get(str(code).strip(), str(code))
+    k = str(code).strip()
+    return PACKAGE_STATUS_RU.get(k, "Уточняется")
 
 
 def _format_scalar(v: Any) -> str:
@@ -134,6 +136,24 @@ def viewer_kind_for_document(file_field) -> str:
 def guess_mime_for_path(path: str) -> str:
     ctype, _ = mimetypes.guess_type(path)
     return ctype or "application/octet-stream"
+
+
+# Внутренние коды вида пакета (package_kind) → подпись для оператора
+PACKAGE_KIND_LABELS_RU: dict[str, str] = {
+    "e2e_package_mvp": "Основной комплект",
+    "e2e_test": "Тестовый прогон",
+    "default": "Стандартный комплект",
+}
+
+
+def human_package_kind(kind: str | None) -> str:
+    k = (kind or "").strip()
+    if not k:
+        return "—"
+    key = k.lower()
+    if key in PACKAGE_KIND_LABELS_RU:
+        return PACKAGE_KIND_LABELS_RU[key]
+    return "Комплект документов"
 
 
 def employee_bundle_line(

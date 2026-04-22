@@ -3,7 +3,7 @@
 
 {% block html_title %}{{ employee.full_name }}{% endblock %}
 {% block pass_docs_title %}{{ employee.full_name }}{% endblock %}
-{% block pass_docs_subtitle %}Документы и пакеты{% endblock %}
+{% block pass_docs_subtitle %}Документы и заявки на комплект{% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-employee-hero">
@@ -22,12 +22,12 @@
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Действия с пакетом</h2>
+    <h2>Действия с комплектом</h2>
   </div>
   <div class="pd-employee-actions">
     <form method="post" action="{% url 'pass_docs_employee_quick_build' employee.pk %}" class="pd-inline-form">
       {% csrf_token %}
-      <button type="submit" class="pd-btn pd-btn--primary">Собрать пакет</button>
+      <button type="submit" class="pd-btn pd-btn--primary">Собрать комплект</button>
     </form>
     <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_requests' %}?employee={{ employee.pk }}">Открыть заявки</a>
     {% if ready_package %}
@@ -42,9 +42,9 @@
     {% endif %}
   </div>
   {% if ready_package %}
-  <p class="pd-muted pd-actions-hint">Последний готовый пакет: заявка №{{ ready_package.id }}, статус «{{ ready_package.status|package_status_ru }}».</p>
+  <p class="pd-muted pd-actions-hint">Последний готовый комплект: заявка №{{ ready_package.id }}, статус «{{ ready_package.status|package_status_ru }}».</p>
   {% else %}
-  <p class="pd-muted pd-actions-hint">Чтобы появились файлы Excel и ZIP, нажмите «Собрать пакет».</p>
+  <p class="pd-muted pd-actions-hint">Чтобы появились файлы Excel и ZIP, нажмите «Собрать комплект».</p>
   {% endif %}
 </section>
 
@@ -69,7 +69,6 @@
         {% for d in documents %}
         <tr>
           <td>
-            <span class="pd-type-code">{{ d.document_type.code }}</span>
             <div class="pd-strong">{{ d.document_type.name }}</div>
           </td>
           <td><span class="pd-badge pd-badge--parse-{{ d.parse_status }}">{{ d.parse_status|parse_status_ru }}</span></td>

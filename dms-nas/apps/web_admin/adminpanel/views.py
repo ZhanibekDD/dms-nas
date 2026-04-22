@@ -225,8 +225,7 @@ def pass_docs_employees(request):
     )
     if q:
         qs = qs.filter(
-            Q(import_key__icontains=q)
-            | Q(full_name__icontains=q)
+            Q(full_name__icontains=q)
             | Q(last_name__icontains=q)
             | Q(first_name__icontains=q)
             | Q(source_folder_name__icontains=q)
@@ -237,7 +236,7 @@ def pass_docs_employees(request):
     if active in ("1", "0"):
         qs = qs.filter(is_active=(active == "1"))
 
-    employees_qs = qs.order_by("full_name", "import_key")
+    employees_qs = qs.order_by("full_name", "pk")
     paginator = Paginator(employees_qs, 40)
     page_obj = paginator.get_page(request.GET.get("page"))
 
@@ -341,10 +340,10 @@ def pass_docs_employee_quick_build(request, employee_id: int):
     if summary.get("ok"):
         messages.success(
             request,
-            f"Пакет собран (заявка №{pr.pk}). Документов в архиве: {summary.get('documents_included')}.",
+            f"Комплект собран (заявка №{pr.pk}). Документов в архиве: {summary.get('documents_included')}.",
         )
     else:
-        messages.error(request, summary.get("last_error") or "Не удалось собрать пакет.")
+        messages.error(request, summary.get("last_error") or "Не удалось собрать комплект.")
     return redirect("pass_docs_employee_detail", employee_id=emp.pk)
 
 
@@ -398,10 +397,7 @@ def pass_docs_documents(request):
     if q:
         qs = qs.filter(
             Q(employee__full_name__icontains=q)
-            | Q(employee__import_key__icontains=q)
-            | Q(document_type__code__icontains=q)
             | Q(document_type__name__icontains=q)
-            | Q(source_path__icontains=q)
         )
     if parse_status:
         qs = qs.filter(parse_status=parse_status)
@@ -480,9 +476,7 @@ def pass_docs_package_requests(request):
     if q:
         qs = qs.filter(
             Q(employee__full_name__icontains=q)
-            | Q(employee__import_key__icontains=q)
             | Q(email_to__icontains=q)
-            | Q(package_kind__icontains=q)
         )
     if status:
         qs = qs.filter(status=status)
@@ -528,7 +522,7 @@ def pass_docs_package_request_build(request, request_id: int):
     if summary.get("ok"):
         messages.success(
             request,
-            f"Пакет №{pr.pk}: готово. Документов в архиве: {summary.get('documents_included')}.",
+            f"Заявка №{pr.pk}: комплект готов. Документов в архиве: {summary.get('documents_included')}.",
         )
     else:
         messages.error(
@@ -554,7 +548,7 @@ def pass_docs_package_request_download(request, request_id: int, kind: str):
     if not pr:
         raise Http404("Заявка не найдена")
     if pr.status != PackageRequest.Status.READY:
-        raise Http404("Скачивание доступно только для заявок в статусе ready")
+        raise Http404("Скачивание доступно только для готовых заявок")
     if kind == "excel":
         f = pr.excel_file
         fallback = f"package_{pr.pk}_summary.xlsx"
@@ -601,13 +595,10 @@ def pass_docs_document_detail(request, doc_id: int):
     has_file = bool(doc.original_file and doc.original_file.name)
 
     context = {
-        **_pass_docs_shell_ctx("documents"),
+        **_pass_docs_shell_ctx("employees"),
         "doc": doc,
-        "payload": payload,
-        "normalized": normalized,
         "normalized_rows": normalized_pairs_for_ui(normalized),
         "warnings": normalized_warnings(normalized),
-        "raw_vision": payload.get("raw_vision"),
         "viewer_kind": vk,
         "viewer_has_file": has_file,
     }

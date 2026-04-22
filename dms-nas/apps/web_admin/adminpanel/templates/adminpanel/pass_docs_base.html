@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block html_title %}Документы{% endblock %} — ДнепрНАС</title>
+  <title>{% block html_title %}Комплекты{% endblock %} — ДнепрНАС</title>
   <link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
@@ -22,7 +22,7 @@
     <aside class="pd-sidebar">
       <a href="{% url 'pass_docs_employees' %}" class="pd-brand">
         <span class="pd-brand__dot"></span>
-        <span>Документы сотрудников</span>
+        <span>Комплекты документов</span>
       </a>
       <nav class="pd-nav">
         <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}" href="{% url 'pass_docs_employees' %}">Сотрудники</a>
@@ -42,8 +42,8 @@
     <section class="pd-main">
       <header class="pd-topbar">
         <div>
-          <h1 class="pd-title">{% block pass_docs_title %}Документы{% endblock %}</h1>
-          <p class="pd-subtitle">{% block pass_docs_subtitle %}Работа с комплектами документов{% endblock %}</p>
+          <h1 class="pd-title">{% block pass_docs_title %}Комплекты{% endblock %}</h1>
+          <p class="pd-subtitle">{% block pass_docs_subtitle %}Работа с документами сотрудников{% endblock %}</p>
         </div>
         <div class="pd-actions">
           {% block pass_docs_actions %}{% endblock %}

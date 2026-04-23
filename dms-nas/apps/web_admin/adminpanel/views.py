@@ -213,15 +213,19 @@ def _pass_docs_safe_local_redirect(request, target: str):
 @staff_member_required
 def pass_docs_employees(request):
     from django.db.models import Count, Q
-    from pass_docs.models import Employee
+    from pass_docs.models import Employee, EmployeeDocument
 
     q = (request.GET.get("q") or "").strip()
     company = (request.GET.get("company") or "").strip()
     active = (request.GET.get("active") or "").strip()
 
     qs = Employee.objects.annotate(
-        documents_count=Count("documents"),
-        documents_ok_count=Count("documents", filter=Q(documents__parse_status="ok")),
+        documents_count=Count("documents", distinct=True),
+        documents_ok_count=Count(
+            "documents",
+            filter=Q(documents__parse_status=EmployeeDocument.ParseStatus.OK),
+            distinct=True,
+        ),
     )
     if q:
         qs = qs.filter(

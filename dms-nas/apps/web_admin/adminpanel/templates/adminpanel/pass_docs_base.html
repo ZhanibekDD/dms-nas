@@ -26,13 +26,11 @@
       </a>
       <nav class="pd-nav">
         <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}" href="{% url 'pass_docs_employees' %}">Сотрудники</a>
+        <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}" href="{% url 'pass_docs_documents' %}">Все документы</a>
+        <a class="pd-nav__link{% if pass_docs_active == 'types' %} is-active{% endif %}" href="{% url 'pass_docs_document_types' %}">Типы документов</a>
         <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}" href="{% url 'pass_docs_package_requests' %}">Заявки на пакеты</a>
+        <a class="pd-nav__link" href="{% url 'admin:index' %}">Администрирование</a>
       </nav>
-      <div class="pd-nav-secondary">
-        <p class="pd-nav-secondary__title">Дополнительно</p>
-        <a class="pd-nav__link pd-nav__link--secondary{% if pass_docs_active == 'documents' %} is-active{% endif %}" href="{% url 'pass_docs_documents' %}">Реестр всех документов</a>
-        <a class="pd-nav__link pd-nav__link--secondary{% if pass_docs_active == 'types' %} is-active{% endif %}" href="{% url 'pass_docs_document_types' %}">Справочник типов документов</a>
-      </div>
       <div class="pd-sidebar__footer">
         <div class="pd-userbar">
           <span class="pd-userbar__name">{% firstof request.user.get_short_name request.user.get_username %}</span>

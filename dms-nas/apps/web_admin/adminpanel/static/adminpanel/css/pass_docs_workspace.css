@@ -152,39 +152,6 @@ body.pass-docs-workspace .content-wrapper > .content {
   border-color: #bfdbfe;
 }
 
-.pd-nav-secondary {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--pd-line);
-  display: grid;
-  gap: 4px;
-}
-
-.pd-nav-secondary__title {
-  margin: 0 0 4px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pd-muted);
-}
-
-.pd-nav__link--secondary {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--pd-muted);
-}
-
-.pd-nav__link--secondary:hover {
-  color: var(--pd-text);
-}
-
-.pd-nav__link--secondary.is-active {
-  color: #1d4ed8;
-  font-weight: 700;
-}
-
 .pd-sidebar__footer {
   margin-top: 14px;
   padding-top: 12px;

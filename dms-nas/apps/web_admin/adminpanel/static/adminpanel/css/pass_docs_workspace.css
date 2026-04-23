@@ -92,7 +92,7 @@ body.pass-docs-workspace .content-wrapper > .content {
 
 .pd-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 268px minmax(0, 1fr);
   gap: 18px;
   max-width: 1440px;
   margin: 0 auto;
@@ -150,6 +150,39 @@ body.pass-docs-workspace .content-wrapper > .content {
   background: var(--pd-primary-soft);
   color: #1d4ed8;
   border-color: #bfdbfe;
+}
+
+.pd-ecosystem {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pd-line);
+  display: grid;
+  gap: 4px;
+}
+
+.pd-ecosystem__title {
+  margin: 0 0 6px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--pd-muted);
+}
+
+.pd-nav__link--eco {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pd-muted);
+}
+
+.pd-nav__link--eco:hover {
+  color: var(--pd-text);
+}
+
+.pd-nav__link--muted {
+  font-size: 12px;
+  opacity: 0.92;
 }
 
 .pd-sidebar__footer {
@@ -219,6 +252,31 @@ body.pass-docs-workspace .content-wrapper > .content {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+}
+
+.pd-topbar--with-eco {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.pd-topbar__lead {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.pd-topbar__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1 1 280px;
+}
+
+.pd-eco-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .pd-title {

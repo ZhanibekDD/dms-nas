@@ -175,8 +175,17 @@ def _workspace_ctx(active: str):
     return {"workspace_active": active}
 
 
-def _pass_docs_shell_ctx(active: str) -> dict:
-    return {"pass_docs_active": active}
+def _pass_docs_shell_ctx(pass_docs_active: str) -> dict:
+    """Контекст pass_docs внутри shell_base: подсветка левого workspace-меню Jazzmin."""
+    workspace_active = ""
+    if pass_docs_active == "employees":
+        workspace_active = "employees"
+    elif pass_docs_active == "documents":
+        workspace_active = "documents"
+    return {
+        "pass_docs_active": pass_docs_active,
+        "workspace_active": workspace_active,
+    }
 
 
 @staff_member_required

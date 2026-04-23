@@ -1,14 +1,24 @@
+{% extends "adminpanel/shell_base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block html_title %}Комплекты{% endblock %} — ДнепрНАС</title>
-  <link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
-  {% block extra_head %}{% endblock %}
-</head>
-<body class="pd-standalone">
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
+{% endblock %}
+
+{% block title %}{% block html_title %}Комплекты{% endblock %} — ДнепрНАС{% endblock %}
+
+{% block workspace_title %}{% block pass_docs_title %}Комплекты{% endblock %}{% endblock %}
+{% block workspace_subtitle %}{% block pass_docs_subtitle %}Работа с документами сотрудников{% endblock %}{% endblock %}
+
+{% block workspace_extra_actions %}
+<div class="pd-workspace-page-actions">
+  {% block pass_docs_actions %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block workspace_content %}
+<div class="pd-pass-docs-root">
   {% if messages %}
   <div class="pd-global-messages">
     <ul class="pd-flash-messages">
@@ -18,7 +28,7 @@
     </ul>
   </div>
   {% endif %}
-  <div class="pd-shell">
+  <div class="pd-shell pd-shell--embedded">
     <aside class="pd-sidebar">
       <a href="{% url 'pass_docs_employees' %}" class="pd-brand">
         <span class="pd-brand__dot"></span>
@@ -31,48 +41,10 @@
         <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}" href="{% url 'pass_docs_package_requests' %}">Заявки на пакеты</a>
         <a class="pd-nav__link" href="{% url 'admin:index' %}">Администрирование</a>
       </nav>
-      <div class="pd-ecosystem">
-        <p class="pd-ecosystem__title">Рабочее пространство</p>
-        <a class="pd-nav__link pd-nav__link--eco" href="{% url 'workspace_dashboard' %}">Главный экран</a>
-        <a class="pd-nav__link pd-nav__link--eco" href="{% url 'scan_document_page' %}">Сканировать документ</a>
-        <a class="pd-nav__link pd-nav__link--eco" href="{% url 'ai_assistant_page' %}">ИИ-ассистент</a>
-        <a class="pd-nav__link pd-nav__link--eco" href="{% url 'workspace_packages' %}">Центр пакетов</a>
-        <a class="pd-nav__link pd-nav__link--eco" href="{% url 'packages_ui' %}">Пакеты NAS</a>
-        <a class="pd-nav__link pd-nav__link--eco" href="{% url 'objects_list' %}">Объекты</a>
-        <a class="pd-nav__link pd-nav__link--eco pd-nav__link--muted" href="{% url 'dashboard' %}">Старый дашборд</a>
-        <a class="pd-nav__link pd-nav__link--eco pd-nav__link--muted" href="{% url 'quality_dashboard' %}">Качество</a>
-        <a class="pd-nav__link pd-nav__link--eco pd-nav__link--muted" href="{% url 'pdf_dashboard' %}">PDF-отчёты</a>
-      </div>
-      <div class="pd-sidebar__footer">
-        <div class="pd-userbar">
-          <span class="pd-userbar__name">{% firstof request.user.get_short_name request.user.get_username %}</span>
-          <form method="post" action="{% url 'admin:logout' %}" class="pd-userbar__logout">
-            {% csrf_token %}
-            <button type="submit" class="pd-link-button">Выйти</button>
-          </form>
-        </div>
-      </div>
     </aside>
-
-    <section class="pd-main">
-      <header class="pd-topbar pd-topbar--with-eco">
-        <div class="pd-topbar__lead">
-          <h1 class="pd-title">{% block pass_docs_title %}Комплекты{% endblock %}</h1>
-          <p class="pd-subtitle">{% block pass_docs_subtitle %}Работа с документами сотрудников{% endblock %}</p>
-        </div>
-        <div class="pd-topbar__rail">
-          <div class="pd-eco-quick" aria-label="Быстрые сервисы">
-            <a class="pd-btn pd-btn--ghost" href="{% url 'workspace_dashboard' %}">Главный экран</a>
-            <a class="pd-btn pd-btn--primary" href="{% url 'scan_document_page' %}">Сканировать документ</a>
-            <a class="pd-btn pd-btn--ghost" href="{% url 'ai_assistant_page' %}">ИИ-ассистент</a>
-          </div>
-          <div class="pd-actions">
-            {% block pass_docs_actions %}{% endblock %}
-          </div>
-        </div>
-      </header>
+    <section class="pd-main pd-main--embedded">
       {% block pass_docs_content %}{% endblock %}
     </section>
   </div>
-</body>
-</html>
+</div>
+{% endblock %}

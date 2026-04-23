@@ -14,6 +14,7 @@
   --pd-sidebar-bg: #f1f5f9;
 }
 
+/* Автономный режим (полноэкранный HTML) — сейчас pass_docs сидит в shell_base / Jazzmin */
 body.pd-standalone {
   margin: 0;
   min-height: 100vh;
@@ -24,10 +25,34 @@ body.pd-standalone {
   color: var(--pd-text);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: inherit;
+.pd-pass-docs-root,
+.pd-pass-docs-root *,
+.pd-pass-docs-root *::before,
+.pd-pass-docs-root *::after {
+  box-sizing: border-box;
+}
+
+.pd-pass-docs-root {
+  min-width: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--pd-text);
+}
+
+.pd-shell--embedded {
+  max-width: none;
+  margin: 0;
+}
+
+.pd-main--embedded {
+  min-width: 0;
+}
+
+.workspace-actions .pd-workspace-page-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-left: 8px;
 }
 
 .pd-global-messages {
@@ -69,9 +94,8 @@ body.pd-standalone {
   grid-template-columns: repeat(4, minmax(130px, 1fr));
 }
 
-body,
-.wrapper,
-.content-wrapper {
+body.pd-standalone .wrapper,
+body.pd-standalone .content-wrapper {
   background: var(--pd-bg) !important;
 }
 

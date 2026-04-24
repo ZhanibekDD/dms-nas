@@ -80,7 +80,9 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "adminpanel" / "static"]
+# Не дублировать adminpanel/static через STATICFILES_DIRS: приложение adminpanel
+# уже отдаёт те же файлы через AppDirectoriesFinder — иначе collectstatic видит
+# дубликаты путей, ManifestStaticFilesStorage может оставить устаревший манифест.
 
 # WhiteNoise — раздача статики напрямую из Django (без nginx)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

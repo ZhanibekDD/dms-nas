@@ -17,14 +17,14 @@
     {% endif %}
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или электронная почта">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или почта получателя">
     </label>
     <label class="pd-field">
       <span>Статус заявки</span>
       <select name="status">
         <option value="">Все</option>
         {% for value,label in status_choices %}
-          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|package_status_ru }}</option>
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
@@ -38,20 +38,26 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Список заявок</h2>
-    <span class="pd-counter">{{ requests_total }}</span>
+    <div class="pd-card__header-right">
+      <span class="pd-counter">{{ requests_total }}</span>
+      <div class="pd-cols-toolbar">
+        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="package_requests" aria-haspopup="true">Столбцы…</button>
+        <div class="pd-cols-panel" hidden></div>
+      </div>
+    </div>
   </div>
   {% if package_requests %}
   <div class="pd-table-wrap">
-    <table class="pd-table">
+    <table class="pd-table" data-pd-table="package_requests">
       <thead>
         <tr>
-          <th>Номер</th>
-          <th>Сотрудник</th>
-          <th>Вид комплекта</th>
-          <th>Статус</th>
-          <th>Электронная почта получателя</th>
-          <th>Создана</th>
-          <th></th>
+          <th data-pd-col="req_id" data-pd-default-vis="1">Номер</th>
+          <th data-pd-col="employee" data-pd-default-vis="1">Сотрудник</th>
+          <th class="pd-col-vis-hidden" data-pd-col="package_kind" data-pd-default-vis="0" data-pd-col-label="Вид пакета (служебное)">Вид пакета</th>
+          <th data-pd-col="req_status" data-pd-default-vis="1">Статус</th>
+          <th data-pd-col="email_to" data-pd-default-vis="1">Почта получателя</th>
+          <th data-pd-col="created_at" data-pd-default-vis="1">Создана</th>
+          <th data-pd-no-pref></th>
         </tr>
       </thead>
       <tbody>
@@ -62,7 +68,7 @@
             <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' r.employee_id %}">{{ r.employee.full_name }}</a>
             <div class="pd-muted">{{ r.employee.company|default:"" }}</div>
           </td>
-          <td>{{ r.package_kind|package_kind_ru }}</td>
+          <td class="pd-col-vis-hidden">{{ r.package_kind|default:"—" }}</td>
           <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
           <td>{{ r.email_to|default:"—" }}</td>
           <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
@@ -95,7 +101,7 @@
   {% else %}
   <div class="pd-empty-state">
     <h3>Заявок пока нет</h3>
-    <p>Откройте карточку сотрудника и нажмите «Собрать комплект».</p>
+    <p>Откройте карточку сотрудника и нажмите «Собрать пакет».</p>
   </div>
   {% endif %}
   {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}

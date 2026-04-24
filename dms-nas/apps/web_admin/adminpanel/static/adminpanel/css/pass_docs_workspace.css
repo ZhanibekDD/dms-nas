@@ -1,58 +1,91 @@
-/* Автономный интерфейс «Комплекты документов» (без оболочки Django Admin) */
-:root {
-  --pd-bg: #eef2f7;
-  --pd-panel: #ffffff;
-  --pd-line: #cfd8e6;
-  --pd-text: #1f2a3d;
-  --pd-muted: #5c6b82;
-  --pd-primary: #2563eb;
-  --pd-primary-soft: #dbeafe;
-  --pd-ok: #16a34a;
-  --pd-warn: #d97706;
-  --pd-danger: #dc2626;
-  --pd-radius: 14px;
-  --pd-sidebar-bg: #f1f5f9;
+/* Автономный интерфейс pass_docs (без оболочки Django Admin) */
+.pd-user-hidden {
+  display: none !important;
 }
 
-/* Автономный режим (полноэкранный HTML) — сейчас pass_docs сидит в shell_base / Jazzmin */
+.pd-col-vis-hidden {
+  display: none !important;
+}
+
+.pd-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pd-cols-toolbar {
+  position: relative;
+}
+
+.pd-cols-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  min-width: 260px;
+  max-width: min(360px, 92vw);
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.pd-cols-panel__title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: var(--pd-text);
+}
+
+.pd-cols-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pd-cols-panel__row input {
+  flex-shrink: 0;
+}
+
+.pd-cols-panel__sep {
+  margin: 12px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e8ecf2;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pd-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pd-cols-panel__reset {
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.pd-tech-inline {
+  display: none !important;
+  margin-right: 6px;
+  font-size: 12px;
+  color: var(--pd-muted);
+}
+
+body.pd-show-type-codes .pd-tech-inline {
+  display: inline !important;
+}
+
 body.pd-standalone {
   margin: 0;
   min-height: 100vh;
-  box-sizing: border-box;
-  padding: 16px 18px 28px;
   background: var(--pd-bg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: var(--pd-text);
-}
-
-.pd-pass-docs-root,
-.pd-pass-docs-root *,
-.pd-pass-docs-root *::before,
-.pd-pass-docs-root *::after {
-  box-sizing: border-box;
-}
-
-.pd-pass-docs-root {
-  min-width: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: var(--pd-text);
-}
-
-.pd-shell--embedded {
-  max-width: none;
-  margin: 0;
-}
-
-.pd-main--embedded {
-  min-width: 0;
-}
-
-.workspace-actions .pd-workspace-page-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-left: 8px;
 }
 
 .pd-global-messages {
@@ -94,8 +127,23 @@ body.pd-standalone {
   grid-template-columns: repeat(4, minmax(130px, 1fr));
 }
 
-body.pd-standalone .wrapper,
-body.pd-standalone .content-wrapper {
+:root {
+  --pd-bg: #f5f7fb;
+  --pd-panel: #ffffff;
+  --pd-line: #e5e9f2;
+  --pd-text: #1f2a3d;
+  --pd-muted: #6c7a93;
+  --pd-primary: #2563eb;
+  --pd-primary-soft: #dbeafe;
+  --pd-ok: #16a34a;
+  --pd-warn: #d97706;
+  --pd-danger: #dc2626;
+  --pd-radius: 14px;
+}
+
+body,
+.wrapper,
+.content-wrapper {
   background: var(--pd-bg) !important;
 }
 
@@ -116,21 +164,18 @@ body.pass-docs-workspace .content-wrapper > .content {
 
 .pd-shell {
   display: grid;
-  grid-template-columns: 268px minmax(0, 1fr);
-  gap: 18px;
-  max-width: 1440px;
-  margin: 0 auto;
+  grid-template-columns: 228px minmax(0, 1fr);
+  gap: 14px;
 }
 
 .pd-sidebar {
-  background: var(--pd-sidebar-bg);
+  background: var(--pd-panel);
   border: 1px solid var(--pd-line);
   border-radius: var(--pd-radius);
-  padding: 14px;
+  padding: 12px;
   position: sticky;
-  top: 16px;
+  top: 12px;
   height: fit-content;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
 .pd-brand {
@@ -174,39 +219,6 @@ body.pass-docs-workspace .content-wrapper > .content {
   background: var(--pd-primary-soft);
   color: #1d4ed8;
   border-color: #bfdbfe;
-}
-
-.pd-ecosystem {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--pd-line);
-  display: grid;
-  gap: 4px;
-}
-
-.pd-ecosystem__title {
-  margin: 0 0 6px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--pd-muted);
-}
-
-.pd-nav__link--eco {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--pd-muted);
-}
-
-.pd-nav__link--eco:hover {
-  color: var(--pd-text);
-}
-
-.pd-nav__link--muted {
-  font-size: 12px;
-  opacity: 0.92;
 }
 
 .pd-sidebar__footer {
@@ -278,31 +290,6 @@ body.pass-docs-workspace .content-wrapper > .content {
   margin-bottom: 10px;
 }
 
-.pd-topbar--with-eco {
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-
-.pd-topbar__lead {
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.pd-topbar__rail {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  flex: 1 1 280px;
-}
-
-.pd-eco-quick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .pd-title {
   margin: 0;
   font-size: 26px;
@@ -334,8 +321,8 @@ body.pass-docs-workspace .content-wrapper > .content {
 
 .pd-summary {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   margin-bottom: 14px;
 }
 
@@ -451,9 +438,8 @@ body.pass-docs-workspace .content-wrapper > .content {
 
 .pd-table-wrap {
   overflow: auto;
-  border: 1px solid var(--pd-line);
+  border: 1px solid #edf1f7;
   border-radius: 12px;
-  background: var(--pd-panel);
 }
 
 .pd-table {
@@ -477,8 +463,8 @@ body.pass-docs-workspace .content-wrapper > .content {
 }
 
 .pd-table td {
-  border-bottom: 1px solid #e2e8f0;
-  padding: 10px 10px;
+  border-bottom: 1px solid #eef2f7;
+  padding: 8px 8px;
   vertical-align: top;
   font-size: 14px;
   color: var(--pd-text);

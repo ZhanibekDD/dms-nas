@@ -48,18 +48,24 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Список сотрудников</h2>
-    <span class="pd-counter">{{ employees_total }}</span>
+    <div class="pd-card__header-right">
+      <span class="pd-counter">{{ employees_total }}</span>
+      <div class="pd-cols-toolbar">
+        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="employees" aria-haspopup="true">Столбцы…</button>
+        <div class="pd-cols-panel" hidden></div>
+      </div>
+    </div>
   </div>
   <div class="pd-table-wrap">
-    <table class="pd-table">
+    <table class="pd-table" data-pd-table="employees">
       <thead>
         <tr>
-          <th>ФИО</th>
-          <th>Организация</th>
-          <th>Документов</th>
-          <th>Распознано</th>
-          <th>Статус</th>
-          <th></th>
+          <th data-pd-col="full_name" data-pd-default-vis="1" data-pd-col-label="ФИО">ФИО</th>
+          <th data-pd-col="company" data-pd-default-vis="1">Организация</th>
+          <th data-pd-col="documents_count" data-pd-default-vis="1">Документов</th>
+          <th data-pd-col="parse_ok" data-pd-default-vis="1">Распознано</th>
+          <th data-pd-col="account_status" data-pd-default-vis="1">Статус</th>
+          <th data-pd-no-pref></th>
         </tr>
       </thead>
       <tbody>

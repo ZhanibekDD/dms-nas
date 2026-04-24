@@ -1,26 +1,26 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 {% load pass_docs_i18n %}
 
-{% block html_title %}Все документы{% endblock %}
-{% block pass_docs_title %}Все документы{% endblock %}
-{% block pass_docs_subtitle %}Поиск по всем документам{% endblock %}
+{% block html_title %}Документы{% endblock %}
+{% block pass_docs_title %}Документы{% endblock %}
+{% block pass_docs_subtitle %}Поиск по комплекту (через сотрудника удобнее){% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-summary">
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Всего в списке</span>
+    <span class="pd-summary__label">Всего</span>
     <strong class="pd-summary__value">{{ documents_total }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Успешно распознано</span>
+    <span class="pd-summary__label">Распознано</span>
     <strong class="pd-summary__value">{{ documents_ok }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Ошибка распознавания</span>
+    <span class="pd-summary__label">С ошибкой</span>
     <strong class="pd-summary__value">{{ documents_error }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">Ожидают распознавания</span>
+    <span class="pd-summary__label">В очереди</span>
     <strong class="pd-summary__value">{{ documents_pending }}</strong>
   </article>
 </section>
@@ -29,14 +29,14 @@
   <form method="get" class="pd-filters pd-filters--grid4">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО сотрудника или название документа">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО сотрудника или название типа документа">
     </label>
     <label class="pd-field">
       <span>Статус распознавания</span>
       <select name="parse_status">
         <option value="">Все</option>
         {% for value,label in parse_status_choices %}
-          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ value|parse_status_ru }}</option>
+          <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
@@ -45,7 +45,7 @@
       <select name="status">
         <option value="">Все</option>
         {% for value,label in status_choices %}
-          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ value|doc_status_ru }}</option>
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
@@ -67,19 +67,25 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Список</h2>
-    <span class="pd-counter">{{ documents_total }}</span>
+    <div class="pd-card__header-right">
+      <span class="pd-counter">{{ documents_total }}</span>
+      <div class="pd-cols-toolbar">
+        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="documents_list" aria-haspopup="true">Столбцы…</button>
+        <div class="pd-cols-panel" hidden></div>
+      </div>
+    </div>
   </div>
   <div class="pd-table-wrap pd-table-wrap--docs">
-    <table class="pd-table pd-table--docs pd-table--docs-v2">
+    <table class="pd-table pd-table--docs pd-table--docs-v2" data-pd-table="documents_list">
       <thead>
         <tr>
-          <th class="pd-th pd-th--employee">Сотрудник</th>
-          <th class="pd-th pd-th--type">Тип документа</th>
-          <th class="pd-th pd-th--flag">Распознавание</th>
-          <th class="pd-th pd-th--flag">Проверка</th>
-          <th class="pd-th pd-th--flag">Актуально</th>
-          <th class="pd-th pd-th--updated">Обновлён</th>
-          <th class="pd-th pd-th--action"></th>
+          <th class="pd-th pd-th--employee" data-pd-col="employee" data-pd-default-vis="1">Сотрудник</th>
+          <th class="pd-th pd-th--type" data-pd-col="doc_type" data-pd-default-vis="1">Тип документа</th>
+          <th class="pd-th pd-th--flag" data-pd-col="parse" data-pd-default-vis="1">Распознавание</th>
+          <th class="pd-th pd-th--flag" data-pd-col="verify" data-pd-default-vis="1">Проверка</th>
+          <th class="pd-th pd-th--flag" data-pd-col="actual" data-pd-default-vis="1">Актуально</th>
+          <th class="pd-th pd-th--updated pd-col-vis-hidden" data-pd-col="updated_at" data-pd-default-vis="0" data-pd-col-label="Дата обновления">Обновлён</th>
+          <th class="pd-th pd-th--action" data-pd-no-pref></th>
         </tr>
       </thead>
       <tbody>
@@ -92,7 +98,8 @@
           </td>
           <td class="pd-td pd-td--type">
             <div class="pd-cell-stack">
-              <span class="pd-strong">{{ doc.document_type.name }}</span>
+              <span class="pd-type-code pd-tech-inline">{{ doc.document_type.code }}</span>
+              <span class="pd-muted pd-type-name">{{ doc.document_type.name }}</span>
             </div>
           </td>
           <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span></td>
@@ -100,7 +107,7 @@
           <td class="pd-td pd-td--flag">
             {% if doc.is_actual %}Да{% else %}Нет{% endif %}
           </td>
-          <td class="pd-td pd-td--updated"><span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y H:i" }}</span></td>
+          <td class="pd-td pd-td--updated pd-col-vis-hidden"><span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y H:i" }}</span></td>
           <td class="pd-td pd-td--action pd-right">
             <a class="pd-btn pd-btn--ghost pd-btn--table" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
           </td>

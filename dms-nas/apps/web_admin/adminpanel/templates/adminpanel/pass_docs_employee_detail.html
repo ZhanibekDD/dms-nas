@@ -3,7 +3,7 @@
 
 {% block html_title %}{{ employee.full_name }}{% endblock %}
 {% block pass_docs_title %}{{ employee.full_name }}{% endblock %}
-{% block pass_docs_subtitle %}Документы и заявки на комплект{% endblock %}
+{% block pass_docs_subtitle %}Документы и пакеты{% endblock %}
 
 {% block pass_docs_content %}
 <section class="pd-employee-hero">
@@ -22,12 +22,12 @@
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Действия с комплектом</h2>
+    <h2>Действия с пакетом</h2>
   </div>
   <div class="pd-employee-actions">
     <form method="post" action="{% url 'pass_docs_employee_quick_build' employee.pk %}" class="pd-inline-form">
       {% csrf_token %}
-      <button type="submit" class="pd-btn pd-btn--primary">Собрать комплект</button>
+      <button type="submit" class="pd-btn pd-btn--primary">Собрать пакет</button>
     </form>
     <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_requests' %}?employee={{ employee.pk }}">Открыть заявки</a>
     {% if ready_package %}
@@ -42,33 +42,40 @@
     {% endif %}
   </div>
   {% if ready_package %}
-  <p class="pd-muted pd-actions-hint">Последний готовый комплект: заявка №{{ ready_package.id }}, статус «{{ ready_package.status|package_status_ru }}».</p>
+  <p class="pd-muted pd-actions-hint">Последний готовый пакет: заявка №{{ ready_package.id }}, статус «{{ ready_package.status|package_status_ru }}».</p>
   {% else %}
-  <p class="pd-muted pd-actions-hint">Чтобы появились файлы Excel и ZIP, нажмите «Собрать комплект».</p>
+  <p class="pd-muted pd-actions-hint">Чтобы появились файлы Excel и ZIP, нажмите «Собрать пакет».</p>
   {% endif %}
 </section>
 
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Документы сотрудника</h2>
-    <span class="pd-counter">{{ documents|length }}</span>
+    <div class="pd-card__header-right">
+      <span class="pd-counter">{{ documents|length }}</span>
+      <div class="pd-cols-toolbar">
+        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="employee_docs" aria-haspopup="true">Столбцы…</button>
+        <div class="pd-cols-panel" hidden></div>
+      </div>
+    </div>
   </div>
   {% if documents %}
   <div class="pd-table-wrap">
-    <table class="pd-table">
+    <table class="pd-table" data-pd-table="employee_docs">
       <thead>
         <tr>
-          <th>Тип документа</th>
-          <th>Статус распознавания</th>
-          <th>Статус проверки</th>
-          <th>Актуальность</th>
-          <th></th>
+          <th data-pd-col="doc_type" data-pd-default-vis="1">Тип документа</th>
+          <th data-pd-col="parse_status" data-pd-default-vis="1">Статус распознавания</th>
+          <th data-pd-col="review_status" data-pd-default-vis="1">Статус проверки</th>
+          <th data-pd-col="is_actual" data-pd-default-vis="1">Актуальность</th>
+          <th data-pd-no-pref></th>
         </tr>
       </thead>
       <tbody>
         {% for d in documents %}
         <tr>
           <td>
+            <span class="pd-type-code pd-tech-inline">{{ d.document_type.code }}</span>
             <div class="pd-strong">{{ d.document_type.name }}</div>
           </td>
           <td><span class="pd-badge pd-badge--parse-{{ d.parse_status }}">{{ d.parse_status|parse_status_ru }}</span></td>
@@ -89,15 +96,21 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Заявки на пакеты</h2>
+    <div class="pd-card__header-right">
+      <div class="pd-cols-toolbar">
+        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="employee_packages" aria-haspopup="true">Столбцы…</button>
+        <div class="pd-cols-panel" hidden></div>
+      </div>
+    </div>
   </div>
   <div class="pd-table-wrap">
-    <table class="pd-table">
+    <table class="pd-table" data-pd-table="employee_packages">
       <thead>
         <tr>
-          <th>Номер</th>
-          <th>Статус</th>
-          <th>Создана</th>
-          <th></th>
+          <th data-pd-col="pkg_id" data-pd-default-vis="1">Номер</th>
+          <th data-pd-col="pkg_status" data-pd-default-vis="1">Статус</th>
+          <th data-pd-col="pkg_created" data-pd-default-vis="1">Создана</th>
+          <th data-pd-no-pref></th>
         </tr>
       </thead>
       <tbody>

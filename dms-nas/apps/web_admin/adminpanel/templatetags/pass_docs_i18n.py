@@ -3,7 +3,6 @@ import pprint as py_pprint
 from django import template
 
 from adminpanel.pass_docs_display import (
-    human_package_kind,
     ru_doc_status,
     ru_package_status,
     ru_parse_status,
@@ -25,11 +24,6 @@ def doc_status_ru(value) -> str:
 @register.filter
 def package_status_ru(value) -> str:
     return ru_package_status(value)
-
-
-@register.filter
-def package_kind_ru(value) -> str:
-    return human_package_kind(value)
 
 
 @register.filter(name="pprint")

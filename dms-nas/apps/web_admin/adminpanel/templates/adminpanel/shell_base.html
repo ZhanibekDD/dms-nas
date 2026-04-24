@@ -29,7 +29,6 @@
       <div class="workspace-actions">
         <a href="{% url 'scan_document_page' %}" class="workspace-btn workspace-btn-primary{% if workspace_active == 'scan' %} workspace-btn--active{% endif %}">Сканировать документ</a>
         <a href="{% url 'ai_assistant_page' %}" class="workspace-btn workspace-btn-outline{% if workspace_active == 'ai' %} workspace-btn--active{% endif %}">Спросить ИИ</a>
-        {% block workspace_extra_actions %}{% endblock %}
       </div>
     </header>
 

@@ -1,24 +1,14 @@
-{% extends "adminpanel/shell_base.html" %}
 {% load static %}
-
-{% block extrastyle %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
-{% endblock %}
-
-{% block title %}{% block html_title %}Комплекты{% endblock %} — ДнепрНАС{% endblock %}
-
-{% block workspace_title %}{% block pass_docs_title %}Комплекты{% endblock %}{% endblock %}
-{% block workspace_subtitle %}{% block pass_docs_subtitle %}Работа с документами сотрудников{% endblock %}{% endblock %}
-
-{% block workspace_extra_actions %}
-<div class="pd-workspace-page-actions">
-  {% block pass_docs_actions %}{% endblock %}
-</div>
-{% endblock %}
-
-{% block workspace_content %}
-<div class="pd-pass-docs-root">
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block html_title %}Документы{% endblock %} — ДнепрНАС</title>
+  <link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="pd-standalone">
   {% if messages %}
   <div class="pd-global-messages">
     <ul class="pd-flash-messages">
@@ -28,23 +18,40 @@
     </ul>
   </div>
   {% endif %}
-  <div class="pd-shell pd-shell--embedded">
+  <div class="pd-shell">
     <aside class="pd-sidebar">
       <a href="{% url 'pass_docs_employees' %}" class="pd-brand">
         <span class="pd-brand__dot"></span>
-        <span>Комплекты документов</span>
+        <span>ДнепрНАС — комплекты</span>
       </a>
       <nav class="pd-nav">
         <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}" href="{% url 'pass_docs_employees' %}">Сотрудники</a>
-        <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}" href="{% url 'pass_docs_documents' %}">Все документы</a>
-        <a class="pd-nav__link{% if pass_docs_active == 'types' %} is-active{% endif %}" href="{% url 'pass_docs_document_types' %}">Типы документов</a>
         <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}" href="{% url 'pass_docs_package_requests' %}">Заявки на пакеты</a>
-        <a class="pd-nav__link" href="{% url 'admin:index' %}">Администрирование</a>
       </nav>
+      <div class="pd-sidebar__footer">
+        <div class="pd-userbar">
+          <span class="pd-userbar__name">{% firstof request.user.get_short_name request.user.get_username %}</span>
+          <form method="post" action="{% url 'admin:logout' %}" class="pd-userbar__logout">
+            {% csrf_token %}
+            <button type="submit" class="pd-link-button">Выйти</button>
+          </form>
+        </div>
+      </div>
     </aside>
-    <section class="pd-main pd-main--embedded">
+
+    <section class="pd-main">
+      <header class="pd-topbar">
+        <div>
+          <h1 class="pd-title">{% block pass_docs_title %}Документы{% endblock %}</h1>
+          <p class="pd-subtitle">{% block pass_docs_subtitle %}Работа с комплектами документов{% endblock %}</p>
+        </div>
+        <div class="pd-actions">
+          {% block pass_docs_actions %}{% endblock %}
+        </div>
+      </header>
       {% block pass_docs_content %}{% endblock %}
     </section>
   </div>
-</div>
-{% endblock %}
+  <script src="{% static 'adminpanel/js/pass_docs_colprefs.js' %}"></script>
+</body>
+</html>

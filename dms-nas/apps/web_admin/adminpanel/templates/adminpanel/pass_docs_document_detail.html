@@ -18,6 +18,7 @@
 <section class="pd-card pd-card--detail-head">
   <div class="pd-card__header">
     <div class="pd-detail-title">
+      <span class="pd-type-code pd-tech-inline">{{ doc.document_type.code }}</span>
       <h2>{{ doc.document_type.name }}</h2>
     </div>
   </div>
@@ -76,4 +77,33 @@
   <p class="pd-muted">Данные распознавания пока не заполнены или документ не обрабатывался.</p>
   {% endif %}
 </section>
+
+<details class="pd-details pd-details--collapsible pd-service-block pd-user-hidden">
+  <summary>Служебная информация</summary>
+  <p class="pd-muted pd-service-intro">Только для ИТ-поддержки. В обычной работе не требуется.</p>
+  <details class="pd-details pd-details--nested">
+    <summary>Результат дополнительного распознавания (сырой текст)</summary>
+    {% if raw_vision %}
+      <pre class="pd-code pd-code--secondary">{{ raw_vision|pprint }}</pre>
+    {% else %}
+      <p class="pd-muted">Нет данных.</p>
+    {% endif %}
+  </details>
+  <details class="pd-details pd-details--nested">
+    <summary>Полный ответ системы (JSON)</summary>
+    {% if payload %}
+      <pre class="pd-code pd-code--secondary">{{ payload|pprint }}</pre>
+    {% else %}
+      <p class="pd-muted">Пусто.</p>
+    {% endif %}
+  </details>
+  <details class="pd-details pd-details--nested">
+    <summary>Метаданные импорта</summary>
+    {% if doc.metadata %}
+      <pre class="pd-code pd-code--secondary">{{ doc.metadata|pprint }}</pre>
+    {% else %}
+      <p class="pd-muted">Нет метаданных.</p>
+    {% endif %}
+  </details>
+</details>
 {% endblock %}

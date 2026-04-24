@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import mimetypes
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -90,31 +91,84 @@ def _format_scalar(v: Any) -> str:
     return s if s else "—"
 
 
+def _norm_key_for_rule(raw_key: str) -> str:
+    """Ключ для правил скрытия служебных полей (регистр, пробелы)."""
+    return re.sub(r"\s+", "_", str(raw_key).strip()).lower()
+
+
+def _normalized_key_is_internal(nk: str) -> bool:
+    if not nk or nk.startswith("_"):
+        return True
+    if "extractor" in nk:
+        return True
+    if nk == "legacy" or nk.endswith("_legacy"):
+        return True
+    if nk in {"import_key", "e2e_package_mvp", "e2e_test"}:
+        return True
+    if nk.startswith("e2e_"):
+        return True
+    return False
+
+
+def _warning_is_internal(text: str) -> bool:
+    low = str(text).lower()
+    return "extractor" in low or "import_key" in low or "e2e_" in low
+
+
 def normalized_pairs_for_ui(normalized: Any) -> list[tuple[str, str]]:
     """Плоский список (подпись, значение) для блока «Распознанные данные»."""
     if not normalized or not isinstance(normalized, dict):
         return []
     rows: list[tuple[str, str]] = []
-    for key, val in normalized.items():
-        ks = str(key)
-        if ks.startswith("_"):
-            continue
-        if isinstance(val, (dict, list)):
-            continue
+
+    def consider_leaf(raw_key: str, val: Any) -> None:
+        if val is None or isinstance(val, (dict, list)):
+            return
+        ks = str(raw_key).strip()
+        if not ks:
+            return
+        nk = _norm_key_for_rule(ks)
+        if _normalized_key_is_internal(nk):
+            return
         label = FIELD_LABELS_RU.get(ks, ks.replace("_", " ").strip().title())
+        if "extractor" in label.lower():
+            return
         rows.append((label, _format_scalar(val)))
+
+    def walk(d: dict) -> None:
+        for raw_key, val in d.items():
+            ks = str(raw_key).strip()
+            if not ks:
+                continue
+            if isinstance(val, dict):
+                inner_vals = list(val.values())
+                if val and all(not isinstance(x, (dict, list)) for x in inner_vals):
+                    for ik, iv in val.items():
+                        consider_leaf(str(ik).strip(), iv)
+                continue
+            if isinstance(val, list):
+                continue
+            consider_leaf(ks, val)
+
+    walk(normalized)
     return rows
 
 
 def normalized_warnings(normalized: Any) -> list[str]:
     if not normalized or not isinstance(normalized, dict):
         return []
+    out: list[str] = []
     w = normalized.get("_warnings")
     if isinstance(w, list):
-        return [str(x) for x in w if str(x).strip()]
-    if isinstance(w, str) and w.strip():
-        return [w.strip()]
-    return []
+        for x in w:
+            sx = str(x).strip()
+            if sx and not _warning_is_internal(sx):
+                out.append(sx)
+    elif isinstance(w, str) and w.strip():
+        sx = w.strip()
+        if not _warning_is_internal(sx):
+            out.append(sx)
+    return out
 
 
 def viewer_kind_for_document(file_field) -> str:
@@ -136,24 +190,6 @@ def viewer_kind_for_document(file_field) -> str:
 def guess_mime_for_path(path: str) -> str:
     ctype, _ = mimetypes.guess_type(path)
     return ctype or "application/octet-stream"
-
-
-# Внутренние коды вида пакета (package_kind) → подпись для оператора
-PACKAGE_KIND_LABELS_RU: dict[str, str] = {
-    "e2e_package_mvp": "Основной комплект",
-    "e2e_test": "Тестовый прогон",
-    "default": "Стандартный комплект",
-}
-
-
-def human_package_kind(kind: str | None) -> str:
-    k = (kind or "").strip()
-    if not k:
-        return "—"
-    key = k.lower()
-    if key in PACKAGE_KIND_LABELS_RU:
-        return PACKAGE_KIND_LABELS_RU[key]
-    return "Комплект документов"
 
 
 def employee_bundle_line(

@@ -3,135 +3,189 @@
 
 {% block html_title %}{{ employee.full_name }}{% endblock %}
 {% block pass_docs_title %}{{ employee.full_name }}{% endblock %}
-{% block pass_docs_subtitle %}Документы и пакеты{% endblock %}
+{% block pass_docs_subtitle %}{{ employee.company|default:"" }}{% endblock %}
 
 {% block pass_docs_content %}
-<section class="pd-employee-hero">
-  <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-back-link">← К списку сотрудников</a>
-  <h2 class="pd-employee-title">{{ employee.full_name }}</h2>
-  {% if employee.company %}<p class="pd-employee-org">{{ employee.company }}</p>{% endif %}
-</section>
 
-<section class="pd-card pd-employee-meta">
-  <div class="pd-meta-grid pd-meta-grid--employee">
-    <div><span class="pd-k">Организация</span><span class="pd-v">{{ employee.company|default:"—" }}</span></div>
-    <div><span class="pd-k">Статус комплекта</span><span class="pd-v">{{ bundle_summary }}</span></div>
-    <div><span class="pd-k">Учётная запись</span><span class="pd-v">{% if employee.is_active %}Активен{% else %}Неактивен{% endif %}</span></div>
-  </div>
-</section>
+{# Навигация назад #}
+<div style="margin-bottom:12px;">
+  <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-btn--sm">← Все сотрудники</a>
+</div>
 
+{# Блок: главное действие #}
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Действия с пакетом</h2>
+    <h2>Комплект документов</h2>
+    {% if ready_package %}
+      <span class="pd-badge pd-badge--ok">Готов к скачиванию</span>
+    {% endif %}
   </div>
+  <p class="pd-card__hint">{{ bundle_summary }}</p>
+
   <div class="pd-employee-actions">
     <form method="post" action="{% url 'pass_docs_employee_quick_build' employee.pk %}" class="pd-inline-form">
       {% csrf_token %}
-      <button type="submit" class="pd-btn pd-btn--primary">Собрать пакет</button>
+      <button type="submit" class="pd-btn pd-btn--primary pd-btn--lg" title="Собрать Excel-таблицу и ZIP-архив со всеми документами">
+        📋 Собрать комплект
+      </button>
     </form>
-    <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_requests' %}?employee={{ employee.pk }}">Открыть заявки</a>
+
     {% if ready_package %}
-    <span class="pd-artifact-links pd-artifact-links--hero">
       {% if ready_package.excel_file %}
-      <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_request_download' ready_package.id 'excel' %}">Скачать Excel</a>
+      <a class="pd-btn pd-btn--success" href="{% url 'pass_docs_package_request_download' ready_package.id 'excel' %}">
+        ⬇ Скачать Excel
+      </a>
       {% endif %}
       {% if ready_package.zip_file %}
-      <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_request_download' ready_package.id 'zip' %}">Скачать ZIP</a>
+      <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_request_download' ready_package.id 'zip' %}">
+        ⬇ Скачать ZIP-архив
+      </a>
       {% endif %}
-    </span>
     {% endif %}
+
+    <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_package_requests' %}?employee={{ employee.pk }}">
+      История сборок
+    </a>
   </div>
-  {% if ready_package %}
-  <p class="pd-muted pd-actions-hint">Последний готовый пакет: заявка №{{ ready_package.id }}, статус «{{ ready_package.status|package_status_ru }}».</p>
+
+  {% if not ready_package %}
+  <p class="pd-actions-hint">Нажмите «Собрать комплект» — система создаст Excel-таблицу и ZIP-архив с документами сотрудника.</p>
   {% else %}
-  <p class="pd-muted pd-actions-hint">Чтобы появились файлы Excel и ZIP, нажмите «Собрать пакет».</p>
+  <p class="pd-actions-hint">Последняя сборка: заявка №{{ ready_package.id }} — {{ ready_package.status|package_status_ru }}.</p>
   {% endif %}
 </section>
 
+{# Блок: реквизиты сотрудника #}
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2>Сведения о сотруднике</h2>
+  </div>
+  <div class="pd-meta-grid pd-meta-grid--employee">
+    <div>
+      <span class="pd-k">Организация</span>
+      <span class="pd-v">{{ employee.company|default:"—" }}</span>
+    </div>
+    <div>
+      <span class="pd-k">Учётная запись</span>
+      <span class="pd-v">
+        {% if employee.is_active %}
+          <span class="pd-badge pd-badge--ok">Активен</span>
+        {% else %}
+          <span class="pd-badge pd-badge--skipped">Неактивен</span>
+        {% endif %}
+      </span>
+    </div>
+    {% if employee.profession_label %}
+    <div>
+      <span class="pd-k">Должность / профессия</span>
+      <span class="pd-v">{{ employee.profession_label }}</span>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{# Блок: документы сотрудника #}
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Документы сотрудника</h2>
-    <div class="pd-card__header-right">
-      <span class="pd-counter">{{ documents|length }}</span>
-      <div class="pd-cols-toolbar">
-        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="employee_docs" aria-haspopup="true">Столбцы…</button>
-        <div class="pd-cols-panel" hidden></div>
-      </div>
-    </div>
+    <span class="pd-counter">{{ documents|length }}</span>
   </div>
+
   {% if documents %}
   <div class="pd-table-wrap">
-    <table class="pd-table" data-pd-table="employee_docs">
+    <table class="pd-table">
       <thead>
         <tr>
-          <th data-pd-col="doc_type" data-pd-default-vis="1">Тип документа</th>
-          <th data-pd-col="parse_status" data-pd-default-vis="1">Статус распознавания</th>
-          <th data-pd-col="review_status" data-pd-default-vis="1">Статус проверки</th>
-          <th data-pd-col="is_actual" data-pd-default-vis="1">Актуальность</th>
-          <th data-pd-no-pref></th>
+          <th>Тип документа</th>
+          <th>Дата выдачи</th>
+          <th>Действует до</th>
+          <th>Статус</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for d in documents %}
-        <tr>
+        <tr class="pd-row-doc">
           <td>
-            <span class="pd-type-code pd-tech-inline">{{ d.document_type.code }}</span>
+            <span class="pd-type-code pd-user-hidden">{{ d.document_type.code }}</span>
             <div class="pd-strong">{{ d.document_type.name }}</div>
           </td>
-          <td><span class="pd-badge pd-badge--parse-{{ d.parse_status }}">{{ d.parse_status|parse_status_ru }}</span></td>
-          <td><span class="pd-badge pd-badge--status-{{ d.status }}">{{ d.status|doc_status_ru }}</span></td>
-          <td>{% if d.is_actual %}Да{% else %}Нет{% endif %}</td>
-          <td class="pd-right"><a class="pd-link" href="{% url 'pass_docs_document_detail' d.id %}">Просмотр документа</a></td>
+          <td>{{ d.issue_date|default:"—" }}</td>
+          <td>
+            {% if d.expiry_date %}
+              {{ d.expiry_date }}
+            {% else %}
+              <span class="pd-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {# Единый понятный статус для пользователя #}
+            {% if d.status == "ok" %}
+              <span class="pd-badge pd-badge--ok">Принят</span>
+            {% elif d.status == "expired" %}
+              <span class="pd-badge pd-badge--error">Просрочен</span>
+            {% elif d.status == "rejected" %}
+              <span class="pd-badge pd-badge--error">Отклонён</span>
+            {% elif d.parse_status == "error" %}
+              <span class="pd-badge pd-badge--warn">Требует внимания</span>
+            {% elif d.parse_status == "pending" %}
+              <span class="pd-badge pd-badge--pending">Обрабатывается</span>
+            {% else %}
+              <span class="pd-badge pd-badge--pending">На проверке</span>
+            {% endif %}
+          </td>
+          <td class="pd-right">
+            <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_document_detail' d.id %}">Просмотр →</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <p class="pd-empty">У этого сотрудника пока нет загруженных документов.</p>
+  <div class="pd-empty-state">
+    <span class="pd-empty-state__icon">📄</span>
+    <h3>Документы не загружены</h3>
+    <p>У этого сотрудника пока нет документов в системе. Обратитесь к администратору для загрузки.</p>
+  </div>
   {% endif %}
 </section>
 
+{# Блок: история сборок (только если есть) #}
 {% if package_requests %}
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Заявки на пакеты</h2>
-    <div class="pd-card__header-right">
-      <div class="pd-cols-toolbar">
-        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="employee_packages" aria-haspopup="true">Столбцы…</button>
-        <div class="pd-cols-panel" hidden></div>
-      </div>
-    </div>
+    <h2>История сборок комплекта</h2>
   </div>
   <div class="pd-table-wrap">
-    <table class="pd-table" data-pd-table="employee_packages">
+    <table class="pd-table">
       <thead>
         <tr>
-          <th data-pd-col="pkg_id" data-pd-default-vis="1">Номер</th>
-          <th data-pd-col="pkg_status" data-pd-default-vis="1">Статус</th>
-          <th data-pd-col="pkg_created" data-pd-default-vis="1">Создана</th>
-          <th data-pd-no-pref></th>
+          <th>Сборка №</th>
+          <th>Статус</th>
+          <th>Дата</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for r in package_requests %}
         <tr>
-          <td>{{ r.id }}</td>
+          <td class="pd-muted">{{ r.id }}</td>
           <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
-          <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
+          <td class="pd-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
           <td class="pd-right pd-cell-actions">
             {% if r.status == "draft" or r.status == "submitted" %}
             <form method="post" action="{% url 'pass_docs_package_request_build' r.id %}" class="pd-inline-form">
               {% csrf_token %}
               <input type="hidden" name="next" value="{% url 'pass_docs_employee_detail' employee.pk %}" />
-              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel и ZIP</button>
+              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--sm">Собрать</button>
             </form>
-            {% endif %}
-            {% if r.status == "ready" %}
+            {% elif r.status == "ready" %}
               {% if r.excel_file %}
               <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">Excel</a>
               {% endif %}
               {% if r.zip_file %}
+              &nbsp;
               <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">ZIP</a>
               {% endif %}
             {% endif %}
@@ -143,4 +197,5 @@
   </div>
 </section>
 {% endif %}
+
 {% endblock %}

@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any
 
 PARSE_STATUS_RU: dict[str, str] = {
-    "pending": "Ожидает распознавания",
-    "ok": "Распознано",
-    "skipped": "Пропущено",
-    "error": "Ошибка распознавания",
+    "pending": "В очереди",
+    "ok": "Обработан",
+    "skipped": "Без обработки",
+    "error": "Ошибка",
 }
 
 DOC_STATUS_RU: dict[str, str] = {
@@ -28,9 +28,9 @@ DOC_STATUS_RU: dict[str, str] = {
 PACKAGE_STATUS_RU: dict[str, str] = {
     "draft": "Черновик",
     "submitted": "Ожидает сборки",
-    "building": "Сборка…",
+    "building": "Собирается…",
     "ready": "Готов",
-    "failed": "Ошибка сборки",
+    "failed": "Ошибка",
     "sent": "Отправлен",
     "cancelled": "Отменён",
 }
@@ -91,84 +91,82 @@ def _format_scalar(v: Any) -> str:
     return s if s else "—"
 
 
-def _norm_key_for_rule(raw_key: str) -> str:
-    """Ключ для правил скрытия служебных полей (регистр, пробелы)."""
-    return re.sub(r"\s+", "_", str(raw_key).strip()).lower()
-
-
-def _normalized_key_is_internal(nk: str) -> bool:
-    if not nk or nk.startswith("_"):
+def _normalized_key_is_internal(ks: str) -> bool:
+    low = str(ks).strip().lower()
+    if not low:
         return True
-    if "extractor" in nk:
+    if low.startswith("_"):
         return True
-    if nk == "legacy" or nk.endswith("_legacy"):
+    # Любые варианты: extractor_kind, EXTRACTOR_KIND, extractorKind, «extractor kind»
+    compact = re.sub(r"[^a-z0-9]+", "", low)
+    if "extractor" in low or "extractor" in compact:
         return True
-    if nk in {"import_key", "e2e_package_mvp", "e2e_test"}:
+    if low == "legacy" or low.endswith("_legacy"):
         return True
-    if nk.startswith("e2e_"):
+    if low in {"import_key", "e2e_package_mvp", "e2e_test"}:
+        return True
+    if low.startswith("e2e_"):
         return True
     return False
 
 
-def _warning_is_internal(text: str) -> bool:
-    low = str(text).lower()
-    return "extractor" in low or "import_key" in low or "e2e_" in low
+def _label_looks_internal(ks: str, label: str) -> bool:
+    if _normalized_key_is_internal(ks):
+        return True
+    ll = (label or "").lower()
+    return "extractor" in ll
+
+
+def _warning_text_is_internal(text: str) -> bool:
+    low = (text or "").lower()
+    if "extractor_kind" in low or "extractor kind" in low:
+        return True
+    if re.search(r"\bextractor\b", low):
+        return True
+    if "e2e_" in low:
+        return True
+    return False
 
 
 def normalized_pairs_for_ui(normalized: Any) -> list[tuple[str, str]]:
-    """Плоский список (подпись, значение) для блока «Распознанные данные»."""
+    """Плоский список (подпись, значение) для блока «Распознанные данные».
+
+    Обходит вложенные dict (часть пайплайнов кладёт поля во внутренние объекты),
+    не показывает служебные ключи вроде extractor_kind на любом уровне.
+    """
     if not normalized or not isinstance(normalized, dict):
         return []
-    rows: list[tuple[str, str]] = []
 
-    def consider_leaf(raw_key: str, val: Any) -> None:
-        if val is None or isinstance(val, (dict, list)):
-            return
-        ks = str(raw_key).strip()
-        if not ks:
-            return
-        nk = _norm_key_for_rule(ks)
-        if _normalized_key_is_internal(nk):
-            return
-        label = FIELD_LABELS_RU.get(ks, ks.replace("_", " ").strip().title())
-        if "extractor" in label.lower():
-            return
-        rows.append((label, _format_scalar(val)))
-
-    def walk(d: dict) -> None:
-        for raw_key, val in d.items():
-            ks = str(raw_key).strip()
-            if not ks:
+    def walk(d: dict[str, Any]) -> list[tuple[str, str]]:
+        rows: list[tuple[str, str]] = []
+        for key, val in d.items():
+            ks = str(key)
+            if _normalized_key_is_internal(ks):
                 continue
             if isinstance(val, dict):
-                inner_vals = list(val.values())
-                if val and all(not isinstance(x, (dict, list)) for x in inner_vals):
-                    for ik, iv in val.items():
-                        consider_leaf(str(ik).strip(), iv)
+                rows.extend(walk(val))
                 continue
             if isinstance(val, list):
                 continue
-            consider_leaf(ks, val)
+            label = FIELD_LABELS_RU.get(ks, ks.replace("_", " ").strip().title())
+            if _label_looks_internal(ks, label):
+                continue
+            rows.append((label, _format_scalar(val)))
+        return rows
 
-    walk(normalized)
-    return rows
+    return walk(normalized)
 
 
 def normalized_warnings(normalized: Any) -> list[str]:
     if not normalized or not isinstance(normalized, dict):
         return []
-    out: list[str] = []
     w = normalized.get("_warnings")
+    out: list[str] = []
     if isinstance(w, list):
-        for x in w:
-            sx = str(x).strip()
-            if sx and not _warning_is_internal(sx):
-                out.append(sx)
+        out = [str(x) for x in w if str(x).strip()]
     elif isinstance(w, str) and w.strip():
-        sx = w.strip()
-        if not _warning_is_internal(sx):
-            out.append(sx)
-    return out
+        out = [w.strip()]
+    return [s for s in out if not _warning_text_is_internal(s)]
 
 
 def viewer_kind_for_document(file_field) -> str:
@@ -200,13 +198,10 @@ def employee_bundle_line(
     parse_err: int,
     doc_ok: int,
 ) -> str:
-    parts = [
-        f"документов в деле: {documents_total}",
-        f"распознано: {parse_ok}",
-    ]
+    parts = [f"Документов: {documents_total}", f"Распознано: {parse_ok}"]
     if parse_pending:
-        parts.append(f"в очереди на распознавание: {parse_pending}")
+        parts.append(f"В обработке: {parse_pending}")
     if parse_err:
-        parts.append(f"с ошибкой распознавания: {parse_err}")
-    parts.append(f"принято в комплект (проверка): {doc_ok}")
-    return ", ".join(parts)
+        parts.append(f"Ошибок: {parse_err}")
+    parts.append(f"Принято: {doc_ok}")
+    return " · ".join(parts)

@@ -9,7 +9,7 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body class="pd-standalone">
-  <!-- pass_docs_ui_marker: cols-toolbar-20260424 (если этого комментария нет в «Просмотре кода» — открыта не эта версия страницы) -->
+
   {% if messages %}
   <div class="pd-global-messages">
     <ul class="pd-flash-messages">
@@ -19,16 +19,27 @@
     </ul>
   </div>
   {% endif %}
+
   <div class="pd-shell">
+
     <aside class="pd-sidebar">
       <a href="{% url 'pass_docs_employees' %}" class="pd-brand">
         <span class="pd-brand__dot"></span>
-        <span>ДнепрНАС — комплекты</span>
+        <span>ДнепрНАС</span>
       </a>
+
       <nav class="pd-nav">
-        <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}" href="{% url 'pass_docs_employees' %}">Сотрудники</a>
-        <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}" href="{% url 'pass_docs_package_requests' %}">Заявки на пакеты</a>
+        <p class="pd-nav__section">Работа с документами</p>
+        <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}"
+           href="{% url 'pass_docs_employees' %}">
+          <span class="pd-nav__icon">👥</span>Сотрудники
+        </a>
+        <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}"
+           href="{% url 'pass_docs_package_requests' %}">
+          <span class="pd-nav__icon">📦</span>Готовые комплекты
+        </a>
       </nav>
+
       <div class="pd-sidebar__footer">
         <div class="pd-userbar">
           <span class="pd-userbar__name">{% firstof request.user.get_short_name request.user.get_username %}</span>
@@ -44,7 +55,7 @@
       <header class="pd-topbar">
         <div>
           <h1 class="pd-title">{% block pass_docs_title %}Документы{% endblock %}</h1>
-          <p class="pd-subtitle">{% block pass_docs_subtitle %}Работа с комплектами документов{% endblock %}</p>
+          <p class="pd-subtitle">{% block pass_docs_subtitle %}{% endblock %}</p>
         </div>
         <div class="pd-actions">
           {% block pass_docs_actions %}{% endblock %}
@@ -52,7 +63,7 @@
       </header>
       {% block pass_docs_content %}{% endblock %}
     </section>
+
   </div>
-  <script src="{% static 'adminpanel/js/pass_docs_colprefs.js' %}"></script>
 </body>
 </html>

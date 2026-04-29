@@ -1,59 +1,70 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 
-{% block html_title %}Типы документов{% endblock %}
-{% block pass_docs_title %}Типы документов{% endblock %}
-{% block pass_docs_subtitle %}Справочник кодов и названий{% endblock %}
+{% block html_title %}Справочник типов документов{% endblock %}
+{% block pass_docs_title %}Справочник документов{% endblock %}
+{% block pass_docs_subtitle %}Перечень всех типов документов, используемых в системе{% endblock %}
 
 {% block pass_docs_content %}
-<section class="pd-card">
+
+<section class="pd-card pd-card--compact">
   <form method="get" class="pd-filters pd-filters--grid3">
     <label class="pd-field">
-      <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="Код или название">
+      <span>Поиск по названию</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="Начните вводить...">
     </label>
     <label class="pd-field">
-      <span>Общий документ организации</span>
+      <span>Назначение</span>
       <select name="is_common">
-        <option value="">Все</option>
-        <option value="1" {% if is_common == "1" %}selected{% endif %}>Только общие</option>
-        <option value="0" {% if is_common == "0" %}selected{% endif %}>Только личные</option>
+        <option value="">Все документы</option>
+        <option value="1" {% if is_common == "1" %}selected{% endif %}>Общие для организации</option>
+        <option value="0" {% if is_common == "0" %}selected{% endif %}>Личные документы</option>
       </select>
     </label>
     <div class="pd-filter-actions">
-      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
-      <a href="{% url 'pass_docs_document_types' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+      <button type="submit" class="pd-btn pd-btn--primary">Найти</button>
+      <a href="{% url 'pass_docs_document_types' %}" class="pd-btn pd-btn--ghost">Сбросить</a>
     </div>
   </form>
 </section>
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Справочник</h2>
+    <h2>Типы документов</h2>
     <span class="pd-counter">{{ types_total }}</span>
   </div>
   <div class="pd-table-wrap">
     <table class="pd-table">
       <thead>
         <tr>
-          <th>Код</th>
-          <th>Название</th>
-          <th>Срок (дней)</th>
-          <th>Общий</th>
+          <th>Название документа</th>
+          <th>Срок действия</th>
+          <th>Назначение</th>
         </tr>
       </thead>
       <tbody>
         {% for t in document_types %}
         <tr>
-          <td><code>{{ t.code }}</code></td>
           <td>
             <div class="pd-strong">{{ t.name }}</div>
-            {% if t.description %}<div class="pd-muted">{{ t.description|truncatechars:160 }}</div>{% endif %}
+            {% if t.description %}<div class="pd-muted">{{ t.description|truncatechars:120 }}</div>{% endif %}
           </td>
-          <td>{{ t.expiry_rule_days|default:"—" }}</td>
-          <td>{% if t.is_common_document %}Да{% else %}Нет{% endif %}</td>
+          <td>
+            {% if t.expiry_rule_days %}
+              {{ t.expiry_rule_days }} дн.
+            {% else %}
+              <span class="pd-muted">Бессрочный</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if t.is_common_document %}
+              <span class="pd-badge pd-badge--pending">Общий</span>
+            {% else %}
+              <span class="pd-badge pd-badge--skipped">Личный</span>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="pd-empty">Ничего не найдено.</td></tr>
+        <tr><td colspan="3" class="pd-empty">Ничего не найдено.</td></tr>
         {% endfor %}
       </tbody>
     </table>

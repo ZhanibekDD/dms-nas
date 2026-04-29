@@ -1,50 +1,50 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 {% load pass_docs_i18n %}
 
-{% block html_title %}Документы{% endblock %}
-{% block pass_docs_title %}Документы{% endblock %}
-{% block pass_docs_subtitle %}Поиск по комплекту (через сотрудника удобнее){% endblock %}
+{% block html_title %}Поиск по документам{% endblock %}
+{% block pass_docs_title %}Поиск по документам{% endblock %}
+{% block pass_docs_subtitle %}Для работы с конкретным сотрудником — удобнее через раздел «Сотрудники»{% endblock %}
 
 {% block pass_docs_content %}
-<section class="pd-summary">
-  <article class="pd-summary__card">
-    <span class="pd-summary__label">Всего</span>
+<div class="pd-summary">
+  <article class="pd-summary__card pd-summary__card--blue">
+    <span class="pd-summary__label">Всего документов</span>
     <strong class="pd-summary__value">{{ documents_total }}</strong>
   </article>
-  <article class="pd-summary__card">
-    <span class="pd-summary__label">Распознано</span>
+  <article class="pd-summary__card pd-summary__card--ok">
+    <span class="pd-summary__label">Успешно обработано</span>
     <strong class="pd-summary__value">{{ documents_ok }}</strong>
   </article>
-  <article class="pd-summary__card">
-    <span class="pd-summary__label">С ошибкой</span>
+  <article class="pd-summary__card pd-summary__card--warn">
+    <span class="pd-summary__label">Ошибок обработки</span>
     <strong class="pd-summary__value">{{ documents_error }}</strong>
   </article>
   <article class="pd-summary__card">
     <span class="pd-summary__label">В очереди</span>
     <strong class="pd-summary__value">{{ documents_pending }}</strong>
   </article>
-</section>
+</div>
 
-<section class="pd-card">
+<section class="pd-card pd-card--compact">
   <form method="get" class="pd-filters pd-filters--grid4">
     <label class="pd-field">
       <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО сотрудника или название типа документа">
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или тип документа">
     </label>
     <label class="pd-field">
-      <span>Статус распознавания</span>
+      <span>Обработка файла</span>
       <select name="parse_status">
         <option value="">Все</option>
-        {% for value,label in parse_status_choices %}
+        {% for value, label in parse_status_choices %}
           <option value="{{ value }}" {% if parse_status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
     <label class="pd-field">
-      <span>Статус проверки</span>
+      <span>Статус документа</span>
       <select name="status">
         <option value="">Все</option>
-        {% for value,label in status_choices %}
+        {% for value, label in status_choices %}
           <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
@@ -53,73 +53,73 @@
       <span>Актуальность</span>
       <select name="actual">
         <option value="">Все</option>
-        <option value="1" {% if actual == "1" %}selected{% endif %}>Только актуальные</option>
-        <option value="0" {% if actual == "0" %}selected{% endif %}>Только неактуальные</option>
+        <option value="1" {% if actual == "1" %}selected{% endif %}>Только текущие</option>
+        <option value="0" {% if actual == "0" %}selected{% endif %}>Устаревшие</option>
       </select>
     </label>
     <div class="pd-filter-actions">
-      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
-      <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+      <button type="submit" class="pd-btn pd-btn--primary">Найти</button>
+      <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">Сбросить</a>
     </div>
   </form>
 </section>
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Список</h2>
-    <div class="pd-card__header-right">
-      <span class="pd-counter">{{ documents_total }}</span>
-      <div class="pd-cols-toolbar">
-        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="documents_list" aria-haspopup="true">Столбцы…</button>
-        <div class="pd-cols-panel" hidden></div>
-      </div>
-    </div>
+    <h2>Результаты</h2>
+    <span class="pd-counter">{{ documents_total }}</span>
   </div>
+
+  {% if documents_total == 0 %}
+  <div class="pd-empty-state">
+    <span class="pd-empty-state__icon">🔍</span>
+    <h3>Ничего не найдено</h3>
+    <p>Попробуйте изменить параметры поиска или сбросить фильтры.</p>
+    <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">Сбросить фильтры</a>
+  </div>
+  {% else %}
   <div class="pd-table-wrap pd-table-wrap--docs">
-    <table class="pd-table pd-table--docs pd-table--docs-v2" data-pd-table="documents_list">
+    <table class="pd-table pd-table--docs">
       <thead>
         <tr>
-          <th class="pd-th pd-th--employee" data-pd-col="employee" data-pd-default-vis="1">Сотрудник</th>
-          <th class="pd-th pd-th--type" data-pd-col="doc_type" data-pd-default-vis="1">Тип документа</th>
-          <th class="pd-th pd-th--flag" data-pd-col="parse" data-pd-default-vis="1">Распознавание</th>
-          <th class="pd-th pd-th--flag" data-pd-col="verify" data-pd-default-vis="1">Проверка</th>
-          <th class="pd-th pd-th--flag" data-pd-col="actual" data-pd-default-vis="1">Актуально</th>
-          <th class="pd-th pd-th--updated pd-col-vis-hidden" data-pd-col="updated_at" data-pd-default-vis="0" data-pd-col-label="Дата обновления">Обновлён</th>
-          <th class="pd-th pd-th--action" data-pd-no-pref></th>
+          <th class="pd-th pd-th--employee">Сотрудник</th>
+          <th class="pd-th pd-th--type">Тип документа</th>
+          <th class="pd-th pd-th--flag">Обработка</th>
+          <th class="pd-th pd-th--flag">Статус</th>
+          <th class="pd-th pd-th--updated pd-user-hidden">Обновлён</th>
+          <th class="pd-th pd-th--action"></th>
         </tr>
       </thead>
       <tbody>
         {% for doc in documents %}
         <tr class="pd-row-doc">
           <td class="pd-td pd-td--employee">
-            <div class="pd-cell-stack">
-              <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' doc.employee_id %}">{{ doc.employee.full_name }}</a>
-            </div>
+            <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' doc.employee_id %}">{{ doc.employee.full_name }}</a>
           </td>
           <td class="pd-td pd-td--type">
             <div class="pd-cell-stack">
-              <span class="pd-type-code pd-tech-inline">{{ doc.document_type.code }}</span>
-              <span class="pd-muted pd-type-name">{{ doc.document_type.name }}</span>
+              <span class="pd-type-code pd-user-hidden">{{ doc.document_type.code }}</span>
+              <span class="pd-strong">{{ doc.document_type.name }}</span>
             </div>
           </td>
-          <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span></td>
-          <td class="pd-td pd-td--flag"><span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status|doc_status_ru }}</span></td>
           <td class="pd-td pd-td--flag">
-            {% if doc.is_actual %}Да{% else %}Нет{% endif %}
+            <span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span>
           </td>
-          <td class="pd-td pd-td--updated pd-col-vis-hidden"><span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y H:i" }}</span></td>
-          <td class="pd-td pd-td--action pd-right">
-            <a class="pd-btn pd-btn--ghost pd-btn--table" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
+          <td class="pd-td pd-td--flag">
+            <span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status|doc_status_ru }}</span>
           </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="pd-empty">Ничего не найдено.</td>
+          <td class="pd-td pd-td--updated pd-user-hidden">
+            <span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y" }}</span>
+          </td>
+          <td class="pd-td pd-td--action">
+            <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
+  {% endif %}
 </section>
 {% endblock %}

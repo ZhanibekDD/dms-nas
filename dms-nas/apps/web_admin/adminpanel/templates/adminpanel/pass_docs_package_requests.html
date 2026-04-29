@@ -1,96 +1,89 @@
 {% extends "adminpanel/pass_docs_base.html" %}
 {% load pass_docs_i18n %}
 
-{% block html_title %}Заявки на пакеты{% endblock %}
-{% block pass_docs_title %}Заявки на пакеты{% endblock %}
-{% block pass_docs_subtitle %}Сборка Excel и архива{% endblock %}
+{% block html_title %}Готовые комплекты{% endblock %}
+{% block pass_docs_title %}Готовые комплекты{% endblock %}
+{% block pass_docs_subtitle %}Excel-таблицы и ZIP-архивы для скачивания{% endblock %}
 
 {% block pass_docs_content %}
+
 {% if employee_filter %}
-<p class="pd-muted pd-filter-banner">Показаны заявки выбранного сотрудника.</p>
+<div class="pd-info-banner">Показаны сборки выбранного сотрудника</div>
 {% endif %}
 
-<section class="pd-card">
+<section class="pd-card pd-card--compact">
   <form method="get" class="pd-filters pd-filters--grid3">
     {% if employee_filter %}
     <input type="hidden" name="employee" value="{{ employee_filter }}" />
     {% endif %}
     <label class="pd-field">
-      <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или почта получателя">
+      <span>Поиск по имени</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="ФИО сотрудника">
     </label>
     <label class="pd-field">
-      <span>Статус заявки</span>
+      <span>Статус сборки</span>
       <select name="status">
-        <option value="">Все</option>
-        {% for value,label in status_choices %}
+        <option value="">Все статусы</option>
+        {% for value, label in status_choices %}
           <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
     <div class="pd-filter-actions">
-      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
-      <a href="{% url 'pass_docs_package_requests' %}{% if employee_filter %}?employee={{ employee_filter }}{% endif %}" class="pd-btn pd-btn--ghost">Сброс</a>
+      <button type="submit" class="pd-btn pd-btn--primary">Найти</button>
+      <a href="{% url 'pass_docs_package_requests' %}{% if employee_filter %}?employee={{ employee_filter }}{% endif %}" class="pd-btn pd-btn--ghost">Сбросить</a>
     </div>
   </form>
 </section>
 
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2>Список заявок</h2>
-    <div class="pd-card__header-right">
-      <span class="pd-counter">{{ requests_total }}</span>
-      <div class="pd-cols-toolbar">
-        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="package_requests" aria-haspopup="true">Столбцы…</button>
-        <div class="pd-cols-panel" hidden></div>
-      </div>
-    </div>
+    <h2>Список сборок</h2>
+    <span class="pd-counter">{{ requests_total }}</span>
   </div>
+
   {% if package_requests %}
   <div class="pd-table-wrap">
-    <table class="pd-table" data-pd-table="package_requests">
+    <table class="pd-table">
       <thead>
         <tr>
-          <th data-pd-col="req_id" data-pd-default-vis="1">Номер</th>
-          <th data-pd-col="employee" data-pd-default-vis="1">Сотрудник</th>
-          <th class="pd-col-vis-hidden" data-pd-col="package_kind" data-pd-default-vis="0" data-pd-col-label="Вид пакета (служебное)">Вид пакета</th>
-          <th data-pd-col="req_status" data-pd-default-vis="1">Статус</th>
-          <th data-pd-col="email_to" data-pd-default-vis="1">Почта получателя</th>
-          <th data-pd-col="created_at" data-pd-default-vis="1">Создана</th>
-          <th data-pd-no-pref></th>
+          <th>№</th>
+          <th>Сотрудник</th>
+          <th class="pd-user-hidden">Вид пакета</th>
+          <th>Статус</th>
+          <th class="pd-user-hidden">Почта получателя</th>
+          <th>Дата</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for r in package_requests %}
         <tr>
-          <td>{{ r.id }}</td>
+          <td class="pd-muted">{{ r.id }}</td>
           <td>
             <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' r.employee_id %}">{{ r.employee.full_name }}</a>
-            <div class="pd-muted">{{ r.employee.company|default:"" }}</div>
+            {% if r.employee.company %}<div class="pd-muted">{{ r.employee.company }}</div>{% endif %}
           </td>
-          <td class="pd-col-vis-hidden">{{ r.package_kind|default:"—" }}</td>
+          <td class="pd-user-hidden">{{ r.package_kind|default:"—" }}</td>
           <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
-          <td>{{ r.email_to|default:"—" }}</td>
-          <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
+          <td class="pd-user-hidden">{{ r.email_to|default:"—" }}</td>
+          <td class="pd-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
           <td class="pd-right pd-cell-actions">
             {% if r.status == "draft" or r.status == "submitted" %}
             <form method="post" action="{% url 'pass_docs_package_request_build' r.id %}" class="pd-inline-form">
               {% csrf_token %}
               <input type="hidden" name="next" value="{{ request.get_full_path }}" />
-              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--table">Собрать Excel и ZIP</button>
+              <button type="submit" class="pd-btn pd-btn--ghost pd-btn--sm">Собрать</button>
             </form>
-            {% endif %}
-            {% if r.status == "ready" %}
-            {% if r.excel_file or r.zip_file %}
+            {% elif r.status == "ready" %}
             <span class="pd-artifact-links">
               {% if r.excel_file %}
-              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">Скачать Excel</a>
+              <a class="pd-btn pd-btn--success pd-btn--sm" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">⬇ Excel</a>
               {% endif %}
               {% if r.zip_file %}
-              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">Скачать ZIP</a>
+              <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">⬇ ZIP</a>
               {% endif %}
             </span>
-            {% endif %}
             {% endif %}
           </td>
         </tr>
@@ -98,12 +91,16 @@
       </tbody>
     </table>
   </div>
+  {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
+
   {% else %}
   <div class="pd-empty-state">
-    <h3>Заявок пока нет</h3>
-    <p>Откройте карточку сотрудника и нажмите «Собрать пакет».</p>
+    <span class="pd-empty-state__icon">📦</span>
+    <h3>Сборок пока нет</h3>
+    <p>Перейдите в карточку сотрудника и нажмите «Собрать комплект» — система создаст Excel и ZIP с документами.</p>
+    <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--primary">Перейти к сотрудникам</a>
   </div>
   {% endif %}
-  {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
 </section>
+
 {% endblock %}

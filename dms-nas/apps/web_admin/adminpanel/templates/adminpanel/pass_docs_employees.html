@@ -2,45 +2,45 @@
 
 {% block html_title %}Сотрудники{% endblock %}
 {% block pass_docs_title %}Сотрудники{% endblock %}
-{% block pass_docs_subtitle %}Выберите сотрудника, чтобы открыть его документы{% endblock %}
+{% block pass_docs_subtitle %}Выберите сотрудника, чтобы открыть его документы и собрать комплект{% endblock %}
 
 {% block pass_docs_content %}
-<section class="pd-summary">
-  <article class="pd-summary__card">
-    <span class="pd-summary__label">Всего в списке</span>
+<div class="pd-summary pd-summary--3">
+  <article class="pd-summary__card pd-summary__card--blue">
+    <span class="pd-summary__label">Всего сотрудников</span>
     <strong class="pd-summary__value">{{ employees_total }}</strong>
   </article>
-  <article class="pd-summary__card">
-    <span class="pd-summary__label">Активные</span>
+  <article class="pd-summary__card pd-summary__card--ok">
+    <span class="pd-summary__label">Активных</span>
     <strong class="pd-summary__value">{{ employees_active }}</strong>
   </article>
   <article class="pd-summary__card">
-    <span class="pd-summary__label">С документами</span>
+    <span class="pd-summary__label">С загруженными документами</span>
     <strong class="pd-summary__value">{{ employees_with_docs }}</strong>
   </article>
-</section>
+</div>
 
-<section class="pd-card">
+<section class="pd-card pd-card--compact">
   <form method="get" class="pd-filters pd-filters--grid3">
     <label class="pd-field">
-      <span>Поиск</span>
-      <input type="text" name="q" value="{{ q }}" placeholder="ФИО или организация">
+      <span>Поиск по имени или организации</span>
+      <input type="text" name="q" value="{{ q }}" placeholder="Начните вводить...">
     </label>
     <label class="pd-field">
       <span>Организация</span>
       <input type="text" name="company" value="{{ company }}" placeholder="Название организации">
     </label>
     <label class="pd-field">
-      <span>Учётная запись</span>
+      <span>Активность</span>
       <select name="active">
-        <option value="">Все</option>
+        <option value="">Все сотрудники</option>
         <option value="1" {% if active == "1" %}selected{% endif %}>Только активные</option>
         <option value="0" {% if active == "0" %}selected{% endif %}>Только неактивные</option>
       </select>
     </label>
     <div class="pd-filter-actions">
-      <button type="submit" class="pd-btn pd-btn--primary">Применить</button>
-      <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Сброс</a>
+      <button type="submit" class="pd-btn pd-btn--primary">Найти</button>
+      <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Сбросить</a>
     </div>
   </form>
 </section>
@@ -48,24 +48,25 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Список сотрудников</h2>
-    <div class="pd-card__header-right">
-      <span class="pd-counter">{{ employees_total }}</span>
-      <div class="pd-cols-toolbar">
-        <button type="button" class="pd-btn pd-btn--ghost js-pd-cols-btn" data-pd-table-target="employees" aria-haspopup="true">Столбцы…</button>
-        <div class="pd-cols-panel" hidden></div>
-      </div>
-    </div>
+    <span class="pd-counter">{{ employees_total }}</span>
   </div>
+  {% if employees_total == 0 %}
+  <div class="pd-empty-state">
+    <span class="pd-empty-state__icon">🔍</span>
+    <h3>Сотрудники не найдены</h3>
+    <p>Попробуйте изменить параметры поиска или сбросить фильтры.</p>
+    <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Сбросить фильтры</a>
+  </div>
+  {% else %}
   <div class="pd-table-wrap">
-    <table class="pd-table" data-pd-table="employees">
+    <table class="pd-table">
       <thead>
         <tr>
-          <th data-pd-col="full_name" data-pd-default-vis="1" data-pd-col-label="ФИО">ФИО</th>
-          <th data-pd-col="company" data-pd-default-vis="1">Организация</th>
-          <th data-pd-col="documents_count" data-pd-default-vis="1">Документов</th>
-          <th data-pd-col="parse_ok" data-pd-default-vis="1">Распознано</th>
-          <th data-pd-col="account_status" data-pd-default-vis="1">Статус</th>
-          <th data-pd-no-pref></th>
+          <th>ФИО сотрудника</th>
+          <th>Организация</th>
+          <th>Документов загружено</th>
+          <th>Статус</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -76,26 +77,22 @@
           </td>
           <td>{{ emp.company|default:"—" }}</td>
           <td>{{ emp.documents_count }}</td>
-          <td>{{ emp.documents_ok_count }}</td>
           <td>
             {% if emp.is_active %}
               <span class="pd-badge pd-badge--ok">Активен</span>
             {% else %}
-              <span class="pd-badge pd-badge--warn">Неактивен</span>
+              <span class="pd-badge pd-badge--skipped">Неактивен</span>
             {% endif %}
           </td>
           <td class="pd-right">
-            <a class="pd-link" href="{% url 'pass_docs_employee_detail' emp.pk %}">Открыть</a>
+            <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_employee_detail' emp.pk %}">Открыть →</a>
           </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="6" class="pd-empty">По выбранным фильтрам ничего не найдено.</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% include "adminpanel/pass_docs_pagination.html" with page_obj=page_obj %}
+  {% endif %}
 </section>
 {% endblock %}

@@ -80,9 +80,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# Не дублировать adminpanel/static через STATICFILES_DIRS: приложение adminpanel
-# уже отдаёт те же файлы через AppDirectoriesFinder — иначе collectstatic видит
-# дубликаты путей, ManifestStaticFilesStorage может оставить устаревший манифест.
+STATICFILES_DIRS = [BASE_DIR / "adminpanel" / "static"]
 
 # WhiteNoise — раздача статики напрямую из Django (без nginx)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -153,10 +151,12 @@ JAZZMIN_SETTINGS = {
     # ── Дополнительные ссылки ──
     "custom_links": {
         "adminpanel": [
-            {"name": "📊 Дашборд",        "url": "/dashboard/",  "icon": "fas fa-tachometer-alt"},
-            {"name": "📦 Создать пакет",   "url": "/packages/",   "icon": "fas fa-box"},
-            {"name": "🏗️ Объекты",         "url": "/objects/",    "icon": "fas fa-building"},
-            {"name": "❤️ Health",           "url": "/health",      "icon": "fas fa-heartbeat"},
+            {"name": "👥 Личные дела",      "url": "/workspace/pass-docs/employees/", "icon": "fas fa-id-card"},
+            {"name": "📊 Дашборд",          "url": "/dashboard/",  "icon": "fas fa-tachometer-alt"},
+            {"name": "📦 Создать пакет",    "url": "/packages/",   "icon": "fas fa-box"},
+            {"name": "🏗️ Объекты",          "url": "/objects/",    "icon": "fas fa-building"},
+            {"name": "✅ Проверка данных",   "url": "/quality/",    "icon": "fas fa-check-circle"},
+            {"name": "❤️ Health",            "url": "/health",      "icon": "fas fa-heartbeat"},
         ]
     },
 
@@ -173,14 +173,14 @@ JAZZMIN_UI_TWEAKS = {
     "body_small_text":            False,
     "brand_small_text":           False,
     "brand_colour":               "navbar-dark",
-    "accent":                     "accent-warning",
+    "accent":                     "accent-primary",
     "navbar":                     "navbar-dark",
     "no_navbar_border":           True,
     "navbar_fixed":               True,
     "layout_boxed":               False,
     "footer_fixed":               False,
     "sidebar_fixed":              True,
-    "sidebar":                    "sidebar-dark-warning",
+    "sidebar":                    "sidebar-dark-primary",
     "sidebar_nav_small_text":     False,
     "sidebar_disable_expand":     False,
     "sidebar_nav_child_indent":   True,

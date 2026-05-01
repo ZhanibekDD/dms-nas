@@ -179,6 +179,16 @@ def _pass_docs_shell_ctx(active: str) -> dict:
     return {"pass_docs_active": active}
 
 
+def _parse_status_choices_ru() -> list[tuple[str, str]]:
+    from adminpanel.pass_docs_display import PARSE_STATUS_RU
+    return list(PARSE_STATUS_RU.items())
+
+
+def _doc_status_choices_ru() -> list[tuple[str, str]]:
+    from adminpanel.pass_docs_display import DOC_STATUS_RU
+    return list(DOC_STATUS_RU.items())
+
+
 @staff_member_required
 def workspace_dashboard(request):
     return render(
@@ -426,8 +436,8 @@ def pass_docs_documents(request):
         "parse_status": parse_status,
         "status": status,
         "actual": actual,
-        "parse_status_choices": EmployeeDocument.ParseStatus.choices,
-        "status_choices": EmployeeDocument.Status.choices,
+        "parse_status_choices": _parse_status_choices_ru(),
+        "status_choices": _doc_status_choices_ru(),
         "documents_total": documents_qs.count(),
         "documents_ok": documents_ok,
         "documents_error": documents_error,
@@ -569,8 +579,24 @@ def pass_docs_package_request_download(request, request_id: int, kind: str):
     ctype, _ = mimetypes.guess_type(download_name)
     if not ctype:
         ctype = ctype_default
+    try:
+        file_obj = f.open("rb")
+    except FileNotFoundError:
+        # Файл был удалён с диска — сбрасываем статус чтобы можно было пересобрать
+        pr.status = PackageRequest.Status.SUBMITTED
+        pr.excel_file = None
+        pr.zip_file = None
+        pr.save(update_fields=["status", "excel_file", "zip_file"])
+        messages.error(
+            request,
+            f"Файл пакета №{pr.pk} не найден на диске — возможно, был удалён. "
+            "Нажмите «Собрать» чтобы создать заново.",
+        )
+        return redirect(
+            request.META.get("HTTP_REFERER") or "pass_docs_package_requests"
+        )
     return FileResponse(
-        f.open("rb"),
+        file_obj,
         as_attachment=True,
         filename=download_name,
         content_type=ctype,
@@ -634,11 +660,61 @@ def ai_assistant_page(request):
 
 @staff_member_required
 def scan_document_page(request):
-    return render(
-        request,
-        "adminpanel/scan_document.html",
-        _workspace_ctx("scan"),
-    )
+    from pass_docs.models import Employee, EmployeeDocument, DocumentType
+    import uuid as _uuid
+
+    employees = Employee.objects.filter(is_active=True).order_by("full_name")
+    doc_types = DocumentType.objects.all().order_by("sort_order", "name")
+
+    if request.method == "POST":
+        employee_id = request.POST.get("employee_id", "").strip()
+        doc_type_id = request.POST.get("doc_type_id", "").strip()
+        file = request.FILES.get("file")
+
+        errors = []
+        if not employee_id:
+            errors.append("Выберите сотрудника.")
+        if not doc_type_id:
+            errors.append("Выберите тип документа.")
+        if not file:
+            errors.append("Прикрепите файл.")
+
+        if not errors:
+            try:
+                emp = Employee.objects.get(pk=employee_id)
+                dtype = DocumentType.objects.get(pk=doc_type_id)
+                unique_path = f"manual_upload/{emp.pk}/{dtype.code}/{_uuid.uuid4().hex[:8]}/{file.name}"
+                doc = EmployeeDocument.objects.create(
+                    employee=emp,
+                    document_type=dtype,
+                    original_file=file,
+                    parse_status=EmployeeDocument.ParseStatus.PENDING,
+                    status=EmployeeDocument.Status.PENDING,
+                    source_path=unique_path,
+                )
+                messages.success(
+                    request,
+                    f"Документ «{dtype.name}» для {emp.full_name} загружен. "
+                    "Обработка будет запущена автоматически."
+                )
+                return redirect("pass_docs_document_detail", doc_id=doc.pk)
+            except Employee.DoesNotExist:
+                errors.append("Сотрудник не найден.")
+            except DocumentType.DoesNotExist:
+                errors.append("Тип документа не найден.")
+            except Exception as exc:
+                logger.error("scan_document_page upload error: %s", exc)
+                errors.append(f"Ошибка при загрузке: {exc}")
+
+        for err in errors:
+            messages.error(request, err)
+
+    ctx = {
+        **_pass_docs_shell_ctx("scan"),
+        "employees": employees,
+        "doc_types": doc_types,
+    }
+    return render(request, "adminpanel/scan_document.html", ctx)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1068,25 +1144,32 @@ def quality_dashboard(request):
         dupe_docs = []
 
     # ── Счётчики для KPI-плашек ──
-    total_issues = (
-        uploads_no_object.count() +
-        finance_incomplete.count() +
-        expiry_no_doc.count() +
-        Problem.objects.filter(status="open").count()
-    )
+    cnt_no_object    = uploads_no_object.count()
+    cnt_no_finance   = finance_incomplete.count()
+    cnt_no_expiry    = expiry_no_doc.count()
+    cnt_problems     = Problem.objects.filter(status="open").count()
+    total_issues     = cnt_no_object + cnt_no_finance + cnt_no_expiry + cnt_problems
+
+    # ── Добавляем days_left к каждому сроку ──
+    expiry_no_doc_list = list(expiry_no_doc)
+    for e in expiry_no_doc_list:
+        if e.expires_at:
+            e.days_left = (e.expires_at - today).days if not isinstance(e.expires_at, str) else None
+        else:
+            e.days_left = None
 
     context = {
-        "uploads_no_object":   uploads_no_object,
-        "finance_incomplete":  finance_incomplete,
-        "expiry_no_doc":       expiry_no_doc,
+        "uploads_no_object":    uploads_no_object,
+        "finance_incomplete":   finance_incomplete,
+        "expiry_no_doc":        expiry_no_doc_list,
         "top_problems_objects": top_problems_objects,
-        "dupe_docs":           dupe_docs,
-        "total_issues":        total_issues,
-        "cnt_no_object":       uploads_no_object.count(),
-        "cnt_no_finance":      finance_incomplete.count(),
-        "cnt_no_expiry_doc":   expiry_no_doc.count(),
-        "cnt_open_problems":   Problem.objects.filter(status="open").count(),
-        "cnt_dupes":           len(dupe_docs),
+        "dupe_docs":            dupe_docs,
+        "total_issues":         total_issues,
+        "cnt_no_object":        cnt_no_object,
+        "cnt_no_finance":       cnt_no_finance,
+        "cnt_no_expiry_doc":    cnt_no_expiry,
+        "cnt_open_problems":    cnt_problems,
+        "cnt_dupes":            len(dupe_docs),
     }
     return render(request, "adminpanel/quality_dashboard.html", context)
 

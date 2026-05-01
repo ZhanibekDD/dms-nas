@@ -1,12 +1,76 @@
-{% extends "adminpanel/shell_base.html" %}
+{% extends "adminpanel/pass_docs_base.html" %}
+{% load static %}
 
-{% block workspace_title %}AI Assistant{% endblock %}
-{% block workspace_subtitle %}Отдельный сценарий для вопросов и советов по документам{% endblock %}
+{% block html_title %}ИИ-помощник{% endblock %}
+{% block pass_docs_title %}ИИ-помощник{% endblock %}
+{% block pass_docs_subtitle %}Советы по комплектности документов и подготовке пакетов{% endblock %}
 
-{% block workspace_content %}
-<div class="workspace-card">
-  <h3>Спросить ИИ</h3>
-  <p>Здесь будет чат-режим: советы по комплектности, срокам, матрице требований и подготовке пакета.</p>
-  <p class="workspace-note">Backend и интеграция модели на этом этапе не подключаются.</p>
+{% block pass_docs_content %}
+
+<div class="pd-info-banner">
+  Раздел находится в разработке. Ниже — справочная информация о требованиях к документам.
 </div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px">
+
+  <section class="pd-card">
+    <div class="pd-card__header"><h2><i class="fas fa-clipboard-check" style="margin-right:8px;color:#2563eb"></i>Стандартный комплект</h2></div>
+    <div style="padding:16px 22px">
+      <p style="color:#506a85;font-size:.9rem;margin:0 0 12px">Для допуска сотрудника на объект требуются:</p>
+      <ul style="margin:0;padding-left:20px;color:#3d5166;font-size:.88rem;line-height:1.8">
+        <li>Паспорт (разворот с фото + прописка)</li>
+        <li>Медицинская справка (форма 086/у)</li>
+        <li>Удостоверение по охране труда</li>
+        <li>Протокол проверки знаний</li>
+        <li>Удостоверение по электробезопасности (если требуется)</li>
+        <li>СНИЛС / ИНН</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="pd-card">
+    <div class="pd-card__header"><h2><i class="fas fa-clock" style="margin-right:8px;color:#e67e22"></i>Сроки действия</h2></div>
+    <div style="padding:16px 22px">
+      <ul style="margin:0;padding-left:20px;color:#3d5166;font-size:.88rem;line-height:1.8">
+        <li>Медсправка — 6 месяцев</li>
+        <li>Удостоверение по ОТ — 1 год</li>
+        <li>Протокол проверки знаний — 1 год</li>
+        <li>Электробезопасность — 1 год</li>
+        <li>Паспорт — без срока (до замены)</li>
+      </ul>
+      <p style="margin:12px 0 0;font-size:.8rem;color:#8a9bb0">
+        Система автоматически отслеживает истечение сроков и помечает документы как «Просрочен».
+      </p>
+    </div>
+  </section>
+
+  <section class="pd-card">
+    <div class="pd-card__header"><h2><i class="fas fa-box" style="margin-right:8px;color:#2563eb"></i>Как собрать пакет</h2></div>
+    <div style="padding:16px 22px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="background:#2563eb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">1</span>
+        <span style="font-size:.88rem;color:#3d5166">Откройте карточку сотрудника</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="background:#2563eb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">2</span>
+        <span style="font-size:.88rem;color:#3d5166">Убедитесь что все нужные документы загружены и имеют статус «Принят»</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="background:#2563eb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">3</span>
+        <span style="font-size:.88rem;color:#3d5166">Нажмите «Собрать комплект» — система создаст Excel-реестр и ZIP-архив</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="background:#2563eb;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">4</span>
+        <span style="font-size:.88rem;color:#3d5166">Скачайте готовый пакет со страницы «Готовые комплекты»</span>
+      </div>
+      <div style="margin-top:6px">
+        <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--primary pd-btn--sm">
+          <i class="fas fa-users" style="margin-right:6px"></i>К сотрудникам
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
 {% endblock %}

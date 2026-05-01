@@ -37,6 +37,7 @@ PACKAGE_STATUS_RU: dict[str, str] = {
 
 # Подписи полей normalized / типичных ключей из extraction
 FIELD_LABELS_RU: dict[str, str] = {
+    # Паспорт
     "series": "Серия",
     "number": "Номер",
     "full_number": "Номер полностью",
@@ -44,19 +45,34 @@ FIELD_LABELS_RU: dict[str, str] = {
     "first_name": "Имя",
     "middle_name": "Отчество",
     "birth_date": "Дата рождения",
+    "birth_place": "Место рождения",
     "issue_date": "Дата выдачи",
     "issuer_code": "Код подразделения",
+    "issuer": "Кем выдан",
     "registration_address": "Адрес регистрации",
+    # Медицина
     "patient_name": "ФИО",
     "organization": "Организация",
     "certificate_number": "Номер документа",
     "valid_until": "Действует до",
     "conclusion": "Заключение",
+    # Обучение / протоколы
     "employee_name": "ФИО сотрудника",
+    "holder_name": "ФИО владельца",
     "training_topic": "Тема обучения",
+    "program_name": "Программа обучения",
     "protocol_number": "Номер протокола",
     "protocol_date": "Дата протокола",
+    "expiry_date": "Действует до",
+    "document_number": "Номер документа",
 }
+
+# Технические ключи, которые никогда не показываются пользователю
+_INTERNAL_KEYS: frozenset[str] = frozenset({
+    "schema", "source", "extractor", "extractor_kind", "extractor_version",
+    "import_key", "legacy", "raw_vision", "e2e_package_mvp", "e2e_test",
+    "confidence", "page", "ocr_engine",
+})
 
 
 def ru_parse_status(code: str | None) -> str:
@@ -97,15 +113,14 @@ def _normalized_key_is_internal(ks: str) -> bool:
         return True
     if low.startswith("_"):
         return True
-    # Любые варианты: extractor_kind, EXTRACTOR_KIND, extractorKind, «extractor kind»
-    compact = re.sub(r"[^a-z0-9]+", "", low)
-    if "extractor" in low or "extractor" in compact:
+    if low in _INTERNAL_KEYS:
+        return True
+    if low.startswith("e2e_"):
         return True
     if low == "legacy" or low.endswith("_legacy"):
         return True
-    if low in {"import_key", "e2e_package_mvp", "e2e_test"}:
-        return True
-    if low.startswith("e2e_"):
+    compact = re.sub(r"[^a-z0-9]+", "", low)
+    if "extractor" in low or "extractor" in compact:
         return True
     return False
 

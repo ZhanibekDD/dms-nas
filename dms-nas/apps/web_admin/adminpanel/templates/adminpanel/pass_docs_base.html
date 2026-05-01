@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block html_title %}Документы{% endblock %} — ДнепрНАС</title>
   <link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/fontawesome-free/css/all.min.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
 <body class="pd-standalone">
@@ -29,15 +30,39 @@
       </a>
 
       <nav class="pd-nav">
-        <p class="pd-nav__section">Работа с документами</p>
+
+        <p class="pd-nav__section">Личные дела</p>
         <a class="pd-nav__link{% if pass_docs_active == 'employees' %} is-active{% endif %}"
            href="{% url 'pass_docs_employees' %}">
-          <span class="pd-nav__icon">👥</span>Сотрудники
+          <i class="pd-nav__icon fas fa-users"></i>Сотрудники
+        </a>
+        <a class="pd-nav__link" href="/admin/pass_docs/employee/add/">
+          <i class="pd-nav__icon fas fa-user-plus"></i>Добавить сотрудника
         </a>
         <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}"
            href="{% url 'pass_docs_package_requests' %}">
-          <span class="pd-nav__icon">📦</span>Готовые комплекты
+          <i class="pd-nav__icon fas fa-box"></i>Готовые комплекты
         </a>
+
+        <p class="pd-nav__section">Документы</p>
+        <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}"
+           href="{% url 'pass_docs_documents' %}">
+          <i class="pd-nav__icon fas fa-search"></i>Поиск документов
+        </a>
+        <a class="pd-nav__link{% if pass_docs_active == 'document_types' %} is-active{% endif %}"
+           href="{% url 'pass_docs_document_types' %}">
+          <i class="pd-nav__icon fas fa-list-alt"></i>Справочник типов
+        </a>
+        <a class="pd-nav__link{% if pass_docs_active == 'scan' %} is-active{% endif %}"
+           href="{% url 'scan_document_page' %}">
+          <i class="pd-nav__icon fas fa-upload"></i>Загрузить документ
+        </a>
+
+        <p class="pd-nav__section">Система</p>
+        <a class="pd-nav__link" href="/admin/">
+          <i class="pd-nav__icon fas fa-cog"></i>Администрирование
+        </a>
+
       </nav>
 
       <div class="pd-sidebar__footer">

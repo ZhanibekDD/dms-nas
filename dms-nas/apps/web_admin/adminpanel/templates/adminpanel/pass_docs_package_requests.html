@@ -49,9 +49,7 @@
         <tr>
           <th>№</th>
           <th>Сотрудник</th>
-          <th class="pd-user-hidden">Вид пакета</th>
           <th>Статус</th>
-          <th class="pd-user-hidden">Почта получателя</th>
           <th>Дата</th>
           <th></th>
         </tr>
@@ -64,9 +62,7 @@
             <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' r.employee_id %}">{{ r.employee.full_name }}</a>
             {% if r.employee.company %}<div class="pd-muted">{{ r.employee.company }}</div>{% endif %}
           </td>
-          <td class="pd-user-hidden">{{ r.package_kind|default:"—" }}</td>
           <td><span class="pd-badge pd-badge--status-{{ r.status }}">{{ r.status|package_status_ru }}</span></td>
-          <td class="pd-user-hidden">{{ r.email_to|default:"—" }}</td>
           <td class="pd-muted">{{ r.created_at|date:"d.m.Y H:i" }}</td>
           <td class="pd-right pd-cell-actions">
             {% if r.status == "draft" or r.status == "submitted" %}
@@ -95,7 +91,7 @@
 
   {% else %}
   <div class="pd-empty-state">
-    <span class="pd-empty-state__icon">📦</span>
+    <i class="pd-empty-state__icon fas fa-box-open"></i>
     <h3>Сборок пока нет</h3>
     <p>Перейдите в карточку сотрудника и нажмите «Собрать комплект» — система создаст Excel и ZIP с документами.</p>
     <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--primary">Перейти к сотрудникам</a>

@@ -72,7 +72,7 @@
 
   {% if documents_total == 0 %}
   <div class="pd-empty-state">
-    <span class="pd-empty-state__icon">🔍</span>
+    <i class="pd-empty-state__icon fas fa-search"></i>
     <h3>Ничего не найдено</h3>
     <p>Попробуйте изменить параметры поиска или сбросить фильтры.</p>
     <a href="{% url 'pass_docs_documents' %}" class="pd-btn pd-btn--ghost">Сбросить фильтры</a>
@@ -82,36 +82,27 @@
     <table class="pd-table pd-table--docs">
       <thead>
         <tr>
-          <th class="pd-th pd-th--employee">Сотрудник</th>
-          <th class="pd-th pd-th--type">Тип документа</th>
-          <th class="pd-th pd-th--flag">Обработка</th>
-          <th class="pd-th pd-th--flag">Статус</th>
-          <th class="pd-th pd-th--updated pd-user-hidden">Обновлён</th>
-          <th class="pd-th pd-th--action"></th>
+          <th>Сотрудник</th>
+          <th>Тип документа</th>
+          <th>Статус</th>
+          <th>Обновлён</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {% for doc in documents %}
         <tr class="pd-row-doc">
-          <td class="pd-td pd-td--employee">
+          <td>
             <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' doc.employee_id %}">{{ doc.employee.full_name }}</a>
+            {% if doc.employee.company %}<div class="pd-muted">{{ doc.employee.company }}</div>{% endif %}
           </td>
-          <td class="pd-td pd-td--type">
-            <div class="pd-cell-stack">
-              <span class="pd-type-code pd-user-hidden">{{ doc.document_type.code }}</span>
-              <span class="pd-strong">{{ doc.document_type.name }}</span>
-            </div>
+          <td>
+            <span class="pd-type-code pd-user-hidden">{{ doc.document_type.code }}</span>
+            <span class="pd-strong">{{ doc.document_type.name }}</span>
           </td>
-          <td class="pd-td pd-td--flag">
-            <span class="pd-badge pd-badge--parse-{{ doc.parse_status }}">{{ doc.parse_status|parse_status_ru }}</span>
-          </td>
-          <td class="pd-td pd-td--flag">
-            <span class="pd-badge pd-badge--status-{{ doc.status }}">{{ doc.status|doc_status_ru }}</span>
-          </td>
-          <td class="pd-td pd-td--updated pd-user-hidden">
-            <span class="pd-updated-at">{{ doc.updated_at|date:"d.m.Y" }}</span>
-          </td>
-          <td class="pd-td pd-td--action">
+          <td>{% doc_status_badge doc %}</td>
+          <td class="pd-muted">{{ doc.updated_at|date:"d.m.Y" }}</td>
+          <td class="pd-right">
             <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_document_detail' doc.id %}">Открыть</a>
           </td>
         </tr>

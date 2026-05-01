@@ -52,7 +52,7 @@
   </div>
   {% if employees_total == 0 %}
   <div class="pd-empty-state">
-    <span class="pd-empty-state__icon">🔍</span>
+    <i class="pd-empty-state__icon fas fa-search"></i>
     <h3>Сотрудники не найдены</h3>
     <p>Попробуйте изменить параметры поиска или сбросить фильтры.</p>
     <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Сбросить фильтры</a>
@@ -74,6 +74,7 @@
         <tr>
           <td>
             <a class="pd-strong pd-link-inline" href="{% url 'pass_docs_employee_detail' emp.pk %}">{{ emp.full_name }}</a>
+            {% if emp.profession_label %}<div class="pd-muted">{{ emp.profession_label }}</div>{% endif %}
           </td>
           <td>{{ emp.company|default:"—" }}</td>
           <td>{{ emp.documents_count }}</td>

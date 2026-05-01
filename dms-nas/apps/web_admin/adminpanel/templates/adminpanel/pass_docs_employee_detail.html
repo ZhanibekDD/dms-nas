@@ -8,8 +8,10 @@
 {% block pass_docs_content %}
 
 {# Навигация назад #}
-<div style="margin-bottom:12px;">
-  <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-btn--sm">← Все сотрудники</a>
+<div class="pd-back-nav">
+  <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-btn--sm">
+    <i class="fas fa-arrow-left"></i> Все сотрудники
+  </a>
 </div>
 
 {# Блок: главное действие #}
@@ -26,19 +28,19 @@
     <form method="post" action="{% url 'pass_docs_employee_quick_build' employee.pk %}" class="pd-inline-form">
       {% csrf_token %}
       <button type="submit" class="pd-btn pd-btn--primary pd-btn--lg" title="Собрать Excel-таблицу и ZIP-архив со всеми документами">
-        📋 Собрать комплект
+        <i class="fas fa-layer-group"></i> Собрать комплект
       </button>
     </form>
 
     {% if ready_package %}
       {% if ready_package.excel_file %}
       <a class="pd-btn pd-btn--success" href="{% url 'pass_docs_package_request_download' ready_package.id 'excel' %}">
-        ⬇ Скачать Excel
+        <i class="fas fa-file-excel"></i> Скачать Excel
       </a>
       {% endif %}
       {% if ready_package.zip_file %}
       <a class="pd-btn pd-btn--ghost" href="{% url 'pass_docs_package_request_download' ready_package.id 'zip' %}">
-        ⬇ Скачать ZIP-архив
+        <i class="fas fa-file-archive"></i> Скачать ZIP
       </a>
       {% endif %}
     {% endif %}
@@ -118,22 +120,7 @@
               <span class="pd-muted">—</span>
             {% endif %}
           </td>
-          <td>
-            {# Единый понятный статус для пользователя #}
-            {% if d.status == "ok" %}
-              <span class="pd-badge pd-badge--ok">Принят</span>
-            {% elif d.status == "expired" %}
-              <span class="pd-badge pd-badge--error">Просрочен</span>
-            {% elif d.status == "rejected" %}
-              <span class="pd-badge pd-badge--error">Отклонён</span>
-            {% elif d.parse_status == "error" %}
-              <span class="pd-badge pd-badge--warn">Требует внимания</span>
-            {% elif d.parse_status == "pending" %}
-              <span class="pd-badge pd-badge--pending">Обрабатывается</span>
-            {% else %}
-              <span class="pd-badge pd-badge--pending">На проверке</span>
-            {% endif %}
-          </td>
+          <td>{% doc_status_badge d %}</td>
           <td class="pd-right">
             <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_document_detail' d.id %}">Просмотр →</a>
           </td>
@@ -144,9 +131,12 @@
   </div>
   {% else %}
   <div class="pd-empty-state">
-    <span class="pd-empty-state__icon">📄</span>
+    <i class="pd-empty-state__icon fas fa-file-alt"></i>
     <h3>Документы не загружены</h3>
-    <p>У этого сотрудника пока нет документов в системе. Обратитесь к администратору для загрузки.</p>
+    <p>У этого сотрудника пока нет документов в системе.</p>
+    <a href="{% url 'scan_document_page' %}?employee={{ employee.pk }}" class="pd-btn pd-btn--primary">
+      <i class="fas fa-upload"></i> Загрузить документ
+    </a>
   </div>
   {% endif %}
 </section>
@@ -181,13 +171,14 @@
               <button type="submit" class="pd-btn pd-btn--ghost pd-btn--sm">Собрать</button>
             </form>
             {% elif r.status == "ready" %}
+              <span style="display:inline-flex;gap:6px">
               {% if r.excel_file %}
-              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">Excel</a>
+              <a class="pd-btn pd-btn--success pd-btn--sm" href="{% url 'pass_docs_package_request_download' r.id 'excel' %}">Excel</a>
               {% endif %}
               {% if r.zip_file %}
-              &nbsp;
-              <a class="pd-link" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">ZIP</a>
+              <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_package_request_download' r.id 'zip' %}">ZIP</a>
               {% endif %}
+              </span>
             {% endif %}
           </td>
         </tr>

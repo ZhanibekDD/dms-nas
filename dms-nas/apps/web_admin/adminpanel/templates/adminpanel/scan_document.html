@@ -1,12 +1,58 @@
-{% extends "adminpanel/shell_base.html" %}
+{% extends "adminpanel/pass_docs_base.html" %}
+{% load static %}
 
-{% block workspace_title %}Сканировать документ{% endblock %}
-{% block workspace_subtitle %}Отдельный сценарий для OCR/Vision обработки{% endblock %}
+{% block html_title %}Загрузить документ{% endblock %}
+{% block pass_docs_title %}Загрузить документ{% endblock %}
+{% block pass_docs_subtitle %}Добавить файл в личное дело сотрудника вручную{% endblock %}
 
-{% block workspace_content %}
-<div class="workspace-card">
-  <h3>Сканирование документа</h3>
-  <p>Здесь будет сценарий загрузки файла и вызова extraction-пайплайна.</p>
-  <p class="workspace-note">На этом этапе только UI-заглушка без upload и обработки.</p>
-</div>
+{% block pass_docs_content %}
+
+<section class="pd-card" style="max-width:680px">
+  <div class="pd-card__header">
+    <h2>Новый документ</h2>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+    {% csrf_token %}
+
+    <label class="pd-field">
+      <span>Сотрудник <span style="color:#e74c3c">*</span></span>
+      <select name="employee_id" required>
+        <option value="">— Выберите сотрудника —</option>
+        {% for emp in employees %}
+        <option value="{{ emp.pk }}">{{ emp.full_name }}{% if emp.company %} — {{ emp.company }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="pd-field">
+      <span>Тип документа <span style="color:#e74c3c">*</span></span>
+      <select name="doc_type_id" required>
+        <option value="">— Выберите тип —</option>
+        {% for dt in doc_types %}
+        <option value="{{ dt.pk }}">{{ dt.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="pd-field">
+      <span>Файл <span style="color:#e74c3c">*</span></span>
+      <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff">
+      <span style="font-size:.8rem;color:#8a9bb0;margin-top:4px">PDF, JPEG, PNG, WEBP, TIFF</span>
+    </label>
+
+    <div class="pd-info-banner" style="margin-top:4px">
+      После загрузки система автоматически поставит документ в очередь на распознавание.
+      Статус обработки обновится в течение нескольких минут.
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button type="submit" class="pd-btn pd-btn--primary">
+        <i class="fas fa-upload" style="margin-right:6px"></i>Загрузить
+      </button>
+      <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Отмена</a>
+    </div>
+  </form>
+</section>
+
 {% endblock %}

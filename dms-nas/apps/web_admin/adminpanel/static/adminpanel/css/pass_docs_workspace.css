@@ -467,7 +467,7 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
 .pd-btn--success:hover { background: #15803d; }
 
 .pd-btn--lg {
-  padding: 13px 24px;
+  padding: 13px 28px;
   font-size: 15px;
   border-radius: 12px;
 }
@@ -864,7 +864,8 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
 
 .pd-viewer-fallback p { margin: 0 0 16px; font-size: 15px; }
 
-.pd-btn--lg { padding: 13px 28px; font-size: 15px; }
+/* back navigation row above cards */
+.pd-back-nav { margin-bottom: 12px; }
 
 /* ── Служебный блок (для ИТ) ─────────────────────────────────── */
 .pd-service-block {

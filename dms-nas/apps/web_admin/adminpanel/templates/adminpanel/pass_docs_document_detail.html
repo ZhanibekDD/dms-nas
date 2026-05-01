@@ -10,12 +10,15 @@
 {# Панель действий #}
 <div class="pd-sticky-actions pd-sticky-actions--doc">
   <a href="{% url 'pass_docs_employee_detail' doc.employee_id %}" class="pd-btn pd-btn--ghost">
-    ← {{ doc.employee.full_name }}
+    <i class="fas fa-arrow-left"></i> {{ doc.employee.full_name }}
   </a>
   <div class="pd-actions">
+    <a href="/admin/pass_docs/employeedocument/{{ doc.id }}/change/" class="pd-btn pd-btn--ghost pd-btn--sm" target="_blank">
+      <i class="fas fa-edit"></i> Изменить статус
+    </a>
     {% if viewer_has_file %}
     <a href="{% url 'pass_docs_document_download' doc.id %}" class="pd-btn pd-btn--primary">
-      ⬇ Скачать оригинал
+      <i class="fas fa-download"></i> Скачать оригинал
     </a>
     {% endif %}
   </div>
@@ -29,19 +32,7 @@
       <h2>{{ doc.document_type.name }}</h2>
     </div>
     {# Единый понятный статус #}
-    {% if doc.status == "ok" %}
-      <span class="pd-badge pd-badge--ok">Принят</span>
-    {% elif doc.status == "expired" %}
-      <span class="pd-badge pd-badge--error">Просрочен</span>
-    {% elif doc.status == "rejected" %}
-      <span class="pd-badge pd-badge--error">Отклонён</span>
-    {% elif doc.parse_status == "error" %}
-      <span class="pd-badge pd-badge--warn">Требует внимания</span>
-    {% elif doc.parse_status == "pending" %}
-      <span class="pd-badge pd-badge--pending">Обрабатывается</span>
-    {% else %}
-      <span class="pd-badge pd-badge--pending">На проверке</span>
-    {% endif %}
+    {% doc_status_badge doc %}
   </div>
 
   <dl class="pd-meta-dl">
@@ -71,7 +62,6 @@
 <section class="pd-card pd-doc-viewer-card">
   <div class="pd-card__header">
     <h2>Просмотр файла</h2>
-    <a href="{% url 'pass_docs_document_download' doc.id %}" class="pd-btn pd-btn--ghost pd-btn--sm">⬇ Скачать</a>
   </div>
   {% if viewer_kind == "pdf" %}
   <div class="pd-viewer-frame-wrap">
@@ -91,7 +81,7 @@
 {% else %}
 <section class="pd-card">
   <div class="pd-empty-state">
-    <span class="pd-empty-state__icon">📄</span>
+    <i class="pd-empty-state__icon fas fa-file-alt"></i>
     <h3>Файл не прикреплён</h3>
     <p>Файл документа не загружен в систему.</p>
   </div>

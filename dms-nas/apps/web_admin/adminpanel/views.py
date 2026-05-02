@@ -360,22 +360,39 @@ def pass_docs_employee_quick_build(request, employee_id: int):
 
 def _pass_docs_document_file_response(request, doc_id: int, *, attachment: bool):
     from adminpanel.pass_docs_display import guess_mime_for_path
-
     from pass_docs.models import EmployeeDocument
 
     doc = EmployeeDocument.objects.filter(pk=doc_id).first()
     if not doc:
         raise Http404("Документ не найден")
-    f = doc.original_file
-    if not f or not f.name:
+
+    # Приоритет: original_file → source_path на диске
+    if doc.original_file and doc.original_file.name:
+        try:
+            fh = doc.original_file.open("rb")
+        except FileNotFoundError:
+            raise Http404("Файл удалён с диска")
+        download_name = os.path.basename(doc.original_file.name)
+    elif doc.source_path:
+        path = str(doc.source_path)
+        if not os.path.isfile(path):
+            raise Http404("Файл не найден на диске")
+        fh = open(path, "rb")
+        download_name = os.path.basename(path)
+    else:
         raise Http404("Файл не загружен")
 
-    fh = f.open("rb")
-    download_name = os.path.basename(f.name)
     ctype = guess_mime_for_path(download_name)
     resp = FileResponse(fh, content_type=ctype or "application/octet-stream")
     disp_type = "attachment" if attachment else "inline"
-    resp["Content-Disposition"] = f'{disp_type}; filename="{download_name}"'
+    try:
+        download_name.encode("ascii")
+        resp["Content-Disposition"] = f'{disp_type}; filename="{download_name}"'
+    except UnicodeEncodeError:
+        safe = download_name.encode("utf-8").decode("ascii", errors="replace")
+        resp["Content-Disposition"] = (
+            f"{disp_type}; filename=\"{safe}\"; filename*=UTF-8''{download_name}"
+        )
     return resp
 
 
@@ -623,8 +640,22 @@ def pass_docs_document_detail(request, doc_id: int):
 
     payload = doc.extracted_json or {}
     normalized = payload.get("normalized") if isinstance(payload.get("normalized"), dict) else {}
+
+    # Определяем наличие файла: original_file или source_path на диске
     vk = viewer_kind_for_document(doc.original_file)
     has_file = bool(doc.original_file and doc.original_file.name)
+    if not has_file and doc.source_path:
+        _sp = str(doc.source_path)
+        if os.path.isfile(_sp):
+            has_file = True
+            from pathlib import Path as _Path
+            _ext = _Path(_sp).suffix.lower()
+            if _ext == ".pdf":
+                vk = "pdf"
+            elif _ext in (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"):
+                vk = "image"
+            else:
+                vk = "none"
 
     context = {
         **_pass_docs_shell_ctx("documents"),

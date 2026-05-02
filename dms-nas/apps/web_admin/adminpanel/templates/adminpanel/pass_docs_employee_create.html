@@ -1,0 +1,73 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block html_title %}Новый сотрудник{% endblock %}
+{% block pass_docs_title %}Новый сотрудник{% endblock %}
+{% block pass_docs_subtitle %}Введите данные сотрудника для создания личного дела{% endblock %}
+
+{% block pass_docs_content %}
+
+<div class="pd-back-nav">
+  <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost pd-btn--sm">
+    <i class="fas fa-arrow-left"></i> К списку сотрудников
+  </a>
+</div>
+
+<section class="pd-card" style="max-width:560px">
+  <div class="pd-card__header">
+    <h2>Данные сотрудника</h2>
+  </div>
+
+  <form method="post" class="pd-create-form">
+    {% csrf_token %}
+
+    <div class="pd-form-group">
+      <label class="pd-field pd-field--required">
+        <span>ФИО сотрудника</span>
+        <input
+          type="text"
+          name="full_name"
+          value="{{ full_name }}"
+          placeholder="Иванов Иван Иванович"
+          required
+          autofocus
+          class="pd-input"
+        >
+      </label>
+    </div>
+
+    <div class="pd-form-group">
+      <label class="pd-field">
+        <span>Организация <span class="pd-muted">(необязательно)</span></span>
+        <input
+          type="text"
+          name="company"
+          value="{{ company }}"
+          placeholder="ООО ДнепрНАС"
+          class="pd-input"
+        >
+      </label>
+    </div>
+
+    <div class="pd-form-group">
+      <label class="pd-field">
+        <span>Должность <span class="pd-muted">(необязательно)</span></span>
+        <input
+          type="text"
+          name="profession"
+          value="{{ profession }}"
+          placeholder="Инженер"
+          class="pd-input"
+        >
+      </label>
+    </div>
+
+    <div class="pd-form-actions">
+      <button type="submit" class="pd-btn pd-btn--primary">
+        <i class="fas fa-user-plus"></i> Создать сотрудника
+      </button>
+      <a href="{% url 'pass_docs_employees' %}" class="pd-btn pd-btn--ghost">Отмена</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

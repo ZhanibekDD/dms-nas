@@ -7,6 +7,7 @@ urlpatterns = [
     path("workspace/dashboard/", views.workspace_dashboard, name="workspace_dashboard"),
     path("workspace/pass-docs/", views.pass_docs_home, name="pass_docs_home"),
     path("workspace/pass-docs/employees/", views.pass_docs_employees, name="pass_docs_employees"),
+    path("workspace/pass-docs/employees/add/", views.pass_docs_employee_create, name="pass_docs_employee_create"),
     path(
         "workspace/pass-docs/employees/<int:employee_id>/quick-build/",
         views.pass_docs_employee_quick_build,

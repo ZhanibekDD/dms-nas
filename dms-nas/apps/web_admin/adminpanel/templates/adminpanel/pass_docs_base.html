@@ -36,7 +36,8 @@
            href="{% url 'pass_docs_employees' %}">
           <i class="pd-nav__icon fas fa-users"></i>Сотрудники
         </a>
-        <a class="pd-nav__link" href="/admin/pass_docs/employee/add/">
+        <a class="pd-nav__link{% if pass_docs_active == 'employee_create' %} is-active{% endif %}"
+           href="{% url 'pass_docs_employee_create' %}">
           <i class="pd-nav__icon fas fa-user-plus"></i>Добавить сотрудника
         </a>
         <a class="pd-nav__link{% if pass_docs_active == 'packages' %} is-active{% endif %}"

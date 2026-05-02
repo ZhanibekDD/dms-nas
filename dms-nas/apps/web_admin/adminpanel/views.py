@@ -221,6 +221,47 @@ def _pass_docs_safe_local_redirect(request, target: str):
 
 
 @staff_member_required
+def pass_docs_employee_create(request):
+    from pass_docs.models import Employee
+    import uuid
+
+    if request.method == "POST":
+        full_name = (request.POST.get("full_name") or "").strip()
+        company = (request.POST.get("company") or "").strip()
+        profession = (request.POST.get("profession") or "").strip()
+
+        if not full_name:
+            messages.error(request, "Введите ФИО сотрудника.")
+            return render(request, "adminpanel/pass_docs_employee_create.html", {
+                **_pass_docs_shell_ctx("employees"),
+                "full_name": full_name,
+                "company": company,
+                "profession": profession,
+            })
+
+        uid = uuid.uuid4().hex[:12]
+        import_key = f"manual_{uid}"
+
+        emp = Employee.objects.create(
+            import_key=import_key,
+            source_folder_name=import_key,
+            full_name=full_name,
+            company=company,
+            profession_label=profession,
+            is_active=True,
+        )
+        messages.success(request, f"Сотрудник «{emp.full_name}» создан.")
+        return redirect("pass_docs_employee_detail", employee_id=emp.pk)
+
+    return render(request, "adminpanel/pass_docs_employee_create.html", {
+        **_pass_docs_shell_ctx("employees"),
+        "full_name": "",
+        "company": "",
+        "profession": "",
+    })
+
+
+@staff_member_required
 def pass_docs_employees(request):
     from django.db.models import Count, Q
     from pass_docs.models import Employee

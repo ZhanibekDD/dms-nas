@@ -967,6 +967,41 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   font-weight: 600;
 }
 
+/* ── Форма создания сотрудника ───────────────────────────────── */
+.pd-create-form { display: flex; flex-direction: column; gap: 0; }
+
+.pd-form-group { margin-bottom: 18px; }
+
+.pd-field--required span:first-child::after {
+  content: " *";
+  color: var(--pd-error, #ef4444);
+  font-size: 11px;
+}
+
+.pd-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--pd-line);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--pd-text);
+  background: #fff;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+.pd-input:focus {
+  outline: none;
+  border-color: var(--pd-blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+
+.pd-form-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+
 .pd-bundle-stat strong {
   font-size: 20px;
   font-weight: 800;

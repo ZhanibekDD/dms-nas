@@ -4,6 +4,12 @@
 {% block pass_docs_title %}Сотрудники{% endblock %}
 {% block pass_docs_subtitle %}Выберите сотрудника, чтобы открыть его документы и собрать комплект{% endblock %}
 
+{% block pass_docs_actions %}
+<a href="{% url 'pass_docs_employee_create' %}" class="pd-btn pd-btn--primary">
+  <i class="fas fa-user-plus"></i> Добавить сотрудника
+</a>
+{% endblock %}
+
 {% block pass_docs_content %}
 <div class="pd-summary pd-summary--3">
   <article class="pd-summary__card pd-summary__card--blue">

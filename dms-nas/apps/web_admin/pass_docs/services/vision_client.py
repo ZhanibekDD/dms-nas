@@ -4,7 +4,7 @@
 Переменные окружения:
   OLLAMA_BASE_URL — по умолчанию http://127.0.0.1:11434
   OLLAMA_MODEL — по умолчанию qwen2.5vl:32b
-  OLLAMA_READ_TIMEOUT — таймаут чтения ответа (сек), по умолчанию 900 при наличии картинок, иначе 300
+  OLLAMA_READ_TIMEOUT — таймаут чтения ответа (сек), по умолчанию 300 при наличии картинок, иначе 120
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def chat_json(
     images_b64 — список base64-строк (без префикса data:), передаются в первом user-сообщении.
     """
     if timeout is None:
-        read_default = 900.0 if images_b64 else 300.0
+        read_default = 300.0 if images_b64 else 120.0
         raw = os.environ.get("OLLAMA_READ_TIMEOUT", "").strip()
         read_t = float(raw) if raw else read_default
         timeout = (15.0, read_t)

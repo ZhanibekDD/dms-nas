@@ -206,34 +206,24 @@ def guess_mime_for_path(path: str) -> str:
 
 
 def extracted_text_for_ui(payload: dict) -> str:
-    """Возвращает человекочитаемый текст из результата extraction.
+    """Возвращает полный текст из результата extraction.
 
-    PDF-документы: полный извлечённый текст.
-    Сканы / изображения: форматированный список полей из raw_vision / normalized.
+    Приоритет:
+      1. full_text  — дословный текст документа, возвращённый vision-моделью
+      2. pdf_text   — текст, извлечённый из PDF через pdfplumber
     """
     if not payload or not isinstance(payload, dict):
         return ""
 
-    # PDF с читаемым текстом — показываем как есть
-    pdf_text = payload.get("pdf_text") or ""
-    if pdf_text and pdf_text.strip():
-        return pdf_text.strip()
+    full_text = (payload.get("full_text") or "").strip()
+    if full_text:
+        return full_text
 
-    # Vision / скан — строим текст из raw_vision или normalized
-    source = payload.get("raw_vision") or payload.get("normalized") or {}
-    if not isinstance(source, dict):
-        return ""
+    pdf_text = (payload.get("pdf_text") or "").strip()
+    if pdf_text:
+        return pdf_text
 
-    lines: list[str] = []
-    for key, val in source.items():
-        if not val or key.startswith("_"):
-            continue
-        label = FIELD_LABELS_RU.get(key, key.replace("_", " ").strip().title())
-        if _normalized_key_is_internal(key):
-            continue
-        lines.append(f"{label}: {val}")
-
-    return "\n".join(lines)
+    return ""
 
 
 def employee_bundle_line(

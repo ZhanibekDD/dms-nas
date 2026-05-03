@@ -57,11 +57,18 @@ def resolve_extractor_kind(document_type: DocumentType) -> str | None:
     return None
 
 
+_FULL_TEXT_INSTRUCTION = (
+    "full_text (ОБЯЗАТЕЛЬНО: весь текст документа дословно, слово за словом, "
+    "строка за строкой в том же порядке что на документе, ничего не пропуская), "
+)
+
+
 def _vision_prompt(kind: str) -> str:
     if kind == "ru_passport":
         return (
             "Ты анализируешь изображение российского паспорта (разворот). "
             "Верни СТРОГО один JSON-объект без markdown и без пояснений. Ключи: "
+            + _FULL_TEXT_INSTRUCTION +
             "series (4 цифры), number (6 цифр), last_name, first_name, middle_name, "
             "birth_date (только YYYY-MM-DD или пустая строка), "
             "issue_date (только YYYY-MM-DD или пустая строка), "
@@ -72,7 +79,9 @@ def _vision_prompt(kind: str) -> str:
     if kind == "medical_certificate":
         return (
             "Ты анализируешь изображение медицинской справки (форма 086/у или аналог). "
-            "Верни СТРОГО один JSON-объект. Ключи: certificate_number, issue_date, "
+            "Верни СТРОГО один JSON-объект. Ключи: "
+            + _FULL_TEXT_INSTRUCTION +
+            "certificate_number, issue_date, "
             "valid_until, patient_name, organization, conclusion. Даты в ISO ГГГГ-ММ-ДД или пусто."
         )
     if kind in _TRAINING_KINDS:
@@ -80,11 +89,16 @@ def _vision_prompt(kind: str) -> str:
             "Ты анализируешь скан протокола или удостоверения обучения (РФ). "
             f"Тип по схеме extractor_kind: {kind}. "
             "Верни СТРОГО один JSON-объект без markdown. Ключи: "
+            + _FULL_TEXT_INSTRUCTION +
             "protocol_number, issue_date, valid_until (только YYYY-MM-DD или пустая строка), "
             "holder_name, organization, program_name, conclusion. "
             "Неизвестные поля — пустая строка или null."
         )
-    return "Верни JSON-объект с полями документа, которые видишь на изображении."
+    return (
+        "Верни JSON-объект. Ключи: "
+        + _FULL_TEXT_INSTRUCTION +
+        "и другие поля документа которые видишь на изображении."
+    )
 
 
 def _extract_pdf_text(path: Path) -> str:
@@ -329,12 +343,14 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                         images_b64=[b64],
                     )
                     steps.append("vision_ok")
+                    full_text = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
                     normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
                     base = {
                         "pipeline": steps,
                         "extractor_kind": kind,
                         "raw_vision": vision_raw,
                         "normalized": normalized,
+                        "full_text": full_text,
                     }
                     if kind == "ru_passport":
                         doc.extracted_json = _merge_passport_meta(
@@ -370,12 +386,14 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                 images_b64=[b64],
             )
             steps.append("vision_ok")
+            full_text = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
             normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
             base = {
                 "pipeline": steps,
                 "extractor_kind": kind,
                 "raw_vision": vision_raw,
                 "normalized": normalized,
+                "full_text": full_text,
             }
             if kind == "ru_passport":
                 doc.extracted_json = _merge_passport_meta(

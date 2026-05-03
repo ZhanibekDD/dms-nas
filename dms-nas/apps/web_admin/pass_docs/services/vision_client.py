@@ -3,7 +3,7 @@
 
 Переменные окружения:
   OLLAMA_BASE_URL — по умолчанию http://127.0.0.1:11434
-  OLLAMA_MODEL — по умолчанию qwen2.5vl:32b
+  OLLAMA_MODEL — по умолчанию qwen2.5vl:7b
   OLLAMA_READ_TIMEOUT — таймаут чтения ответа (сек), по умолчанию 900 при наличии картинок, иначе 300
 """
 
@@ -21,7 +21,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5vl:32b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5vl:7b")
 
 
 def file_to_base64(path: Path) -> str:

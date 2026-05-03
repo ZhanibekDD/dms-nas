@@ -1,0 +1,112 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block html_title %}Редактирование — {{ employee.full_name }}{% endblock %}
+{% block pass_docs_title %}Редактирование сотрудника{% endblock %}
+{% block pass_docs_subtitle %}{{ employee.full_name }}{% endblock %}
+
+{% block pass_docs_content %}
+
+<div class="pd-back-nav">
+  <a href="{% url 'pass_docs_employee_detail' employee.pk %}" class="pd-btn pd-btn--ghost pd-btn--sm">
+    <i class="fas fa-arrow-left"></i> Назад к карточке
+  </a>
+</div>
+
+<form method="post" action="{% url 'pass_docs_employee_edit' employee.pk %}">
+  {% csrf_token %}
+
+  {# ── Личные данные ── #}
+  <section class="pd-card">
+    <div class="pd-card__header">
+      <h2><i class="fas fa-user" style="color:var(--pd-primary);margin-right:8px"></i>Личные данные</h2>
+    </div>
+    <p class="pd-card__hint">Основная информация, которая попадёт в Excel-заявку (колонки E–H).</p>
+    <div class="pd-edit-grid">
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_last_name">Фамилия</label>
+        <input class="pd-input" type="text" id="id_last_name" name="last_name"
+               value="{{ employee.last_name }}" placeholder="Иванов" required>
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_first_name">Имя</label>
+        <input class="pd-input" type="text" id="id_first_name" name="first_name"
+               value="{{ employee.first_name }}" placeholder="Иван" required>
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_middle_name">Отчество</label>
+        <input class="pd-input" type="text" id="id_middle_name" name="middle_name"
+               value="{{ employee.middle_name }}" placeholder="Иванович">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_birth_date">Дата рождения</label>
+        <input class="pd-input" type="date" id="id_birth_date" name="birth_date"
+               value="{{ employee.birth_date|date:'Y-m-d'|default:'' }}">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_profession_label">Должность / профессия</label>
+        <input class="pd-input" type="text" id="id_profession_label" name="profession_label"
+               value="{{ employee.profession_label }}" placeholder="Главный инженер">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_company">Организация</label>
+        <input class="pd-input" type="text" id="id_company" name="company"
+               value="{{ employee.company }}" placeholder='ООО "ДнепрНАС"'>
+      </div>
+    </div>
+  </section>
+
+  {# ── Паспортные данные ── #}
+  <section class="pd-card">
+    <div class="pd-card__header">
+      <h2><i class="fas fa-id-card" style="color:var(--pd-primary);margin-right:8px"></i>Паспортные данные</h2>
+    </div>
+    <p class="pd-card__hint">
+      Данные заполняются автоматически при распознавании. Здесь можно исправить ошибки OCR (колонки I–N).
+    </p>
+    <div class="pd-edit-grid">
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_passport_series">Серия</label>
+        <input class="pd-input" type="text" id="id_passport_series" name="passport_series"
+               value="{{ employee.passport_series }}" placeholder="7424" maxlength="6">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_passport_number">Номер</label>
+        <input class="pd-input" type="text" id="id_passport_number" name="passport_number"
+               value="{{ employee.passport_number }}" placeholder="123456" maxlength="10">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_passport_issue_date">Дата выдачи</label>
+        <input class="pd-input" type="date" id="id_passport_issue_date" name="passport_issue_date"
+               value="{{ manual.passport_issue_date|default:'' }}">
+      </div>
+      <div class="pd-form-group pd-form-group--wide">
+        <label class="pd-label" for="id_passport_issuer">Кем выдан</label>
+        <input class="pd-input" type="text" id="id_passport_issuer" name="passport_issuer"
+               value="{{ manual.passport_issuer|default:'' }}"
+               placeholder="УМВД России по ЯНАО">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label" for="id_passport_issuer_code">Код подразделения</label>
+        <input class="pd-input" type="text" id="id_passport_issuer_code" name="passport_issuer_code"
+               value="{{ manual.passport_issuer_code|default:'' }}" placeholder="720-001" maxlength="10">
+      </div>
+      <div class="pd-form-group pd-form-group--wide">
+        <label class="pd-label" for="id_registration_address">Адрес регистрации</label>
+        <input class="pd-input" type="text" id="id_registration_address" name="registration_address"
+               value="{{ manual.registration_address|default:'' }}"
+               placeholder="г. Муравленко, ул. Ленина, д. 1, кв. 1">
+      </div>
+    </div>
+  </section>
+
+  <div class="pd-form-actions">
+    <button type="submit" class="pd-btn pd-btn--primary pd-btn--lg">
+      <i class="fas fa-save"></i> Сохранить
+    </button>
+    <a href="{% url 'pass_docs_employee_detail' employee.pk %}" class="pd-btn pd-btn--ghost pd-btn--lg">
+      Отмена
+    </a>
+  </div>
+
+</form>
+{% endblock %}

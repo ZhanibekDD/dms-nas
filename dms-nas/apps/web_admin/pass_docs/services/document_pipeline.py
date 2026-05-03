@@ -72,6 +72,7 @@ def _vision_prompt(kind: str) -> str:
             "series (4 цифры), number (6 цифр), last_name, first_name, middle_name, "
             "birth_date (только YYYY-MM-DD или пустая строка), "
             "issue_date (только YYYY-MM-DD или пустая строка), "
+            "issuer (полное наименование органа выдавшего паспорт, напр. 'УМВД России по ЯНАО'), "
             "issuer_code (6 цифр кода подразделения, можно как 123-456), "
             "registration_address (одна строка — адрес регистрации как в документе). "
             "Поле iin не используй. Неизвестные поля — пустая строка или null."

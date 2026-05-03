@@ -90,6 +90,7 @@ class Employee(models.Model):
     passport_full_number = models.CharField("паспорт полностью", max_length=64, blank=True)
     is_active = models.BooleanField("активен", default=True)
     notes = models.TextField("заметки", blank=True)
+    manual_data = models.JSONField("ручные данные (корректировка)", default=dict, blank=True)
 
     class Meta:
         ordering = ["import_key"]

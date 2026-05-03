@@ -61,12 +61,21 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Сведения о сотруднике</h2>
+    <a href="{% url 'pass_docs_employee_edit' employee.pk %}" class="pd-btn pd-btn--ghost pd-btn--sm">
+      <i class="fas fa-edit"></i> Редактировать
+    </a>
   </div>
   <div class="pd-meta-grid pd-meta-grid--employee">
     <div>
       <span class="pd-k">Организация</span>
       <span class="pd-v">{{ employee.company|default:"—" }}</span>
     </div>
+    {% if employee.birth_date %}
+    <div>
+      <span class="pd-k">Дата рождения</span>
+      <span class="pd-v">{{ employee.birth_date }}</span>
+    </div>
+    {% endif %}
     <div>
       <span class="pd-k">Учётная запись</span>
       <span class="pd-v">
@@ -83,6 +92,60 @@
       <span class="pd-v">{{ employee.profession_label }}</span>
     </div>
     {% endif %}
+    {% if employee.passport_series or employee.passport_number %}
+    <div>
+      <span class="pd-k">Паспорт</span>
+      <span class="pd-v">{{ employee.passport_series }} {{ employee.passport_number }}</span>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{# Блок: выгрузка Excel + отправка на почту #}
+<section class="pd-card pd-card--export">
+  <div class="pd-card__header">
+    <h2><i class="fas fa-file-excel" style="color:#16a34a;margin-right:8px"></i>Заявка Excel (АСДПО)</h2>
+  </div>
+  <p class="pd-card__hint">
+    ИИ соберёт данные из всех документов сотрудника и заполнит шаблон АСДПО автоматически.
+    Скачайте, проверьте и при необходимости отправьте по почте.
+  </p>
+
+  <div class="pd-export-actions">
+    {# Скачать Excel #}
+    <form method="post" action="{% url 'pass_docs_employee_excel' employee.pk %}"
+          class="pd-inline-form pd-extract-form">
+      {% csrf_token %}
+      <button type="submit" class="pd-btn pd-btn--success pd-btn--lg pd-extract-btn"
+              data-loading-text="Формируется…">
+        <i class="fas fa-download"></i> Скачать Excel
+      </button>
+    </form>
+
+    {# Отправить на почту #}
+    <button type="button" class="pd-btn pd-btn--primary pd-btn--lg"
+            onclick="document.getElementById('pd-email-panel').classList.toggle('pd-hidden')">
+      <i class="fas fa-paper-plane"></i> Отправить на почту
+    </button>
+  </div>
+
+  {# Форма отправки почты — скрыта по умолчанию #}
+  <div id="pd-email-panel" class="pd-email-panel pd-hidden">
+    <form method="post" action="{% url 'pass_docs_employee_send_email' employee.pk %}"
+          class="pd-email-form pd-extract-form">
+      {% csrf_token %}
+      <div class="pd-email-row">
+        <input class="pd-input pd-input--email" type="email" name="email_to"
+               placeholder="адрес@example.com" required>
+        <button type="submit" class="pd-btn pd-btn--primary pd-extract-btn"
+                data-loading-text="Отправляется…">
+          <i class="fas fa-paper-plane"></i> Отправить
+        </button>
+      </div>
+      <p class="pd-muted" style="margin-top:6px;font-size:12px">
+        Excel-заявка будет сформирована и отправлена вложением на указанный адрес.
+      </p>
+    </form>
   </div>
 </section>
 

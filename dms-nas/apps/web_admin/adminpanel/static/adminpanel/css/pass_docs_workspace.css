@@ -1127,3 +1127,69 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   .pd-employee-title { font-size: 22px; }
   .pd-title { font-size: 20px; }
 }
+
+/* ── Редактирование сотрудника ───────────────────────────────── */
+.pd-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px 20px;
+}
+
+.pd-form-group--wide { grid-column: 1 / -1; }
+
+.pd-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pd-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 6px;
+}
+
+.pd-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-bottom: 32px;
+}
+
+/* ── Экспорт Excel / отправка почты ─────────────────────────── */
+.pd-card--export { border-top: 3px solid #16a34a; }
+
+.pd-export-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.pd-email-panel { margin-top: 14px; }
+.pd-hidden { display: none !important; }
+
+.pd-email-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pd-input--email {
+  flex: 1;
+  min-width: 260px;
+  max-width: 420px;
+}
+
+.pd-back-nav { margin-bottom: 12px; }
+
+/* ── Кнопка success (зелёный) ────────────────────────────────── */
+.pd-btn--success {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+  box-shadow: 0 2px 6px rgba(22,163,74,.25);
+}
+.pd-btn--success:hover {
+  background: #15803d;
+  border-color: #15803d;
+}

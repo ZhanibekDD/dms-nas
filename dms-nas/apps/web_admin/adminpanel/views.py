@@ -1423,3 +1423,195 @@ def reject_with_reason(request):
         "rejected": ok_count,
         "errors":   err_count,
     })
+
+
+# ── Редактирование данных сотрудника ──────────────────────────────────────────
+
+@staff_member_required
+def pass_docs_employee_edit(request, employee_id: int):
+    from pass_docs.models import Employee
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    if request.method == "POST":
+        emp.last_name  = request.POST.get("last_name", "").strip()
+        emp.first_name = request.POST.get("first_name", "").strip()
+        emp.middle_name = request.POST.get("middle_name", "").strip()
+        emp.full_name = " ".join(filter(None, [emp.last_name, emp.first_name, emp.middle_name]))
+        emp.profession_label = request.POST.get("profession_label", "").strip()
+        emp.passport_series = request.POST.get("passport_series", "").strip()
+        emp.passport_number = request.POST.get("passport_number", "").strip()
+        emp.company = request.POST.get("company", "").strip()
+
+        bd_str = request.POST.get("birth_date", "").strip()
+        if bd_str:
+            from datetime import date as _date
+            try:
+                emp.birth_date = _date.fromisoformat(bd_str)
+            except ValueError:
+                pass
+        elif not bd_str:
+            emp.birth_date = None
+
+        manual = emp.manual_data or {}
+        for key in ("passport_issue_date", "passport_issuer", "passport_issuer_code",
+                    "registration_address"):
+            val = request.POST.get(key, "").strip()
+            if val:
+                manual[key] = val
+            else:
+                manual.pop(key, None)
+        emp.manual_data = manual
+        emp.save()
+        messages.success(request, "Данные сотрудника сохранены.")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    # Предзаполнить поля manual_data из passport-документа если manual_data ещё пустой
+    manual = emp.manual_data or {}
+    if not manual.get("passport_issue_date") or not manual.get("passport_issuer"):
+        from pass_docs.models import EmployeeDocument
+        passport_doc = (
+            EmployeeDocument.objects
+            .filter(employee=emp, document_type__extractor_kind="ru_passport", is_actual=True)
+            .order_by("-updated_at")
+            .first()
+        )
+        if passport_doc:
+            norm = (passport_doc.extracted_json or {}).get("normalized") or {}
+            manual.setdefault("passport_issue_date", norm.get("issue_date", ""))
+            manual.setdefault("passport_issuer", norm.get("issuer", ""))
+            manual.setdefault("passport_issuer_code", norm.get("issuer_code", ""))
+            manual.setdefault("registration_address", norm.get("registration_address", ""))
+
+    return render(request, "adminpanel/pass_docs_employee_edit.html", {
+        **_pass_docs_shell_ctx("employees"),
+        "employee": emp,
+        "manual": manual,
+    })
+
+
+# ── Скачать Excel-заявку ──────────────────────────────────────────────────────
+
+@staff_member_required
+@require_POST
+def pass_docs_employee_excel(request, employee_id: int):
+    from pass_docs.models import Employee
+    from pass_docs.services.excel_export import generate_excel_one
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    try:
+        data = generate_excel_one(emp)
+    except FileNotFoundError as exc:
+        messages.error(request, str(exc))
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+    except Exception as exc:
+        logger.exception("Excel export error for employee %s", employee_id)
+        messages.error(request, f"Ошибка при формировании Excel: {exc}")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    safe_name = (emp.last_name or emp.full_name or str(employee_id)).replace(" ", "_")
+    filename = f"Заявка_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(
+        data,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+# ── Отправить Excel на почту ──────────────────────────────────────────────────
+
+@staff_member_required
+@require_POST
+def pass_docs_employee_send_email(request, employee_id: int):
+    from pass_docs.models import Employee
+    from pass_docs.services.excel_export import generate_excel_one
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    email_to = request.POST.get("email_to", "").strip()
+    if not email_to:
+        messages.error(request, "Укажите адрес электронной почты.")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    try:
+        excel_bytes = generate_excel_one(emp)
+        _send_excel_email(excel_bytes, emp, email_to)
+        messages.success(request, f"Excel-заявка отправлена на адрес {email_to}")
+    except FileNotFoundError as exc:
+        messages.error(request, str(exc))
+    except Exception as exc:
+        logger.exception("Email send error for employee %s", employee_id)
+        messages.error(request, f"Ошибка отправки: {exc}")
+
+    return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+
+def _send_excel_email(excel_bytes: bytes, emp, email_to: str) -> None:
+    """Отправить Excel по SMTP. Настройки берутся из env-переменных Django."""
+    import smtplib
+    from email.message import EmailMessage
+    from django.conf import settings
+
+    mail_user = getattr(settings, "EMAIL_HOST_USER", "") or os.environ.get("MAIL_USER", "")
+    mail_pass = getattr(settings, "EMAIL_HOST_PASSWORD", "") or os.environ.get("MAIL_PASSWORD", "")
+    smtp_host = getattr(settings, "EMAIL_HOST", "") or os.environ.get("SMTP_HOST", "")
+    smtp_port = int(getattr(settings, "EMAIL_PORT", 0) or os.environ.get("SMTP_PORT", "465"))
+    use_ssl   = getattr(settings, "EMAIL_USE_SSL", True)
+
+    if not mail_user or not mail_pass:
+        raise ValueError(
+            "Не настроены EMAIL_HOST_USER / EMAIL_HOST_PASSWORD. "
+            "Добавьте их в переменные окружения на сервере."
+        )
+
+    if not smtp_host:
+        lower = mail_user.lower()
+        if "@gmail.com" in lower:
+            smtp_host, smtp_port = "smtp.gmail.com", 465
+        elif any(s in lower for s in ("@mail.ru", "@bk.ru", "@inbox.ru", "@list.ru")):
+            smtp_host, smtp_port = "smtp.mail.ru", 465
+        elif "@yandex.ru" in lower or "@ya.ru" in lower:
+            smtp_host, smtp_port = "smtp.yandex.ru", 465
+        else:
+            raise ValueError(
+                "Не задан SMTP_HOST. Добавьте EMAIL_HOST в настройки или используйте "
+                "ящик @mail.ru / @gmail.com / @yandex.ru."
+            )
+
+    safe_name = (emp.last_name or emp.full_name or str(emp.pk)).replace(" ", "_")
+    filename = f"Заявка_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Заявка на пропуск — {emp.full_name}"
+    msg["From"] = mail_user
+    msg["To"] = email_to
+    msg.set_content(
+        f"Добрый день.\n\nНаправляем заявку на оформление пропуска для сотрудника: "
+        f"{emp.full_name}.\n\nФайл во вложении.\n\nС уважением."
+    )
+    msg.add_attachment(
+        excel_bytes,
+        maintype="application",
+        subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=filename,
+    )
+
+    if use_ssl:
+        ctx = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=60)
+    else:
+        ctx = smtplib.SMTP(smtp_host, smtp_port, timeout=60)
+
+    with ctx as smtp:
+        if not use_ssl:
+            smtp.starttls()
+        smtp.login(mail_user, mail_pass)
+        smtp.send_message(msg)
+    logger.info("Excel email sent to %s for employee %s", email_to, emp.pk)

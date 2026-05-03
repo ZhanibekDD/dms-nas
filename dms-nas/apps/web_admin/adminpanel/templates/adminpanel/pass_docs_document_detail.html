@@ -98,7 +98,21 @@
 </section>
 {% endif %}
 
-{# Распознанные данные #}
+{# Распознанный текст (OCR-результат) #}
+{% if extracted_text %}
+<section class="pd-card pd-card--ocr-text">
+  <div class="pd-card__header">
+    <h2><i class="fas fa-align-left" style="color:var(--pd-blue);margin-right:6px"></i>Распознанный текст</h2>
+    <button class="pd-btn pd-btn--ghost pd-btn--sm pd-copy-btn" data-target="pd-ocr-content"
+            onclick="(function(b){var t=document.getElementById('pd-ocr-content');if(!t)return;navigator.clipboard.writeText(t.innerText).then(function(){b.textContent='Скопировано';setTimeout(function(){b.innerHTML='<i class=\'fas fa-copy\'></i> Копировать';},1500);})})(this)">
+      <i class="fas fa-copy"></i> Копировать
+    </button>
+  </div>
+  <pre class="pd-ocr-text" id="pd-ocr-content">{{ extracted_text }}</pre>
+</section>
+{% endif %}
+
+{# Структурированные поля #}
 <section class="pd-card pd-card--recognized">
   <div class="pd-card__header">
     <h2>Данные из документа</h2>
@@ -121,7 +135,7 @@
     {% endfor %}
   </dl>
   {% else %}
-  <p class="pd-muted">Данные из документа пока не извлечены.</p>
+  <p class="pd-muted">Данные из документа пока не извлечены.{% if viewer_has_file %} Нажмите «Распознать документ» выше.{% endif %}</p>
   {% endif %}
 </section>
 

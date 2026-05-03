@@ -664,6 +664,7 @@ def pass_docs_package_request_download(request, request_id: int, kind: str):
 @staff_member_required
 def pass_docs_document_detail(request, doc_id: int):
     from adminpanel.pass_docs_display import (
+        extracted_text_for_ui,
         normalized_pairs_for_ui,
         normalized_warnings,
         viewer_kind_for_document,
@@ -705,6 +706,7 @@ def pass_docs_document_detail(request, doc_id: int):
         "normalized": normalized,
         "normalized_rows": normalized_pairs_for_ui(normalized),
         "warnings": normalized_warnings(normalized),
+        "extracted_text": extracted_text_for_ui(payload),
         "raw_vision": payload.get("raw_vision"),
         "viewer_kind": vk,
         "viewer_has_file": has_file,

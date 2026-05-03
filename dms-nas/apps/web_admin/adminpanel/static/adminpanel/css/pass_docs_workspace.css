@@ -967,6 +967,29 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   font-weight: 600;
 }
 
+/* ── Блок распознанного текста (OCR) ────────────────────────── */
+.pd-ocr-text {
+  margin: 0;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--pd-line);
+  border-radius: 10px;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--pd-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.pd-card--ocr-text .pd-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 /* ── Кнопка "Распознать документ" ───────────────────────────── */
 .pd-btn--accent {
   background: #7c3aed;

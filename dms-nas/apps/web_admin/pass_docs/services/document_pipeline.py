@@ -290,7 +290,7 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                     "pipeline": steps,
                     "extractor_kind": kind,
                     "normalized": normalized,
-                    "pdf_text_preview": pdf_text[:500],
+                    "pdf_text": pdf_text,
                 }
                 if kind == "ru_passport":
                     doc.extracted_json = _merge_passport_meta(

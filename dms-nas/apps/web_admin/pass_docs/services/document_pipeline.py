@@ -211,21 +211,78 @@ def _pdf_first_page_pil(path: Path) -> Any | None:
     return _pdf_first_page_pil_pypdfium(path)
 
 
-def _pdf_first_page_png_b64_pdfplumber(path: Path) -> str | None:
-    pil = _pdf_first_page_pil_pdfplumber(path)
-    return _pil_to_png_b64_for_vision(pil) if pil is not None else None
+_PDF_MAX_PAGES_FOR_VISION = 10
 
 
-def _pdf_first_page_png_b64_pypdfium(path: Path) -> str | None:
-    pil = _pdf_first_page_pil_pypdfium(path)
-    return _pil_to_png_b64_for_vision(pil) if pil is not None else None
+def _pdf_all_pages_pil_pdfplumber(path: Path) -> list[Any]:
+    import os, tempfile
+    import pdfplumber
+
+    pages: list[Any] = []
+    try:
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages[:_PDF_MAX_PAGES_FOR_VISION]:
+                try:
+                    img = page.to_image(resolution=144)
+                    pil = getattr(img, "original", None)
+                    if pil is not None and hasattr(pil, "save"):
+                        pages.append(pil.convert("RGB"))
+                        continue
+                    fd, tmp_path = tempfile.mkstemp(suffix=".png")
+                    os.close(fd)
+                    try:
+                        from PIL import Image
+                        img.save(tmp_path, format="PNG")
+                        with Image.open(tmp_path) as opened:
+                            opened.load()
+                            pages.append(opened.convert("RGB"))
+                    finally:
+                        try:
+                            os.unlink(tmp_path)
+                        except OSError:
+                            pass
+                except Exception as exc:
+                    logger.debug("pdfplumber page render failed: %s", exc)
+    except Exception as exc:
+        logger.debug("pdfplumber all-pages render failed for %s — %s", path, exc)
+    return pages
 
 
-def _pdf_first_page_png_b64(path: Path) -> str | None:
-    b64 = _pdf_first_page_png_b64_pdfplumber(path)
-    if b64:
-        return b64
-    return _pdf_first_page_png_b64_pypdfium(path)
+def _pdf_all_pages_pil_pypdfium(path: Path) -> list[Any]:
+    try:
+        import pypdfium2 as pdfium
+    except ImportError:
+        return []
+    pdf = None
+    pages: list[Any] = []
+    try:
+        pdf = pdfium.PdfDocument(str(path))
+        for i in range(min(len(pdf), _PDF_MAX_PAGES_FOR_VISION)):
+            try:
+                page = pdf[i]
+                bitmap = page.render(scale=144 / 72.0)
+                try:
+                    pages.append(bitmap.to_pil().convert("RGB"))
+                finally:
+                    bitmap.close()
+            except Exception as exc:
+                logger.debug("pypdfium2 page %d render failed: %s", i, exc)
+    except Exception as exc:
+        logger.debug("pypdfium2 all-pages render failed for %s — %s", path, exc)
+    finally:
+        if pdf is not None:
+            try:
+                pdf.close()
+            except Exception:
+                pass
+    return pages
+
+
+def _pdf_all_pages_pil(path: Path) -> list[Any]:
+    pages = _pdf_all_pages_pil_pdfplumber(path)
+    if pages:
+        return pages
+    return _pdf_all_pages_pil_pypdfium(path)
 
 
 def _passport_pre_meta_text_only() -> dict[str, Any]:
@@ -318,50 +375,69 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                 doc.parse_status = EmployeeDocument.ParseStatus.OK
             else:
                 steps.append("pdf_text_weak_or_empty_try_vision")
-                pil_page = _pdf_first_page_pil(path)
-                if pil_page is None:
-                    doc.extracted_json = {
-                        "pipeline": steps,
-                        "error": "pdf_first_page_render_failed",
-                        "extractor_kind": kind,
-                    }
-                    doc.parse_status = EmployeeDocument.ParseStatus.ERROR
-                else:
-                    if kind == "ru_passport":
+                if kind == "ru_passport":
+                    # Паспорт: одна страница + эвристика ориентации
+                    pil_page = _pdf_first_page_pil(path)
+                    if pil_page is None:
+                        doc.extracted_json = {
+                            "pipeline": steps,
+                            "error": "pdf_first_page_render_failed",
+                            "extractor_kind": kind,
+                        }
+                        doc.parse_status = EmployeeDocument.ParseStatus.ERROR
+                    else:
                         pil_for_vision, pre_meta = choose_passport_rotation(pil_page)
                         steps.append("passport_orientation_heuristic")
-                    else:
-                        pil_for_vision = pil_page
-                        pre_meta = {
-                            "rotation_applied": 0,
-                            "variant": "no_passport_skip_orientation",
-                            "note": "Только ru_passport проходит выбор ориентации.",
-                        }
-                    b64 = _pil_to_png_b64_for_vision(pil_for_vision)
-                    vision_raw = vision_client.chat_json(
-                        _vision_prompt(kind),
-                        images_b64=[b64],
-                    )
-                    steps.append("vision_ok")
-                    full_text = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
-                    normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
-                    base = {
-                        "pipeline": steps,
-                        "extractor_kind": kind,
-                        "raw_vision": vision_raw,
-                        "normalized": normalized,
-                        "full_text": full_text,
-                    }
-                    if kind == "ru_passport":
+                        b64 = _pil_to_png_b64_for_vision(pil_for_vision)
+                        vision_raw = vision_client.chat_json(
+                            _vision_prompt(kind),
+                            images_b64=[b64],
+                        )
+                        steps.append("vision_ok")
+                        full_text = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
+                        normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
                         doc.extracted_json = _merge_passport_meta(
                             doc,
                             normalized=normalized,
                             preprocessing=pre_meta,
-                            base=base,
+                            base={
+                                "pipeline": steps,
+                                "extractor_kind": kind,
+                                "raw_vision": vision_raw,
+                                "normalized": normalized,
+                                "full_text": full_text,
+                            },
                         )
+                        doc.parse_status = EmployeeDocument.ParseStatus.OK
+                else:
+                    # Все остальные типы: все страницы PDF
+                    all_pils = _pdf_all_pages_pil(path)
+                    if not all_pils:
+                        doc.extracted_json = {
+                            "pipeline": steps,
+                            "error": "pdf_pages_render_failed",
+                            "extractor_kind": kind,
+                        }
+                        doc.parse_status = EmployeeDocument.ParseStatus.ERROR
                     else:
-                        doc.extracted_json = {**base, "pipeline_version": PIPELINE_VERSION}
-                    doc.parse_status = EmployeeDocument.ParseStatus.OK
+                        steps.append(f"pdf_pages_rendered:{len(all_pils)}")
+                        images_b64 = [_pil_to_png_b64_for_vision(p) for p in all_pils]
+                        vision_raw = vision_client.chat_json(
+                            _vision_prompt(kind),
+                            images_b64=images_b64,
+                        )
+                        steps.append("vision_ok")
+                        full_text = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
+                        normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
+                        doc.extracted_json = {
+                            "pipeline": steps,
+                            "extractor_kind": kind,
+                            "raw_vision": vision_raw,
+                            "normalized": normalized,
+                            "full_text": full_text,
+                            "pipeline_version": PIPELINE_VERSION,
+                        }
+                        doc.parse_status = EmployeeDocument.ParseStatus.OK
 
         elif ext in IMAGE_SUFFIXES:
             steps.append("image_direct_vision")

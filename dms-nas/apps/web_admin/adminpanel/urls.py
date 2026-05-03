@@ -29,6 +29,7 @@ urlpatterns = [
         views.pass_docs_document_download,
         name="pass_docs_document_download",
     ),
+    path("workspace/pass-docs/documents/<int:doc_id>/extract/", views.pass_docs_document_extract, name="pass_docs_document_extract"),
     path("workspace/pass-docs/documents/<int:doc_id>/", views.pass_docs_document_detail, name="pass_docs_document_detail"),
     path("workspace/pass-docs/document-types/", views.pass_docs_document_types, name="pass_docs_document_types"),
     path("workspace/pass-docs/package-requests/", views.pass_docs_package_requests, name="pass_docs_package_requests"),

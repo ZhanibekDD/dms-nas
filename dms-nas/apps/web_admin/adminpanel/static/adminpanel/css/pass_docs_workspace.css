@@ -967,6 +967,20 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   font-weight: 600;
 }
 
+/* ── Кнопка "Распознать документ" ───────────────────────────── */
+.pd-btn--accent {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #7c3aed;
+}
+.pd-btn--accent:hover { background: #6d28d9; border-color: #6d28d9; color: #fff; }
+.pd-btn--accent:disabled {
+  background: #a78bfa;
+  border-color: #a78bfa;
+  cursor: not-allowed;
+  opacity: .75;
+}
+
 /* ── Форма создания сотрудника ───────────────────────────────── */
 .pd-create-form { display: flex; flex-direction: column; gap: 0; }
 

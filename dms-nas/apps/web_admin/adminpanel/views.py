@@ -713,6 +713,42 @@ def pass_docs_document_detail(request, doc_id: int):
 
 
 @staff_member_required
+def pass_docs_document_extract(request, doc_id: int):
+    """POST → запускает extraction pipeline для документа и редиректит обратно на карточку."""
+    from pass_docs.models import EmployeeDocument
+    from pass_docs.services.document_pipeline import run_extraction
+
+    if request.method != "POST":
+        return redirect("pass_docs_document_detail", doc_id=doc_id)
+
+    doc = EmployeeDocument.objects.select_related("employee", "document_type").filter(pk=doc_id).first()
+    if not doc:
+        raise Http404("Документ не найден")
+
+    try:
+        result = run_extraction(doc)
+        status = result.get("parse_status", "")
+        if status == EmployeeDocument.ParseStatus.OK:
+            messages.success(request, "Данные из документа успешно обновлены.")
+        elif status == EmployeeDocument.ParseStatus.SKIPPED:
+            messages.warning(
+                request,
+                "Этот тип документа пока не поддерживает автоматическое распознавание."
+            )
+        else:
+            err = (doc.extracted_json or {}).get("error", "")
+            if err == "file_not_found":
+                messages.error(request, "Файл документа не найден на диске.")
+            else:
+                messages.error(request, "Не удалось распознать документ. Попробуйте позже.")
+    except Exception as exc:
+        logger.error("pass_docs_document_extract id=%s: %s", doc_id, exc)
+        messages.error(request, "Не удалось запустить распознавание. Обратитесь к администратору.")
+
+    return redirect("pass_docs_document_detail", doc_id=doc_id)
+
+
+@staff_member_required
 def workspace_packages(request):
     return render(
         request,

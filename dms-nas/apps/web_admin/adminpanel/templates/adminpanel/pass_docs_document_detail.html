@@ -13,6 +13,16 @@
     <i class="fas fa-arrow-left"></i> {{ doc.employee.full_name }}
   </a>
   <div class="pd-actions">
+    {% if viewer_has_file %}
+    <form method="post" action="{% url 'pass_docs_document_extract' doc.id %}" class="pd-inline-form pd-extract-form">
+      {% csrf_token %}
+      <button type="submit" class="pd-btn pd-btn--accent pd-btn--sm pd-extract-btn"
+              data-loading-text="Идёт распознавание…">
+        <i class="fas fa-magic"></i>
+        {% if doc.parse_status == "ok" %}Обновить данные{% else %}Распознать документ{% endif %}
+      </button>
+    </form>
+    {% endif %}
     <a href="/admin/pass_docs/employeedocument/{{ doc.id }}/change/" class="pd-btn pd-btn--ghost pd-btn--sm" target="_blank">
       <i class="fas fa-edit"></i> Изменить статус
     </a>
@@ -145,4 +155,20 @@
   </details>
 </details>
 
+{% endblock %}
+
+{% block extra_head %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.pd-extract-form').forEach(function (form) {
+    form.addEventListener('submit', function () {
+      var btn = form.querySelector('.pd-extract-btn');
+      if (!btn) return;
+      btn.disabled = true;
+      var loadingText = btn.getAttribute('data-loading-text') || 'Обработка…';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + loadingText;
+    });
+  });
+});
+</script>
 {% endblock %}

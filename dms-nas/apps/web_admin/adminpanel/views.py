@@ -1554,6 +1554,110 @@ def pass_docs_employee_send_email(request, employee_id: int):
     return redirect("pass_docs_employee_detail", employee_id=employee_id)
 
 
+@staff_member_required
+@require_POST
+def pass_docs_employee_zip_upload(request, employee_id: int):
+    """POST: распаковать ZIP-архив и создать EmployeeDocument для каждого файла, запустить OCR."""
+    import zipfile
+    import threading
+    import uuid as _uuid
+    from pathlib import Path as _Path
+    from django.core.files.base import ContentFile
+    from pass_docs.models import Employee, EmployeeDocument, DocumentType
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    zip_file = request.FILES.get("zip_file")
+    if not zip_file:
+        messages.error(request, "Прикрепите ZIP-архив.")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    SUPPORTED_SUFFIXES = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_file.read())) as zf:
+            all_names = [n for n in zf.namelist() if not n.endswith("/")]
+            supported_names = [n for n in all_names if _Path(n).suffix.lower() in SUPPORTED_SUFFIXES]
+
+            if not supported_names:
+                messages.error(request, "В архиве нет поддерживаемых файлов (PDF, JPEG, PNG и т.д.).")
+                return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+            created_docs = []
+            skip_msgs = []
+
+            for entry_name in supported_names:
+                basename = os.path.basename(entry_name) or entry_name
+                doc_type = None
+                if "&" in basename:
+                    code_part = basename.split("&", 1)[0].strip()
+                    doc_type = DocumentType.objects.filter(code=code_part).first()
+
+                if doc_type is None:
+                    skip_msgs.append(f"«{basename}» — тип документа не определён (нет префикса N&).")
+                    continue
+
+                file_bytes = zf.read(entry_name)
+                safe_name = basename.replace(" ", "_")
+                unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+                placeholder = f"zip_upload/{emp.pk}/{doc_type.code}/{unique_name}"
+
+                try:
+                    doc = EmployeeDocument.objects.create(
+                        employee=emp,
+                        document_type=doc_type,
+                        original_file=ContentFile(file_bytes, name=unique_name),
+                        parse_status=EmployeeDocument.ParseStatus.PENDING,
+                        status=EmployeeDocument.Status.PENDING,
+                        source_path=placeholder,
+                        metadata={"zip_source": entry_name, "uploaded_via": "zip_upload"},
+                    )
+                    try:
+                        doc.source_path = doc.original_file.path
+                        doc.save(update_fields=["source_path"])
+                    except Exception:
+                        pass
+                    created_docs.append(doc)
+                except Exception as exc:
+                    skip_msgs.append(f"«{basename}» — ошибка при сохранении: {exc}")
+
+            if created_docs:
+                doc_ids = [d.pk for d in created_docs]
+
+                def _bg_extract(ids):
+                    from pass_docs.models import EmployeeDocument as _ED
+                    from pass_docs.services.document_pipeline import run_extraction as _run
+                    for did in ids:
+                        try:
+                            d = _ED.objects.select_related("employee", "document_type").get(pk=did)
+                            _run(d)
+                        except Exception as exc:
+                            logger.error("BG OCR doc %s: %s", did, exc)
+
+                threading.Thread(target=_bg_extract, args=(doc_ids,), daemon=True).start()
+                messages.success(
+                    request,
+                    f"Загружено документов: {len(created_docs)}. "
+                    "Распознавание запущено в фоне — обновите страницу через 1–2 минуты."
+                )
+
+            for msg in skip_msgs:
+                messages.warning(request, msg)
+
+            if not created_docs and not skip_msgs:
+                messages.warning(request, "Из архива не удалось загрузить ни одного документа.")
+
+    except zipfile.BadZipFile:
+        messages.error(request, "Файл не является корректным ZIP-архивом.")
+    except Exception as exc:
+        logger.error("ZIP upload error employee=%s: %s", employee_id, exc)
+        messages.error(request, f"Ошибка при обработке архива: {exc}")
+
+    return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+
 def _send_excel_email(excel_bytes: bytes, emp, email_to: str) -> None:
     """Отправить Excel по SMTP. Настройки берутся из env-переменных Django."""
     import smtplib

@@ -1193,3 +1193,41 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   background: #15803d;
   border-color: #15803d;
 }
+
+/* ── ZIP-загрузка архива ─────────────────────────────────────── */
+.pd-card--zip-upload { border-top: 3px solid #2563eb; }
+
+.pd-zip-form { margin-top: 14px; }
+
+.pd-zip-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pd-zip-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #475569;
+  font-size: 14px;
+  flex: 1;
+  min-width: 200px;
+  transition: border-color .2s, color .2s;
+}
+.pd-zip-label:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.pd-zip-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}

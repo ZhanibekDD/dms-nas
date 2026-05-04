@@ -24,6 +24,11 @@ urlpatterns = [
         name="pass_docs_employee_send_email",
     ),
     path(
+        "workspace/pass-docs/employees/<int:employee_id>/upload-zip/",
+        views.pass_docs_employee_zip_upload,
+        name="pass_docs_employee_zip_upload",
+    ),
+    path(
         "workspace/pass-docs/employees/<int:employee_id>/quick-build/",
         views.pass_docs_employee_quick_build,
         name="pass_docs_employee_quick_build",

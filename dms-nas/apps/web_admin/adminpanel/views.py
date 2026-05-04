@@ -1557,8 +1557,7 @@ def pass_docs_employee_send_email(request, employee_id: int):
 @staff_member_required
 @require_POST
 def pass_docs_employee_zip_upload(request, employee_id: int):
-    """POST: распаковать ZIP-архив и создать EmployeeDocument для каждого файла, запустить OCR."""
-    import zipfile
+    """POST: распаковать архив (любой формат) и создать EmployeeDocument, запустить OCR."""
     import threading
     import uuid as _uuid
     from pathlib import Path as _Path
@@ -1569,27 +1568,33 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
     if not emp:
         raise Http404("Сотрудник не найден")
 
-    zip_file = request.FILES.get("zip_file")
-    if not zip_file:
-        messages.error(request, "Прикрепите ZIP-архив.")
+    archive_file = request.FILES.get("zip_file")
+    if not archive_file:
+        messages.error(request, "Прикрепите архив.")
         return redirect("pass_docs_employee_detail", employee_id=employee_id)
 
     SUPPORTED_SUFFIXES = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
+    created_docs = []
+    skip_msgs = []
 
     try:
-        with zipfile.ZipFile(io.BytesIO(zip_file.read())) as zf:
-            all_names = [n for n in zf.namelist() if not n.endswith("/")]
-            supported_names = [n for n in all_names if _Path(n).suffix.lower() in SUPPORTED_SUFFIXES]
+        with _open_archive(archive_file) as arc:
+            all_names = arc.namelist()
+            for entry_name in all_names:
+                try:
+                    if arc.is_dir(entry_name):
+                        continue
+                except Exception:
+                    if entry_name.endswith("/") or entry_name.endswith("\\"):
+                        continue
 
-            if not supported_names:
-                messages.error(request, "В архиве нет поддерживаемых файлов (PDF, JPEG, PNG и т.д.).")
-                return redirect("pass_docs_employee_detail", employee_id=employee_id)
+                norm = entry_name.replace("\\", "/")
+                basename = norm.split("/")[-1]
+                if not basename:
+                    continue
+                if _Path(basename).suffix.lower() not in SUPPORTED_SUFFIXES:
+                    continue
 
-            created_docs = []
-            skip_msgs = []
-
-            for entry_name in supported_names:
-                basename = os.path.basename(entry_name) or entry_name
                 doc_type = None
                 if "&" in basename:
                     code_part = basename.split("&", 1)[0].strip()
@@ -1599,7 +1604,12 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
                     skip_msgs.append(f"«{basename}» — тип документа не определён (нет префикса N&).")
                     continue
 
-                file_bytes = zf.read(entry_name)
+                try:
+                    file_bytes = arc.read(entry_name)
+                except Exception as exc:
+                    skip_msgs.append(f"«{basename}» — ошибка чтения: {exc}")
+                    continue
+
                 safe_name = basename.replace(" ", "_")
                 unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
                 placeholder = f"zip_upload/{emp.pk}/{doc_type.code}/{unique_name}"
@@ -1612,7 +1622,7 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
                         parse_status=EmployeeDocument.ParseStatus.PENDING,
                         status=EmployeeDocument.Status.PENDING,
                         source_path=placeholder,
-                        metadata={"zip_source": entry_name, "uploaded_via": "zip_upload"},
+                        metadata={"archive_source": entry_name, "uploaded_via": "zip_upload"},
                     )
                     try:
                         doc.source_path = doc.original_file.path
@@ -1623,43 +1633,42 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
                 except Exception as exc:
                     skip_msgs.append(f"«{basename}» — ошибка при сохранении: {exc}")
 
-            if created_docs:
-                doc_ids = [d.pk for d in created_docs]
-
-                def _bg_extract(ids):
-                    from pass_docs.models import EmployeeDocument as _ED
-                    from pass_docs.services.document_pipeline import run_extraction as _run
-                    for did in ids:
-                        try:
-                            d = _ED.objects.select_related("employee", "document_type").get(pk=did)
-                            _run(d)
-                        except Exception as exc:
-                            logger.error("BG OCR doc %s: %s", did, exc)
-
-                threading.Thread(target=_bg_extract, args=(doc_ids,), daemon=True).start()
-                messages.success(
-                    request,
-                    f"Загружено документов: {len(created_docs)}. "
-                    "Распознавание запущено в фоне — обновите страницу через 1–2 минуты."
-                )
-
-            for msg in skip_msgs:
-                messages.warning(request, msg)
-
-            if not created_docs and not skip_msgs:
-                messages.warning(request, "Из архива не удалось загрузить ни одного документа.")
-
-    except zipfile.BadZipFile:
-        messages.error(request, "Файл не является корректным ZIP-архивом.")
     except Exception as exc:
-        logger.error("ZIP upload error employee=%s: %s", employee_id, exc)
+        logger.error("Archive upload error employee=%s: %s", employee_id, exc)
         messages.error(request, f"Ошибка при обработке архива: {exc}")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    if created_docs:
+        doc_ids = [d.pk for d in created_docs]
+
+        def _bg_extract(ids):
+            from pass_docs.models import EmployeeDocument as _ED
+            from pass_docs.services.document_pipeline import run_extraction as _run
+            for did in ids:
+                try:
+                    d = _ED.objects.select_related("employee", "document_type").get(pk=did)
+                    _run(d)
+                except Exception as exc:
+                    logger.error("BG OCR doc %s: %s", did, exc)
+
+        threading.Thread(target=_bg_extract, args=(doc_ids,), daemon=True).start()
+        messages.success(
+            request,
+            f"Загружено документов: {len(created_docs)}. "
+            "Распознавание запущено в фоне — обновите страницу через 1–2 минуты."
+        )
+
+    for msg in skip_msgs:
+        messages.warning(request, msg)
+
+    if not created_docs and not skip_msgs:
+        messages.warning(request, "Из архива не удалось загрузить ни одного документа.")
 
     return redirect("pass_docs_employee_detail", employee_id=employee_id)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Массовая загрузка: ZIP/RAR с папками сотрудников
+# Массовая загрузка: поддержка ZIP / RAR / 7z / TAR / TAR.GZ / TAR.BZ2 / TAR.XZ
 # ──────────────────────────────────────────────────────────────────────────────
 
 class _ZipWrapper:
@@ -1674,8 +1683,7 @@ class _ZipWrapper:
 
     def is_dir(self, name):
         try:
-            info = self._zf.getinfo(name)
-            return info.filename.endswith("/")
+            return self._zf.getinfo(name).filename.endswith("/")
         except Exception:
             return name.endswith("/")
 
@@ -1698,9 +1706,50 @@ class _RarWrapper:
             return name.endswith("/") or name.endswith("\\")
 
 
+class _7zWrapper:
+    def __init__(self, buf):
+        import py7zr
+        sz = py7zr.SevenZipFile(buf, mode="r")
+        self._infos = {info.filename: info for info in sz.list()}
+        sz.reset()
+        all_data = sz.readall() or {}
+        self._data = {n: (bio.read() if bio else b"") for n, bio in all_data.items()}
+        sz.close()
+
+    def __enter__(self): return self
+    def __exit__(self, *a): pass
+    def namelist(self): return list(self._infos.keys())
+    def read(self, name): return self._data.get(name, b"")
+
+    def is_dir(self, name):
+        info = self._infos.get(name)
+        return info.is_directory if info else (name.endswith("/") or name.endswith("\\"))
+
+
+class _TarWrapper:
+    def __init__(self, buf):
+        import tarfile
+        self._tf = tarfile.open(fileobj=buf)
+
+    def __enter__(self): return self
+    def __exit__(self, *a): self._tf.close()
+    def namelist(self): return self._tf.getnames()
+
+    def read(self, name):
+        f = self._tf.extractfile(self._tf.getmember(name))
+        return f.read() if f else b""
+
+    def is_dir(self, name):
+        try:
+            return self._tf.getmember(name).isdir()
+        except KeyError:
+            return name.endswith("/")
+
+
 def _open_archive(file_obj):
-    """Открыть ZIP или RAR, вернуть обёртку."""
-    import zipfile, io
+    """Открыть ZIP / RAR / 7z / TAR любого сжатия. Вернуть обёртку."""
+    import zipfile, io, tarfile
+
     data = file_obj.read()
 
     if zipfile.is_zipfile(io.BytesIO(data)):
@@ -1714,9 +1763,22 @@ def _open_archive(file_obj):
     except ImportError:
         pass
 
+    try:
+        import py7zr
+        if py7zr.is_7zfile(io.BytesIO(data)):
+            return _7zWrapper(io.BytesIO(data))
+    except ImportError:
+        pass
+
+    try:
+        if tarfile.is_tarfile(io.BytesIO(data)):
+            return _TarWrapper(io.BytesIO(data))
+    except Exception:
+        pass
+
     raise ValueError(
-        "Формат не поддерживается. Используйте ZIP или RAR. "
-        "Для RAR убедитесь, что на сервере установлен пакет unrar."
+        "Формат архива не поддерживается. "
+        "Поддерживаются: ZIP, RAR, 7Z, TAR, TAR.GZ, TAR.BZ2, TAR.XZ."
     )
 
 

@@ -14,5 +14,6 @@ openpyxl>=3.1.0
 Pillow>=10.0.0
 # Sprint 14 — PDF reports
 reportlab>=4.0.0
-# Bulk ZIP/RAR upload
+# Bulk archive upload (ZIP встроен, TAR встроен)
 rarfile>=4.0
+py7zr>=0.20.0

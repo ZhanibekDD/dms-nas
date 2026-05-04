@@ -89,7 +89,7 @@
   </div>
 
   <p class="pd-card__hint">
-    Выберите сотрудника, загрузите ZIP или RAR-архив с его документами.
+    Выберите сотрудника, загрузите архив с его документами (ZIP, RAR, 7Z, TAR, TAR.GZ и др.).
     Каждый файл в архиве должен быть назван по схеме <strong>КОД&amp;Название.pdf</strong>
     (например <code>6&amp;Паспорт.pdf</code>, <code>26&amp;Электробезопасность.pdf</code>).
     Папки внутри архива игнорируются — документы ищутся по всей глубине.
@@ -119,10 +119,11 @@
       <label class="pd-label">Архив с документами <span style="color:#e74c3c">*</span></label>
       <div class="pd-dropzone" id="bulk-dropzone">
         <i class="fas fa-file-archive pd-dropzone__icon"></i>
-        <p class="pd-dropzone__label">Перетащите ZIP или RAR сюда</p>
+        <p class="pd-dropzone__label">Перетащите архив сюда</p>
+        <p class="pd-dropzone__sub2">ZIP, RAR, 7Z, TAR, TAR.GZ, TAR.BZ2, TAR.XZ</p>
         <p class="pd-dropzone__sub" id="bulk-filename">или нажмите для выбора файла</p>
         <input type="file" name="archive_file" id="id_archive_file"
-               accept=".zip,.rar" required class="pd-dropzone__input"
+               accept=".zip,.rar,.7z,.tar,.gz,.bz2,.xz,.tgz" required class="pd-dropzone__input"
                onchange="bulkUpdateName(this)">
       </div>
     </div>

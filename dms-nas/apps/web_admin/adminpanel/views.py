@@ -1562,7 +1562,7 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
     import uuid as _uuid
     from pathlib import Path as _Path
     from django.core.files.base import ContentFile
-    from pass_docs.models import Employee, EmployeeDocument, DocumentType
+    from pass_docs.models import Employee, EmployeeDocument
 
     emp = Employee.objects.filter(pk=employee_id).first()
     if not emp:
@@ -1595,14 +1595,16 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
                 if _Path(basename).suffix.lower() not in SUPPORTED_SUFFIXES:
                     continue
 
-                doc_type = None
-                if "&" in basename:
-                    code_part = basename.split("&", 1)[0].strip()
-                    doc_type = DocumentType.objects.filter(code=code_part).first()
-
-                if doc_type is None:
-                    skip_msgs.append(f"«{basename}» — тип документа не определён (нет префикса N&).")
+                if "&" not in basename:
+                    skip_msgs.append(f"«{basename}» — нет префикса N& в имени файла.")
                     continue
+
+                code_part = basename.split("&", 1)[0].strip()
+                if not code_part:
+                    skip_msgs.append(f"«{basename}» — не удалось определить код типа документа.")
+                    continue
+
+                doc_type = _get_or_create_doc_type(code_part, basename)
 
                 try:
                     file_bytes = arc.read(entry_name)
@@ -1691,7 +1693,7 @@ class _ZipWrapper:
 class _RarWrapper:
     def __init__(self, buf):
         import rarfile
-        rarfile.UNRAR_TOOL = "unrar"
+        rarfile.UNRAR_TOOL = "/usr/bin/unrar"
         self._rf = rarfile.RarFile(buf)
 
     def __enter__(self): return self
@@ -1746,6 +1748,26 @@ class _TarWrapper:
             return name.endswith("/")
 
 
+def _get_or_create_doc_type(code: str, basename: str):
+    """Найти DocumentType по коду. Если не найден — создать с именем из имени файла."""
+    from pass_docs.models import DocumentType
+    dt = DocumentType.objects.filter(code=code).first()
+    if dt:
+        return dt
+    # Имя: часть после & без расширения, например «27&Работы на высоте.pdf» → «Работы на высоте»
+    from pathlib import Path as _Path
+    if "&" in basename:
+        name_part = basename.split("&", 1)[1]
+    else:
+        name_part = basename
+    name_part = _Path(name_part).stem.strip() or f"Документ {code}"
+    dt, _ = DocumentType.objects.get_or_create(
+        code=code,
+        defaults={"name": name_part, "sort_order": 999},
+    )
+    return dt
+
+
 def _open_archive(file_obj):
     """Открыть ZIP / RAR / 7z / TAR любого сжатия. Вернуть обёртку."""
     import zipfile, io, tarfile
@@ -1757,7 +1779,7 @@ def _open_archive(file_obj):
 
     try:
         import rarfile
-        rarfile.UNRAR_TOOL = "unrar"
+        rarfile.UNRAR_TOOL = "/usr/bin/unrar"
         if rarfile.is_rarfile(io.BytesIO(data)):
             return _RarWrapper(io.BytesIO(data))
     except ImportError:
@@ -1789,7 +1811,7 @@ def pass_docs_bulk_upload(request):
     GET:  форма — выбрать сотрудника + загрузить ZIP/RAR.
     POST: распаковать архив, все файлы → выбранному сотруднику, OCR в фоне.
     """
-    from pass_docs.models import Employee, EmployeeDocument, DocumentType
+    from pass_docs.models import Employee, EmployeeDocument
 
     employees = Employee.objects.filter(is_active=True).order_by("full_name")
 
@@ -1854,10 +1876,7 @@ def pass_docs_bulk_upload(request):
                     skipped.append(f"{basename} — нет кода N& в имени файла")
                     continue
 
-                doc_type = DocumentType.objects.filter(code=doc_code).first()
-                if doc_type is None:
-                    skipped.append(f"{basename} — код «{doc_code}» не найден в справочнике")
-                    continue
+                doc_type = _get_or_create_doc_type(doc_code, basename)
 
                 try:
                     file_bytes = arc.read(entry)

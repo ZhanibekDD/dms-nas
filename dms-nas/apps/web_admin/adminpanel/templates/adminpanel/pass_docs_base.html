@@ -58,6 +58,10 @@
            href="{% url 'scan_document_page' %}">
           <i class="pd-nav__icon fas fa-upload"></i>Загрузить документ
         </a>
+        <a class="pd-nav__link{% if pass_docs_active == 'bulk_upload' %} is-active{% endif %}"
+           href="{% url 'pass_docs_bulk_upload' %}">
+          <i class="pd-nav__icon fas fa-boxes"></i>Массовая загрузка
+        </a>
 
         <p class="pd-nav__section">Система</p>
         <a class="pd-nav__link" href="/admin/">

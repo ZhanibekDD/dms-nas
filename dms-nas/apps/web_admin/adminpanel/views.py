@@ -1658,6 +1658,277 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
     return redirect("pass_docs_employee_detail", employee_id=employee_id)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Массовая загрузка: ZIP/RAR с папками сотрудников
+# ──────────────────────────────────────────────────────────────────────────────
+
+class _ZipWrapper:
+    def __init__(self, buf):
+        import zipfile
+        self._zf = zipfile.ZipFile(buf)
+
+    def __enter__(self): return self
+    def __exit__(self, *a): self._zf.close()
+    def namelist(self): return self._zf.namelist()
+    def read(self, name): return self._zf.read(name)
+
+    def is_dir(self, name):
+        try:
+            info = self._zf.getinfo(name)
+            return info.filename.endswith("/")
+        except Exception:
+            return name.endswith("/")
+
+
+class _RarWrapper:
+    def __init__(self, buf):
+        import rarfile
+        rarfile.UNRAR_TOOL = "unrar"
+        self._rf = rarfile.RarFile(buf)
+
+    def __enter__(self): return self
+    def __exit__(self, *a): self._rf.close()
+    def namelist(self): return self._rf.namelist()
+    def read(self, name): return self._rf.read(name)
+
+    def is_dir(self, name):
+        try:
+            return self._rf.getinfo(name).is_dir()
+        except Exception:
+            return name.endswith("/") or name.endswith("\\")
+
+
+def _open_archive(file_obj):
+    """Открыть ZIP или RAR, вернуть обёртку."""
+    import zipfile, io
+    data = file_obj.read()
+
+    if zipfile.is_zipfile(io.BytesIO(data)):
+        return _ZipWrapper(io.BytesIO(data))
+
+    try:
+        import rarfile
+        rarfile.UNRAR_TOOL = "unrar"
+        if rarfile.is_rarfile(io.BytesIO(data)):
+            return _RarWrapper(io.BytesIO(data))
+    except ImportError:
+        pass
+
+    raise ValueError(
+        "Формат не поддерживается. Используйте ZIP или RAR. "
+        "Для RAR убедитесь, что на сервере установлен пакет unrar."
+    )
+
+
+def _process_bulk_archive(archive_file):
+    """
+    Распаковать архив → найти папки сотрудников N&ФИО → найти/создать Employee →
+    создать EmployeeDocument для каждого файла с кодом типа N&Filename.
+    Возвращает словарь results для отображения в шаблоне.
+    """
+    import re, uuid as _uuid, hashlib
+    from pathlib import Path as _Path
+    from django.core.files.base import ContentFile
+    from pass_docs.models import Employee, EmployeeDocument, DocumentType
+
+    SUPPORTED = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
+    EMP_FOLDER_RE = re.compile(r'^(\d+)&(.+)$')  # числовой префикс: 1&Черкез
+
+    employee_groups: dict[str, dict] = {}  # label → {"folder_name", "files"}
+    no_folder_files: list[str] = []
+
+    with _open_archive(archive_file) as arc:
+        for entry in arc.namelist():
+            try:
+                if arc.is_dir(entry):
+                    continue
+            except Exception:
+                if entry.endswith("/"):
+                    continue
+
+            norm = entry.replace("\\", "/")
+            parts = norm.split("/")
+            basename = parts[-1]
+            if not basename:
+                continue
+
+            suffix = _Path(basename).suffix.lower()
+            if suffix not in SUPPORTED:
+                continue
+
+            # Ищем папку сотрудника (числовой N& в любом компоненте пути, кроме имени файла)
+            emp_folder_name = None
+            emp_label = None
+            for part in parts[:-1]:
+                m = EMP_FOLDER_RE.match(part)
+                if m:
+                    emp_folder_name = part
+                    emp_label = m.group(2).strip()
+                    break
+
+            doc_code = None
+            if "&" in basename:
+                doc_code = basename.split("&", 1)[0].strip()
+
+            if emp_label:
+                if emp_label not in employee_groups:
+                    employee_groups[emp_label] = {
+                        "folder_name": emp_folder_name,
+                        "files": [],
+                    }
+                employee_groups[emp_label]["files"].append((entry, doc_code, basename))
+            elif doc_code:
+                no_folder_files.append(basename)
+
+        results = {
+            "employees": [],
+            "no_folder": no_folder_files,
+            "total_docs": 0,
+            "total_skipped": 0,
+        }
+
+        for label, group in employee_groups.items():
+            folder_name = group["folder_name"]
+
+            # Найти существующего сотрудника
+            emp = (
+                Employee.objects.filter(source_label__iexact=label).first()
+                or Employee.objects.filter(full_name__icontains=label).first()
+                or Employee.objects.filter(last_name__iexact=label.split()[0]).first()
+            )
+            emp_created = False
+            if emp is None:
+                base_key = f"bulk_{hashlib.md5(label.encode()).hexdigest()[:12]}"
+                key = base_key
+                n = 0
+                while Employee.objects.filter(import_key=key).exists():
+                    n += 1
+                    key = f"{base_key}_{n}"
+                parts_name = label.split()
+                emp = Employee.objects.create(
+                    import_key=key,
+                    source_folder_name=folder_name,
+                    source_label=label,
+                    full_name=label,
+                    last_name=parts_name[0] if parts_name else label,
+                    first_name=" ".join(parts_name[1:]) if len(parts_name) > 1 else "",
+                    is_active=True,
+                )
+                emp_created = True
+
+            created = []
+            skipped = []
+
+            for entry_name, doc_code, basename in group["files"]:
+                if doc_code is None:
+                    skipped.append(f"{basename} — нет кода N& в имени файла")
+                    continue
+
+                doc_type = DocumentType.objects.filter(code=doc_code).first()
+                if doc_type is None:
+                    skipped.append(f"{basename} — код «{doc_code}» не найден в справочнике")
+                    continue
+
+                try:
+                    file_bytes = arc.read(entry_name)
+                except Exception as exc:
+                    skipped.append(f"{basename} — ошибка чтения: {exc}")
+                    continue
+
+                safe_name = basename.replace(" ", "_")
+                unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+                placeholder = f"bulk_upload/{emp.pk}/{doc_code}/{unique_name}"
+
+                try:
+                    doc = EmployeeDocument.objects.create(
+                        employee=emp,
+                        document_type=doc_type,
+                        original_file=ContentFile(file_bytes, name=unique_name),
+                        parse_status=EmployeeDocument.ParseStatus.PENDING,
+                        status=EmployeeDocument.Status.PENDING,
+                        source_path=placeholder,
+                        metadata={
+                            "zip_source": entry_name,
+                            "folder": folder_name,
+                            "uploaded_via": "bulk_archive",
+                        },
+                    )
+                    try:
+                        doc.source_path = doc.original_file.path
+                        doc.save(update_fields=["source_path"])
+                    except Exception:
+                        pass
+                    created.append(doc)
+                except Exception as exc:
+                    skipped.append(f"{basename} — {exc}")
+
+            results["employees"].append({
+                "label": label,
+                "folder_name": folder_name,
+                "emp_pk": emp.pk,
+                "emp_name": emp.full_name,
+                "emp_created": emp_created,
+                "docs_created": len(created),
+                "docs_skipped": skipped,
+                "doc_ids": [d.pk for d in created],
+            })
+            results["total_docs"] += len(created)
+            results["total_skipped"] += len(skipped)
+
+        results["total_skipped"] += len(no_folder_files)
+        return results
+
+
+@staff_member_required
+def pass_docs_bulk_upload(request):
+    """Массовая загрузка документов из ZIP/RAR-архива с папками сотрудников."""
+    if request.method == "GET":
+        return render(
+            request,
+            "adminpanel/pass_docs_bulk_upload.html",
+            _pass_docs_shell_ctx("bulk_upload"),
+        )
+
+    archive_file = request.FILES.get("archive_file")
+    if not archive_file:
+        messages.error(request, "Прикрепите архив (ZIP или RAR).")
+        return render(
+            request,
+            "adminpanel/pass_docs_bulk_upload.html",
+            _pass_docs_shell_ctx("bulk_upload"),
+        )
+
+    results = None
+    try:
+        results = _process_bulk_archive(archive_file)
+    except Exception as exc:
+        logger.error("Bulk archive upload error: %s", exc)
+        messages.error(request, f"Ошибка при обработке архива: {exc}")
+
+    if results:
+        all_doc_ids = [did for g in results["employees"] for did in g["doc_ids"]]
+        if all_doc_ids:
+            import threading
+
+            def _bg(ids):
+                from pass_docs.models import EmployeeDocument as _ED
+                from pass_docs.services.document_pipeline import run_extraction as _run
+                for did in ids:
+                    try:
+                        d = _ED.objects.select_related("employee", "document_type").get(pk=did)
+                        _run(d)
+                    except Exception as exc:
+                        logger.error("BG OCR doc %s: %s", did, exc)
+
+            threading.Thread(target=_bg, args=(all_doc_ids,), daemon=True).start()
+
+    ctx = {
+        **_pass_docs_shell_ctx("bulk_upload"),
+        "results": results,
+    }
+    return render(request, "adminpanel/pass_docs_bulk_upload.html", ctx)
+
+
 def _send_excel_email(excel_bytes: bytes, emp, email_to: str) -> None:
     """Отправить Excel по SMTP. Настройки берутся из env-переменных Django."""
     import smtplib

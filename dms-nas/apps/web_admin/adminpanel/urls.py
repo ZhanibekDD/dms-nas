@@ -39,6 +39,11 @@ urlpatterns = [
         name="pass_docs_employee_quick_build",
     ),
     path(
+        "workspace/pass-docs/employees/<int:employee_id>/retry-errors/",
+        views.pass_docs_employee_retry_errors,
+        name="pass_docs_employee_retry_errors",
+    ),
+    path(
         "workspace/pass-docs/employees/<int:employee_id>/",
         views.pass_docs_employee_detail,
         name="pass_docs_employee_detail",

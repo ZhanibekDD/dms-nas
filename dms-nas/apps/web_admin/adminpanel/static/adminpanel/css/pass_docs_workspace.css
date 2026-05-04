@@ -1203,6 +1203,19 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
 }
 .pd-btn--danger:hover { background: #b91c1c; border-color: #b91c1c; }
 
+/* ── Кнопка warn (оранжевый) ─────────────────────────────────── */
+.pd-btn--warn {
+  background: #d97706;
+  color: #fff;
+  border-color: #d97706;
+  box-shadow: 0 2px 6px rgba(217,119,6,.25);
+}
+.pd-btn--warn:hover { background: #b45309; border-color: #b45309; }
+
+/* ── Блок ошибки распознавания ───────────────────────────────── */
+.pd-card--error-detail { border-top: 3px solid #dc2626; background: #fff5f5; }
+.pd-error-msg { color: #b91c1c; font-size: 14px; margin: 8px 0 0; }
+
 /* ── ZIP-загрузка архива ─────────────────────────────────────── */
 .pd-card--zip-upload { border-top: 3px solid #2563eb; }
 

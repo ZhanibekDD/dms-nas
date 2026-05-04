@@ -48,6 +48,11 @@ def chat_json(
         read_t = float(raw) if raw else read_default
         timeout = (15.0, read_t)
 
+    # Явно задаём контекст — не полагаемся на дефолт модели или env-переменные.
+    # Для vision с несколькими страницами нужен большой контекст.
+    _ctx_env = os.environ.get("OLLAMA_CONTEXT_LENGTH", "").strip()
+    num_ctx = int(_ctx_env) if _ctx_env.isdigit() else (32768 if images_b64 else 8192)
+
     url = f"{OLLAMA_BASE_URL}/api/chat"
     msg: dict[str, Any] = {"role": "user", "content": user_text}
     if images_b64:
@@ -58,13 +63,15 @@ def chat_json(
         "messages": [msg],
         "stream": False,
         "format": "json",
+        "options": {"num_ctx": num_ctx},
     }
 
     if images_b64:
         logger.info(
-            "Ollama vision: model=%s images=%s read_timeout=%ss",
+            "Ollama vision: model=%s images=%s num_ctx=%s read_timeout=%ss",
             OLLAMA_MODEL,
             len(images_b64),
+            num_ctx,
             timeout[1],
         )
 

@@ -45,6 +45,16 @@
       {% endif %}
     {% endif %}
 
+    {% if parse_err %}
+    <form method="post" action="{% url 'pass_docs_employee_retry_errors' employee.pk %}" class="pd-inline-form">
+      {% csrf_token %}
+      <button type="submit" class="pd-btn pd-btn--warn pd-btn--sm"
+              title="Повторить распознавание для {{ parse_err }} документов с ошибкой">
+        <i class="fas fa-redo"></i> Повторить ошибочные ({{ parse_err }})
+      </button>
+    </form>
+    {% endif %}
+
     <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_package_requests' %}?employee={{ employee.pk }}">
       История сборок
     </a>

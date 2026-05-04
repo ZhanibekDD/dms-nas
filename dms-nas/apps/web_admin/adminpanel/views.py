@@ -353,6 +353,7 @@ def pass_docs_employee_detail(request, employee_id: int):
         "documents": docs,
         "package_requests": package_qs,
         "ready_package": ready_with_files,
+        "parse_err": parse_err,
         "bundle_summary": employee_bundle_line(
             documents_total=dtot,
             parse_ok=parse_ok,
@@ -1505,6 +1506,47 @@ def pass_docs_employee_delete(request, employee_id: int):
     emp.delete()
     messages.success(request, f"Сотрудник «{name}» и все его документы удалены.")
     return redirect("pass_docs_employees")
+
+
+# ── Повторить распознавание для документов с ошибкой ─────────────────────────
+
+@staff_member_required
+@require_POST
+def pass_docs_employee_retry_errors(request, employee_id: int):
+    import threading
+    from pass_docs.models import Employee, EmployeeDocument
+    from pass_docs.services.document_pipeline import run_extraction
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    error_docs = list(
+        EmployeeDocument.objects.filter(
+            employee=emp,
+            parse_status=EmployeeDocument.ParseStatus.ERROR,
+        )
+    )
+    if not error_docs:
+        messages.info(request, "Нет документов с ошибкой для повтора.")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    ids = [d.pk for d in error_docs]
+    EmployeeDocument.objects.filter(pk__in=ids).update(
+        parse_status=EmployeeDocument.ParseStatus.PENDING
+    )
+
+    def _bg(doc_ids):
+        for did in doc_ids:
+            try:
+                d = EmployeeDocument.objects.select_related("document_type", "employee").get(pk=did)
+                run_extraction(d)
+            except Exception:
+                pass
+
+    threading.Thread(target=_bg, args=(ids,), daemon=True).start()
+    messages.success(request, f"Запущено повторное распознавание для {len(ids)} документов.")
+    return redirect("pass_docs_employee_detail", employee_id=employee_id)
 
 
 # ── Скачать Excel-заявку ──────────────────────────────────────────────────────

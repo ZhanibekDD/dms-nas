@@ -61,9 +61,19 @@
 <section class="pd-card">
   <div class="pd-card__header">
     <h2>Сведения о сотруднике</h2>
-    <a href="{% url 'pass_docs_employee_edit' employee.pk %}" class="pd-btn pd-btn--ghost pd-btn--sm">
-      <i class="fas fa-edit"></i> Редактировать
-    </a>
+    <div style="display:flex;gap:8px">
+      <a href="{% url 'pass_docs_employee_edit' employee.pk %}" class="pd-btn pd-btn--ghost pd-btn--sm">
+        <i class="fas fa-edit"></i> Редактировать
+      </a>
+      <button type="button" class="pd-btn pd-btn--danger pd-btn--sm"
+              onclick="if(confirm('Удалить сотрудника «{{ employee.full_name }}» и все его документы?\n\nЭто действие нельзя отменить.')){document.getElementById('delete-emp-form').submit()}">
+        <i class="fas fa-trash"></i> Удалить
+      </button>
+      <form id="delete-emp-form" method="post"
+            action="{% url 'pass_docs_employee_delete' employee.pk %}" style="display:none">
+        {% csrf_token %}
+      </form>
+    </div>
   </div>
   <div class="pd-meta-grid pd-meta-grid--employee">
     <div>

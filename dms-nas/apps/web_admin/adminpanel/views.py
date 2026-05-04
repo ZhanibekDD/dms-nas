@@ -1492,6 +1492,21 @@ def pass_docs_employee_edit(request, employee_id: int):
     })
 
 
+# ── Удалить сотрудника ────────────────────────────────────────────────────────
+
+@staff_member_required
+@require_POST
+def pass_docs_employee_delete(request, employee_id: int):
+    from pass_docs.models import Employee
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+    name = emp.full_name
+    emp.delete()
+    messages.success(request, f"Сотрудник «{name}» и все его документы удалены.")
+    return redirect("pass_docs_employees")
+
+
 # ── Скачать Excel-заявку ──────────────────────────────────────────────────────
 
 @staff_member_required

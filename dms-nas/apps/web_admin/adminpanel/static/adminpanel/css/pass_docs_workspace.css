@@ -1194,6 +1194,15 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   border-color: #15803d;
 }
 
+/* ── Кнопка danger (красный) ─────────────────────────────────── */
+.pd-btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+  box-shadow: 0 2px 6px rgba(220,38,38,.25);
+}
+.pd-btn--danger:hover { background: #b91c1c; border-color: #b91c1c; }
+
 /* ── ZIP-загрузка архива ─────────────────────────────────────── */
 .pd-card--zip-upload { border-top: 3px solid #2563eb; }
 

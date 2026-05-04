@@ -9,6 +9,11 @@ urlpatterns = [
     path("workspace/pass-docs/employees/", views.pass_docs_employees, name="pass_docs_employees"),
     path("workspace/pass-docs/employees/add/", views.pass_docs_employee_create, name="pass_docs_employee_create"),
     path(
+        "workspace/pass-docs/employees/<int:employee_id>/delete/",
+        views.pass_docs_employee_delete,
+        name="pass_docs_employee_delete",
+    ),
+    path(
         "workspace/pass-docs/employees/<int:employee_id>/edit/",
         views.pass_docs_employee_edit,
         name="pass_docs_employee_edit",

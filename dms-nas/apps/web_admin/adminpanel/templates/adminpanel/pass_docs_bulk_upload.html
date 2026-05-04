@@ -2,166 +2,173 @@
 
 {% block html_title %}Массовая загрузка{% endblock %}
 {% block pass_docs_title %}Массовая загрузка документов{% endblock %}
-{% block pass_docs_subtitle %}Загрузите ZIP или RAR-архив с папками сотрудников{% endblock %}
+{% block pass_docs_subtitle %}Загрузите архив с документами сотрудника{% endblock %}
 
 {% block pass_docs_content %}
 
-{# ── Инструкция ── #}
+{% if result_emp %}
+{# ── Результат ── #}
 <section class="pd-card">
   <div class="pd-card__header">
-    <h2><i class="fas fa-boxes" style="color:#2563eb;margin-right:8px"></i>Как подготовить архив</h2>
-  </div>
-  <p class="pd-card__hint">
-    Структура архива должна содержать папки сотрудников с именем
-    <strong>N&amp;ФИО</strong> (где N — порядковый номер), а внутри — файлы с именем
-    <strong>КОД&amp;Название.pdf</strong>.
-  </p>
-  <div class="pd-bulk-structure">
-    <div class="pd-bulk-tree">
-      <div class="pd-tree-root"><i class="fas fa-file-archive"></i> архив.zip / архив.rar</div>
-      <div class="pd-tree-folder"><i class="fas fa-folder-open"></i> PDF/</div>
-      <div class="pd-tree-emp"><i class="fas fa-folder" style="color:#f59e0b"></i> 1&amp;Черкез/</div>
-      <div class="pd-tree-file"><i class="fas fa-file-pdf" style="color:#dc2626"></i> 6&amp;Паспорт.pdf</div>
-      <div class="pd-tree-file"><i class="fas fa-file-pdf" style="color:#dc2626"></i> 26&amp;Электробезопасность.pdf</div>
-      <div class="pd-tree-file"><i class="fas fa-file-pdf" style="color:#dc2626"></i> 14&amp;ОхранаТруда.pdf</div>
-      <div class="pd-tree-emp"><i class="fas fa-folder" style="color:#f59e0b"></i> 2&amp;Иванов/</div>
-      <div class="pd-tree-file"><i class="fas fa-file-pdf" style="color:#dc2626"></i> 6&amp;Паспорт.pdf</div>
-      <div class="pd-tree-file muted">… и т.д.</div>
-    </div>
-    <div class="pd-bulk-rules">
-      <p><strong>Правила именования:</strong></p>
-      <ul>
-        <li>Папка сотрудника: <code>1&amp;ФИО</code> — число до &amp; игнорируется, главное ФИО</li>
-        <li>Файл документа: <code>6&amp;Любое название.pdf</code> — число до &amp; определяет тип</li>
-        <li>Папки <code>R&amp;…</code> / <code>D&amp;…</code> (буквенный префикс) — пропускаются</li>
-        <li>Формат файлов: PDF, JPG, PNG, TIFF, WEBP</li>
-      </ul>
-      <p class="pd-muted" style="margin-top:8px;font-size:12px">
-        Коды типов документов: 6 = Паспорт РФ, 7 = Медсправка, 13 = ОТ (прог. В),
-        14 = ОТ (прог. А,Б), 26 = Электробезопасность, 31 = БДД, 44 = Трудовой договор…
-        <a href="{% url 'pass_docs_document_types' %}">Полный справочник →</a>
-      </p>
-    </div>
-  </div>
-</section>
-
-{# ── Форма загрузки ── #}
-<section class="pd-card pd-card--zip-upload">
-  <div class="pd-card__header">
-    <h2><i class="fas fa-cloud-upload-alt" style="color:#2563eb;margin-right:8px"></i>Загрузить архив</h2>
+    <h2>Загрузка завершена</h2>
+    <a href="{% url 'pass_docs_employee_detail' result_emp.pk %}" class="pd-btn pd-btn--primary pd-btn--sm">
+      <i class="fas fa-user"></i> Открыть карточку {{ result_emp.full_name }}
+    </a>
   </div>
 
-  <form method="post" enctype="multipart/form-data" action="{% url 'pass_docs_bulk_upload' %}"
-        class="pd-zip-form" id="bulk-upload-form">
-    {% csrf_token %}
-    <div class="pd-dropzone" id="bulk-dropzone">
-      <i class="fas fa-file-archive pd-dropzone__icon"></i>
-      <p class="pd-dropzone__label">Перетащите ZIP или RAR сюда</p>
-      <p class="pd-dropzone__sub" id="bulk-filename">или нажмите для выбора файла</p>
-      <input type="file" name="archive_file" id="id_archive_file"
-             accept=".zip,.rar" required class="pd-dropzone__input"
-             onchange="bulkUpdateName(this)">
+  <div class="pd-meta-grid" style="margin:16px 0">
+    <div>
+      <span class="pd-k">Сотрудник</span>
+      <span class="pd-v"><strong>{{ result_emp.full_name }}</strong></span>
     </div>
-    <div style="margin-top:14px;display:flex;gap:12px;align-items:center">
-      <button type="submit" class="pd-btn pd-btn--primary pd-btn--lg" id="bulk-submit-btn">
-        <i class="fas fa-upload"></i> Загрузить и распознать
-      </button>
-      <span class="pd-muted" style="font-size:13px">
-        После загрузки распознавание запускается автоматически в фоне (~1–2 мин на документ).
+    <div>
+      <span class="pd-k">Документов загружено</span>
+      <span class="pd-v">
+        <span class="pd-badge pd-badge--ok">{{ result_created|length }}</span>
       </span>
     </div>
-  </form>
-</section>
-
-{# ── Результат (после POST) ── #}
-{% if results %}
-<section class="pd-card">
-  <div class="pd-card__header">
-    <h2>Результат загрузки</h2>
-    <span class="pd-badge {% if results.total_docs > 0 %}pd-badge--ok{% else %}pd-badge--warn{% endif %}">
-      {{ results.total_docs }} документ{{ results.total_docs|pluralize:",,ов" }} загружено
-    </span>
+    {% if result_skipped %}
+    <div>
+      <span class="pd-k">Пропущено</span>
+      <span class="pd-v">
+        <span class="pd-badge" style="background:#fef3c7;color:#92400e">{{ result_skipped|length }}</span>
+      </span>
+    </div>
+    {% endif %}
   </div>
 
-  {% if results.employees %}
+  {% if result_created %}
   <div class="pd-table-wrap">
     <table class="pd-table">
       <thead>
-        <tr>
-          <th>Папка в архиве</th>
-          <th>Сотрудник</th>
-          <th>Статус</th>
-          <th>Документы</th>
-          <th></th>
-        </tr>
+        <tr><th>Тип документа</th><th>Файл</th><th>Статус</th></tr>
       </thead>
       <tbody>
-        {% for g in results.employees %}
+        {% for doc in result_created %}
         <tr>
-          <td class="pd-muted" style="font-family:monospace;font-size:13px">{{ g.folder_name }}</td>
-          <td>
-            <strong>{{ g.emp_name }}</strong>
+          <td>{{ doc.document_type.name }}</td>
+          <td class="pd-muted" style="font-size:13px">
+            {% with doc.metadata.archive_source as src %}{{ src|default:doc.source_path }}{% endwith %}
           </td>
-          <td>
-            {% if g.emp_created %}
-              <span class="pd-badge pd-badge--warn">Создан новый</span>
-            {% else %}
-              <span class="pd-badge pd-badge--ok">Найден</span>
-            {% endif %}
-          </td>
-          <td>
-            <span class="pd-badge pd-badge--ok" style="margin-right:4px">
-              {{ g.docs_created }} загружено
-            </span>
-            {% if g.docs_skipped %}
-            <span class="pd-badge" style="background:#fef3c7;color:#92400e">
-              {{ g.docs_skipped|length }} пропущено
-            </span>
-            {% endif %}
-          </td>
-          <td class="pd-right">
-            <a href="/workspace/pass-docs/employees/{{ g.emp_pk }}/" class="pd-btn pd-btn--ghost pd-btn--sm">
-              Открыть →
-            </a>
-          </td>
+          <td><span class="pd-badge pd-badge--warn">Распознаётся…</span></td>
         </tr>
-        {% if g.docs_skipped %}
-        <tr>
-          <td colspan="5" style="padding:0 16px 12px;background:#fefce8">
-            <details>
-              <summary style="cursor:pointer;color:#92400e;font-size:13px">
-                Пропущенные файлы ({{ g.docs_skipped|length }})
-              </summary>
-              <ul style="margin:6px 0 0 16px;font-size:12px;color:#78350f">
-                {% for s in g.docs_skipped %}<li>{{ s }}</li>{% endfor %}
-              </ul>
-            </details>
-          </td>
-        </tr>
-        {% endif %}
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <p class="pd-muted" style="margin-top:12px;font-size:13px">
+    <i class="fas fa-robot"></i>
+    Распознавание запущено в фоне. Откройте карточку сотрудника через 1–2 минуты — данные появятся автоматически.
+  </p>
   {% endif %}
 
-  {% if results.no_folder %}
-  <div style="margin-top:12px;padding:10px 14px;background:#fef3c7;border-radius:8px">
-    <p style="font-size:13px;color:#92400e;margin:0">
-      <i class="fas fa-exclamation-triangle"></i>
-      Файлы без папки сотрудника ({{ results.no_folder|length }}) — пропущены:
-      {% for f in results.no_folder %}<code style="font-size:11px">{{ f }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}
+  {% if result_skipped %}
+  <div style="margin-top:14px;padding:12px 14px;background:#fef3c7;border-radius:8px">
+    <p style="font-weight:600;color:#92400e;margin:0 0 6px"><i class="fas fa-exclamation-triangle"></i> Пропущенные файлы</p>
+    <ul style="margin:0;padding-left:18px;font-size:13px;color:#78350f">
+      {% for s in result_skipped %}<li>{{ s }}</li>{% endfor %}
+    </ul>
+    <p style="font-size:12px;color:#92400e;margin:8px 0 0">
+      Убедитесь, что имена файлов содержат код типа документа: <code>6&amp;Паспорт.pdf</code>, <code>26&amp;Электробезопасность.pdf</code>…
     </p>
   </div>
   {% endif %}
 
-  {% if results.total_docs > 0 %}
-  <p class="pd-muted" style="margin-top:16px;font-size:13px">
-    <i class="fas fa-robot"></i>
-    Распознавание документов запущено в фоне. Через 1–2 минуты откройте карточку
-    сотрудника — данные появятся автоматически.
+  <div style="margin-top:20px">
+    <a href="{% url 'pass_docs_bulk_upload' %}" class="pd-btn pd-btn--ghost">
+      <i class="fas fa-plus"></i> Загрузить ещё
+    </a>
+  </div>
+</section>
+
+{% else %}
+{# ── Форма загрузки ── #}
+<section class="pd-card" style="max-width:700px">
+  <div class="pd-card__header">
+    <h2><i class="fas fa-boxes" style="color:#2563eb;margin-right:8px"></i>Загрузить документы архивом</h2>
+  </div>
+
+  <p class="pd-card__hint">
+    Выберите сотрудника, загрузите ZIP или RAR-архив с его документами.
+    Каждый файл в архиве должен быть назван по схеме <strong>КОД&amp;Название.pdf</strong>
+    (например <code>6&amp;Паспорт.pdf</code>, <code>26&amp;Электробезопасность.pdf</code>).
+    Папки внутри архива игнорируются — документы ищутся по всей глубине.
   </p>
-  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" action="{% url 'pass_docs_bulk_upload' %}"
+        id="bulk-form" style="display:flex;flex-direction:column;gap:20px;padding:4px 0 8px">
+    {% csrf_token %}
+
+    {# Выбор сотрудника #}
+    <div class="pd-form-group">
+      <label class="pd-label" for="id_employee_id">Сотрудник <span style="color:#e74c3c">*</span></label>
+      <select name="employee_id" id="id_employee_id" class="pd-input" required>
+        <option value="">— Выберите сотрудника —</option>
+        {% for emp in employees %}
+        <option value="{{ emp.pk }}">{{ emp.full_name }}{% if emp.company %} — {{ emp.company }}{% endif %}</option>
+        {% endfor %}
+      </select>
+      <p class="pd-muted" style="font-size:12px;margin-top:4px">
+        Нет в списке?
+        <a href="{% url 'pass_docs_employee_create' %}">Создать нового сотрудника →</a>
+      </p>
+    </div>
+
+    {# Dropzone #}
+    <div class="pd-form-group">
+      <label class="pd-label">Архив с документами <span style="color:#e74c3c">*</span></label>
+      <div class="pd-dropzone" id="bulk-dropzone">
+        <i class="fas fa-file-archive pd-dropzone__icon"></i>
+        <p class="pd-dropzone__label">Перетащите ZIP или RAR сюда</p>
+        <p class="pd-dropzone__sub" id="bulk-filename">или нажмите для выбора файла</p>
+        <input type="file" name="archive_file" id="id_archive_file"
+               accept=".zip,.rar" required class="pd-dropzone__input"
+               onchange="bulkUpdateName(this)">
+      </div>
+    </div>
+
+    {# Подсказка по кодам #}
+    <details style="font-size:13px;color:#64748b">
+      <summary style="cursor:pointer;font-weight:600;color:#374151">Коды типов документов</summary>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+        {% spaceless %}
+        <code>6&amp; — Паспорт РФ</code>
+        <code>7&amp; — Медсправка</code>
+        <code>13&amp; — ОТ (прог. В)</code>
+        <code>14&amp; — ОТ (прог. А,Б)</code>
+        <code>15&amp; — Пожарная безопасность</code>
+        <code>16&amp; — Газобезопасность</code>
+        <code>17&amp; — Пром. безопасность</code>
+        <code>19&amp; — ОПП</code>
+        <code>20&amp; — Подъёмные сооружения</code>
+        <code>22&amp; — Обучение по ОТ</code>
+        <code>23&amp; — СОУТ</code>
+        <code>26&amp; — Электробезопасность</code>
+        <code>31&amp; — БДД</code>
+        <code>37&amp; — Квалиф. удостоверение</code>
+        <code>44&amp; — Трудовой договор</code>
+        <code>45&amp; — Согласие на ПД</code>
+        <code>46&amp; — Договор МО</code>
+        <code>52&amp; — Фото</code>
+        <code>57&amp; — СИЗ</code>
+        <code>59&amp; — ПТМ</code>
+        <code>61&amp; — ПБ1</code>
+        <code>74&amp; — УМО</code>
+        <code>78&amp; — Нефтепроводы</code>
+        {% endspaceless %}
+      </div>
+      <p style="margin-top:6px"><a href="{% url 'pass_docs_document_types' %}">Полный справочник типов →</a></p>
+    </details>
+
+    <div style="display:flex;gap:12px;align-items:center">
+      <button type="submit" class="pd-btn pd-btn--primary pd-btn--lg" id="bulk-submit-btn">
+        <i class="fas fa-cloud-upload-alt"></i> Загрузить сотрудника
+      </button>
+      <span class="pd-muted" style="font-size:13px">
+        Распознавание запустится автоматически после загрузки
+      </span>
+    </div>
+  </form>
 </section>
 {% endif %}
 
@@ -169,43 +176,11 @@
 
 {% block extra_head %}
 <style>
-.pd-bulk-structure {
-  display: flex;
-  gap: 24px;
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-.pd-bulk-tree {
-  font-size: 13px;
-  font-family: monospace;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px 18px;
-  min-width: 260px;
-  line-height: 2;
-}
-.pd-tree-root { color: #1e40af; font-weight: 600; }
-.pd-tree-folder { padding-left: 16px; color: #64748b; }
-.pd-tree-emp { padding-left: 32px; color: #b45309; font-weight: 600; }
-.pd-tree-file { padding-left: 48px; color: #374151; }
-.pd-tree-file.muted { color: #94a3b8; }
-.pd-bulk-rules { flex: 1; min-width: 260px; font-size: 13px; }
-.pd-bulk-rules ul { padding-left: 18px; margin: 8px 0; }
-.pd-bulk-rules li { margin-bottom: 4px; }
-.pd-bulk-rules code {
-  background: #f1f5f9;
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-/* Dropzone */
 .pd-dropzone {
   position: relative;
   border: 2px dashed #cbd5e1;
   border-radius: 12px;
-  padding: 40px 24px;
+  padding: 36px 24px;
   text-align: center;
   cursor: pointer;
   transition: border-color .2s, background .2s;
@@ -214,62 +189,42 @@
   border-color: #2563eb;
   background: #eff6ff;
 }
-.pd-dropzone__icon {
-  font-size: 40px;
-  color: #94a3b8;
-  display: block;
-  margin-bottom: 10px;
-}
-.pd-dropzone__label {
-  font-size: 16px;
-  font-weight: 600;
-  color: #374151;
-  margin: 0 0 4px;
-}
-.pd-dropzone__sub {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
-}
-.pd-dropzone__input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
+.pd-dropzone__icon { font-size: 36px; color: #94a3b8; display: block; margin-bottom: 10px; }
+.pd-dropzone__label { font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 4px; }
+.pd-dropzone__sub { font-size: 13px; color: #64748b; margin: 0; }
+.pd-dropzone__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+details code {
+  background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+  font-size: 11px; white-space: nowrap;
 }
 </style>
 <script>
 function bulkUpdateName(inp) {
   var f = inp.files[0];
-  if (f) {
-    document.getElementById('bulk-filename').textContent = f.name;
-    document.querySelector('.pd-dropzone').style.borderColor = '#16a34a';
-    document.querySelector('.pd-dropzone').style.background = '#f0fdf4';
-    document.querySelector('.pd-dropzone__icon').style.color = '#16a34a';
-  }
+  if (!f) return;
+  document.getElementById('bulk-filename').textContent = f.name;
+  var dz = document.getElementById('bulk-dropzone');
+  dz.style.borderColor = '#16a34a';
+  dz.style.background = '#f0fdf4';
+  dz.querySelector('.pd-dropzone__icon').style.color = '#16a34a';
 }
-// Drag & drop highlight
 (function() {
   var dz = document.getElementById('bulk-dropzone');
   if (!dz) return;
   dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
   dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); });
   dz.addEventListener('drop', function(e) {
+    e.preventDefault();
     dz.classList.remove('drag-over');
-    var files = e.dataTransfer.files;
-    if (files.length) {
-      document.getElementById('id_archive_file').files = files;
+    var dt = e.dataTransfer;
+    if (dt.files.length) {
+      document.getElementById('id_archive_file').files = dt.files;
       bulkUpdateName(document.getElementById('id_archive_file'));
     }
   });
-
-  // Prevent double-submit
-  document.getElementById('bulk-upload-form').addEventListener('submit', function() {
+  document.getElementById('bulk-form') && document.getElementById('bulk-form').addEventListener('submit', function() {
     var btn = document.getElementById('bulk-submit-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Обрабатывается…';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загружается…'; }
   });
 })();
 </script>

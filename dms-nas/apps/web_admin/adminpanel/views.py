@@ -1720,106 +1720,74 @@ def _open_archive(file_obj):
     )
 
 
-def _process_bulk_archive(archive_file):
+
+@staff_member_required
+def pass_docs_bulk_upload(request):
     """
-    Распаковать архив → найти папки сотрудников N&ФИО → найти/создать Employee →
-    создать EmployeeDocument для каждого файла с кодом типа N&Filename.
-    Возвращает словарь results для отображения в шаблоне.
+    GET:  форма — выбрать сотрудника + загрузить ZIP/RAR.
+    POST: распаковать архив, все файлы → выбранному сотруднику, OCR в фоне.
     """
-    import re, uuid as _uuid, hashlib
-    from pathlib import Path as _Path
-    from django.core.files.base import ContentFile
     from pass_docs.models import Employee, EmployeeDocument, DocumentType
 
+    employees = Employee.objects.filter(is_active=True).order_by("full_name")
+
+    if request.method == "GET":
+        ctx = {**_pass_docs_shell_ctx("bulk_upload"), "employees": employees}
+        return render(request, "adminpanel/pass_docs_bulk_upload.html", ctx)
+
+    # POST ─────────────────────────────────────────────────────────────────────
+    employee_id = request.POST.get("employee_id", "").strip()
+    archive_file = request.FILES.get("archive_file")
+
+    errors = []
+    if not employee_id:
+        errors.append("Выберите сотрудника.")
+    if not archive_file:
+        errors.append("Прикрепите архив (ZIP или RAR).")
+
+    if errors:
+        for e in errors:
+            messages.error(request, e)
+        ctx = {**_pass_docs_shell_ctx("bulk_upload"), "employees": employees}
+        return render(request, "adminpanel/pass_docs_bulk_upload.html", ctx)
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        messages.error(request, "Сотрудник не найден.")
+        ctx = {**_pass_docs_shell_ctx("bulk_upload"), "employees": employees}
+        return render(request, "adminpanel/pass_docs_bulk_upload.html", ctx)
+
+    import uuid as _uuid, threading
+    from pathlib import Path as _Path
+    from django.core.files.base import ContentFile
+
     SUPPORTED = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
-    EMP_FOLDER_RE = re.compile(r'^(\d+)&(.+)$')  # числовой префикс: 1&Черкез
+    created = []
+    skipped = []
 
-    employee_groups: dict[str, dict] = {}  # label → {"folder_name", "files"}
-    no_folder_files: list[str] = []
-
-    with _open_archive(archive_file) as arc:
-        for entry in arc.namelist():
-            try:
-                if arc.is_dir(entry):
+    try:
+        with _open_archive(archive_file) as arc:
+            for entry in arc.namelist():
+                try:
+                    is_dir = arc.is_dir(entry)
+                except Exception:
+                    is_dir = entry.endswith("/") or entry.endswith("\\")
+                if is_dir:
                     continue
-            except Exception:
-                if entry.endswith("/"):
+
+                norm = entry.replace("\\", "/")
+                basename = norm.split("/")[-1]
+                if not basename:
                     continue
 
-            norm = entry.replace("\\", "/")
-            parts = norm.split("/")
-            basename = parts[-1]
-            if not basename:
-                continue
+                suffix = _Path(basename).suffix.lower()
+                if suffix not in SUPPORTED:
+                    continue
 
-            suffix = _Path(basename).suffix.lower()
-            if suffix not in SUPPORTED:
-                continue
+                doc_code = None
+                if "&" in basename:
+                    doc_code = basename.split("&", 1)[0].strip()
 
-            # Ищем папку сотрудника (числовой N& в любом компоненте пути, кроме имени файла)
-            emp_folder_name = None
-            emp_label = None
-            for part in parts[:-1]:
-                m = EMP_FOLDER_RE.match(part)
-                if m:
-                    emp_folder_name = part
-                    emp_label = m.group(2).strip()
-                    break
-
-            doc_code = None
-            if "&" in basename:
-                doc_code = basename.split("&", 1)[0].strip()
-
-            if emp_label:
-                if emp_label not in employee_groups:
-                    employee_groups[emp_label] = {
-                        "folder_name": emp_folder_name,
-                        "files": [],
-                    }
-                employee_groups[emp_label]["files"].append((entry, doc_code, basename))
-            elif doc_code:
-                no_folder_files.append(basename)
-
-        results = {
-            "employees": [],
-            "no_folder": no_folder_files,
-            "total_docs": 0,
-            "total_skipped": 0,
-        }
-
-        for label, group in employee_groups.items():
-            folder_name = group["folder_name"]
-
-            # Найти существующего сотрудника
-            emp = (
-                Employee.objects.filter(source_label__iexact=label).first()
-                or Employee.objects.filter(full_name__icontains=label).first()
-                or Employee.objects.filter(last_name__iexact=label.split()[0]).first()
-            )
-            emp_created = False
-            if emp is None:
-                base_key = f"bulk_{hashlib.md5(label.encode()).hexdigest()[:12]}"
-                key = base_key
-                n = 0
-                while Employee.objects.filter(import_key=key).exists():
-                    n += 1
-                    key = f"{base_key}_{n}"
-                parts_name = label.split()
-                emp = Employee.objects.create(
-                    import_key=key,
-                    source_folder_name=folder_name,
-                    source_label=label,
-                    full_name=label,
-                    last_name=parts_name[0] if parts_name else label,
-                    first_name=" ".join(parts_name[1:]) if len(parts_name) > 1 else "",
-                    is_active=True,
-                )
-                emp_created = True
-
-            created = []
-            skipped = []
-
-            for entry_name, doc_code, basename in group["files"]:
                 if doc_code is None:
                     skipped.append(f"{basename} — нет кода N& в имени файла")
                     continue
@@ -1830,7 +1798,7 @@ def _process_bulk_archive(archive_file):
                     continue
 
                 try:
-                    file_bytes = arc.read(entry_name)
+                    file_bytes = arc.read(entry)
                 except Exception as exc:
                     skipped.append(f"{basename} — ошибка чтения: {exc}")
                     continue
@@ -1847,11 +1815,7 @@ def _process_bulk_archive(archive_file):
                         parse_status=EmployeeDocument.ParseStatus.PENDING,
                         status=EmployeeDocument.Status.PENDING,
                         source_path=placeholder,
-                        metadata={
-                            "zip_source": entry_name,
-                            "folder": folder_name,
-                            "uploaded_via": "bulk_archive",
-                        },
+                        metadata={"archive_source": entry, "uploaded_via": "bulk_archive"},
                     )
                     try:
                         doc.source_path = doc.original_file.path
@@ -1862,69 +1826,34 @@ def _process_bulk_archive(archive_file):
                 except Exception as exc:
                     skipped.append(f"{basename} — {exc}")
 
-            results["employees"].append({
-                "label": label,
-                "folder_name": folder_name,
-                "emp_pk": emp.pk,
-                "emp_name": emp.full_name,
-                "emp_created": emp_created,
-                "docs_created": len(created),
-                "docs_skipped": skipped,
-                "doc_ids": [d.pk for d in created],
-            })
-            results["total_docs"] += len(created)
-            results["total_skipped"] += len(skipped)
-
-        results["total_skipped"] += len(no_folder_files)
-        return results
-
-
-@staff_member_required
-def pass_docs_bulk_upload(request):
-    """Массовая загрузка документов из ZIP/RAR-архива с папками сотрудников."""
-    if request.method == "GET":
-        return render(
-            request,
-            "adminpanel/pass_docs_bulk_upload.html",
-            _pass_docs_shell_ctx("bulk_upload"),
-        )
-
-    archive_file = request.FILES.get("archive_file")
-    if not archive_file:
-        messages.error(request, "Прикрепите архив (ZIP или RAR).")
-        return render(
-            request,
-            "adminpanel/pass_docs_bulk_upload.html",
-            _pass_docs_shell_ctx("bulk_upload"),
-        )
-
-    results = None
-    try:
-        results = _process_bulk_archive(archive_file)
     except Exception as exc:
-        logger.error("Bulk archive upload error: %s", exc)
+        logger.error("Bulk archive upload error employee=%s: %s", employee_id, exc)
         messages.error(request, f"Ошибка при обработке архива: {exc}")
+        ctx = {**_pass_docs_shell_ctx("bulk_upload"), "employees": employees}
+        return render(request, "adminpanel/pass_docs_bulk_upload.html", ctx)
 
-    if results:
-        all_doc_ids = [did for g in results["employees"] for did in g["doc_ids"]]
-        if all_doc_ids:
-            import threading
+    # Фоновый OCR
+    if created:
+        doc_ids = [d.pk for d in created]
 
-            def _bg(ids):
-                from pass_docs.models import EmployeeDocument as _ED
-                from pass_docs.services.document_pipeline import run_extraction as _run
-                for did in ids:
-                    try:
-                        d = _ED.objects.select_related("employee", "document_type").get(pk=did)
-                        _run(d)
-                    except Exception as exc:
-                        logger.error("BG OCR doc %s: %s", did, exc)
+        def _bg(ids):
+            from pass_docs.models import EmployeeDocument as _ED
+            from pass_docs.services.document_pipeline import run_extraction as _run
+            for did in ids:
+                try:
+                    d = _ED.objects.select_related("employee", "document_type").get(pk=did)
+                    _run(d)
+                except Exception as exc:
+                    logger.error("BG OCR doc %s: %s", did, exc)
 
-            threading.Thread(target=_bg, args=(all_doc_ids,), daemon=True).start()
+        threading.Thread(target=_bg, args=(doc_ids,), daemon=True).start()
 
     ctx = {
         **_pass_docs_shell_ctx("bulk_upload"),
-        "results": results,
+        "employees": employees,
+        "result_emp": emp,
+        "result_created": created,
+        "result_skipped": skipped,
     }
     return render(request, "adminpanel/pass_docs_bulk_upload.html", ctx)
 

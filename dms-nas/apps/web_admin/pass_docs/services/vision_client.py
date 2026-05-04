@@ -92,6 +92,21 @@ def chat_json(
         raise
 
     data = resp.json()
+
+    # Диагностика: логируем сколько токенов потратил промпт и сколько выдала модель
+    done_reason = data.get("done_reason", "?")
+    prompt_tokens = data.get("prompt_eval_count", "?")
+    output_tokens = data.get("eval_count", "?")
+    logger.info(
+        "Ollama done: reason=%s prompt_tokens=%s output_tokens=%s num_ctx=%s",
+        done_reason, prompt_tokens, output_tokens, num_ctx,
+    )
+    if done_reason == "length":
+        logger.error(
+            "Ollama context overflow! prompt_tokens=%s >= num_ctx=%s — увеличь num_ctx",
+            prompt_tokens, num_ctx,
+        )
+
     content = (data.get("message") or {}).get("content") or ""
     if not isinstance(content, str):
         content = json.dumps(content, ensure_ascii=False)
@@ -100,6 +115,10 @@ def chat_json(
     try:
         return json.loads(content)
     except json.JSONDecodeError:
+        logger.error(
+            "Ollama JSON parse error. done_reason=%s prompt_tokens=%s output_tokens=%s content_len=%s first200=%r",
+            done_reason, prompt_tokens, output_tokens, len(content), content[:200],
+        )
         # иногда модель оборачивает JSON в markdown
         start, end = content.find("{"), content.rfind("}")
         if start >= 0 and end > start:

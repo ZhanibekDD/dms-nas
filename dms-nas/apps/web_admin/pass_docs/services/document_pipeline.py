@@ -57,9 +57,10 @@ def resolve_extractor_kind(document_type: DocumentType) -> str | None:
     return None
 
 
-_FULL_TEXT_INSTRUCTION = (
-    "full_text (ОБЯЗАТЕЛЬНО: весь текст документа дословно, слово за словом, "
-    "строка за строкой в том же порядке что на документе, ничего не пропуская), "
+# full_text идёт ПОСЛЕДНИМ — структурированные поля важнее и должны извлечься
+# первыми, даже если выходной контекст кончится раньше закрытия JSON.
+_FULL_TEXT_SUFFIX = (
+    ', full_text (весь текст документа дословно, строка за строкой — ПОСЛЕДНЕЕ поле)'
 )
 
 
@@ -68,37 +69,38 @@ def _vision_prompt(kind: str) -> str:
         return (
             "Ты анализируешь изображение российского паспорта (разворот). "
             "Верни СТРОГО один JSON-объект без markdown и без пояснений. Ключи: "
-            + _FULL_TEXT_INSTRUCTION +
             "series (4 цифры), number (6 цифр), last_name, first_name, middle_name, "
             "birth_date (только YYYY-MM-DD или пустая строка), "
             "issue_date (только YYYY-MM-DD или пустая строка), "
-            "issuer (полное наименование органа выдавшего паспорт, напр. 'УМВД России по ЯНАО'), "
+            "issuer (полное наименование органа выдавшего паспорт), "
             "issuer_code (6 цифр кода подразделения, можно как 123-456), "
-            "registration_address (одна строка — адрес регистрации как в документе). "
+            "registration_address (одна строка — адрес регистрации как в документе)"
+            + _FULL_TEXT_SUFFIX + ". "
             "Поле iin не используй. Неизвестные поля — пустая строка или null."
         )
     if kind == "medical_certificate":
         return (
             "Ты анализируешь изображение медицинской справки (форма 086/у или аналог). "
-            "Верни СТРОГО один JSON-объект. Ключи: "
-            + _FULL_TEXT_INSTRUCTION +
-            "certificate_number, issue_date, "
-            "valid_until, patient_name, organization, conclusion. Даты в ISO ГГГГ-ММ-ДД или пусто."
+            "Верни СТРОГО один JSON-объект без markdown. Ключи: "
+            "certificate_number, issue_date, valid_until, patient_name, organization, conclusion"
+            + _FULL_TEXT_SUFFIX + ". "
+            "Даты в ISO ГГГГ-ММ-ДД или пусто. Неизвестные поля — пустая строка или null."
         )
     if kind in _TRAINING_KINDS:
         return (
             "Ты анализируешь скан протокола или удостоверения обучения (РФ). "
             f"Тип по схеме extractor_kind: {kind}. "
             "Верни СТРОГО один JSON-объект без markdown. Ключи: "
-            + _FULL_TEXT_INSTRUCTION +
             "protocol_number, issue_date, valid_until (только YYYY-MM-DD или пустая строка), "
-            "holder_name, organization, program_name, conclusion. "
+            "holder_name, organization, program_name, conclusion"
+            + _FULL_TEXT_SUFFIX + ". "
             "Неизвестные поля — пустая строка или null."
         )
     return (
-        "Верни JSON-объект. Ключи: "
-        + _FULL_TEXT_INSTRUCTION +
-        "и другие поля документа которые видишь на изображении."
+        "Верни JSON-объект без markdown. Ключи: "
+        "issue_date, valid_until, holder_name, organization, document_number"
+        + _FULL_TEXT_SUFFIX + ". "
+        "Даты в ISO ГГГГ-ММ-ДД или пусто. Неизвестные поля — пустая строка или null."
     )
 
 

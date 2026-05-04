@@ -119,8 +119,23 @@ def chat_json(
             "Ollama JSON parse error. done_reason=%s prompt_tokens=%s output_tokens=%s content_len=%s first200=%r",
             done_reason, prompt_tokens, output_tokens, len(content), content[:200],
         )
-        # иногда модель оборачивает JSON в markdown
+        # 1. Попробовать вырезать JSON из markdown
         start, end = content.find("{"), content.rfind("}")
         if start >= 0 and end > start:
-            return json.loads(content[start : end + 1])
+            try:
+                return json.loads(content[start : end + 1])
+            except json.JSONDecodeError:
+                pass
+        # 2. JSON обрезан — попытаться закрыть незакрытую строку и объект
+        if start >= 0:
+            partial = content[start:]
+            # Закрываем незакрытую строку и объект
+            repaired = partial.rstrip() + '"}'
+            try:
+                result = json.loads(repaired)
+                logger.warning("Ollama JSON recovered by repair (truncated output). content_len=%s", len(content))
+                result["_truncated"] = True
+                return result
+            except json.JSONDecodeError:
+                pass
         raise

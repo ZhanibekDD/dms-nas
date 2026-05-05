@@ -341,14 +341,9 @@ def _sync_medical_certificate(emp: Employee, n: dict[str, Any], *, doc_pk: int) 
     company_skip_reason = ""
 
     if org:
-        if not company_empty:
-            company_skip_reason = "existing_company"
-        elif _medical_organization_trustworthy(org):
-            updates["company"] = org[:255]
-            fields_out.append("company")
-            company_auto_applied = True
-        else:
-            company_skip_reason = "organization_not_trustworthy"
+        # Организация в медсправке часто рукописная → высокий риск ошибки OCR.
+        # Автоматически в карточку не записываем — только в заметки для ручной проверки.
+        company_skip_reason = "handwritten_risk_not_autofilled"
 
     conclusion = _s(n.get("conclusion"))
     med_marker = f"--- Медсправка (документ id={doc_pk}) ---"

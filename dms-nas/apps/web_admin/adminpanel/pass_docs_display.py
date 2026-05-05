@@ -215,7 +215,8 @@ def extracted_text_for_ui(payload: dict) -> str:
     if not payload or not isinstance(payload, dict):
         return ""
 
-    full_text = (payload.get("full_text") or "").strip()
+    _ft = payload.get("full_text") or ""
+    full_text = ("\n".join(_ft) if isinstance(_ft, list) else str(_ft)).strip()
     if full_text:
         return full_text
 

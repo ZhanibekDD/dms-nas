@@ -379,9 +379,9 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
             else:
                 steps.append("pdf_text_weak_or_empty_try_vision")
                 if kind == "ru_passport":
-                    # Паспорт: одна страница + эвристика ориентации
-                    pil_page = _pdf_first_page_pil(path)
-                    if pil_page is None:
+                    # Паспорт: все страницы PDF (паспорт часто 2 стр: печать + биография)
+                    all_pils = _pdf_all_pages_pil(path)
+                    if not all_pils:
                         doc.extracted_json = {
                             "pipeline": steps,
                             "error": "pdf_first_page_render_failed",
@@ -389,12 +389,21 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                         }
                         doc.parse_status = EmployeeDocument.ParseStatus.ERROR
                     else:
-                        pil_for_vision, pre_meta = choose_passport_rotation(pil_page)
-                        steps.append("passport_orientation_heuristic")
-                        b64 = _pil_to_png_b64_for_vision(pil_for_vision)
+                        steps.append(f"pdf_pages_rendered:{len(all_pils)}")
+                        if len(all_pils) == 1:
+                            # Одна страница — применяем эвристику ориентации
+                            pil_for_vision, pre_meta = choose_passport_rotation(all_pils[0])
+                            steps.append("passport_orientation_heuristic")
+                            images_b64 = [_pil_to_png_b64_for_vision(pil_for_vision)]
+                        else:
+                            # Несколько страниц — эвристику к последней (биографической)
+                            pil_for_vision, pre_meta = choose_passport_rotation(all_pils[-1])
+                            steps.append("passport_orientation_heuristic_last_page")
+                            images_b64 = [_pil_to_png_b64_for_vision(p) for p in all_pils[:-1]]
+                            images_b64.append(_pil_to_png_b64_for_vision(pil_for_vision))
                         vision_raw = vision_client.chat_json(
                             _vision_prompt(kind),
-                            images_b64=[b64],
+                            images_b64=images_b64,
                         )
                         steps.append("vision_ok")
                         _ft_raw = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""

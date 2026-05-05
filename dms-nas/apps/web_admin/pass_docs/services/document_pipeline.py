@@ -398,7 +398,7 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
                         )
                         steps.append("vision_ok")
                         _ft_raw = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
-full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or "")
+                        full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or "")
                         normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
                         doc.extracted_json = _merge_passport_meta(
                             doc,
@@ -432,7 +432,7 @@ full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or 
                         )
                         steps.append("vision_ok")
                         _ft_raw = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
-full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or "")
+                        full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or "")
                         normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
                         doc.extracted_json = {
                             "pipeline": steps,
@@ -468,7 +468,7 @@ full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or 
             )
             steps.append("vision_ok")
             _ft_raw = vision_raw.pop("full_text", "") if isinstance(vision_raw, dict) else ""
-full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or "")
+            full_text = "\n".join(_ft_raw) if isinstance(_ft_raw, list) else str(_ft_raw or "")
             normalized = _run_extractor(kind, vision_json=vision_raw, pdf_text=None)
             base = {
                 "pipeline": steps,

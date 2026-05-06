@@ -2057,3 +2057,161 @@ def _send_excel_email(excel_bytes: bytes, emp, email_to: str) -> None:
         smtp.login(mail_user, mail_pass)
         smtp.send_message(msg)
     logger.info("Excel email sent to %s for employee %s", email_to, emp.pk)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NAS File Browser
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _nas_client():
+    """Создать клиент NAS из переменных окружения или config."""
+    from core.nas_client import NASClient
+    from core.config import NAS_BASE_URL as _DEF_URL, NAS_USER as _DEF_USER, NAS_PASSWORD as _DEF_PASS
+    url  = os.environ.get("NAS_BASE_URL")  or _DEF_URL
+    user = os.environ.get("NAS_USER")      or _DEF_USER
+    pwd  = os.environ.get("NAS_PASSWORD")  or _DEF_PASS
+    return NASClient(url, user, pwd)
+
+
+@staff_member_required
+def pass_docs_nas_browser(request):
+    return render(request, "adminpanel/pass_docs_nas_browser.html", {
+        **_pass_docs_shell_ctx("nas"),
+    })
+
+
+@staff_member_required
+def pass_docs_nas_api_list(request):
+    """AJAX GET: ?path=/Папка → JSON {items:[...], error:...}"""
+    path = (request.GET.get("path") or "").strip() or "/"
+    try:
+        client = _nas_client()
+        if path == "/":
+            raw = client.list_shares()
+            items = [
+                {
+                    "name": s.get("name", ""),
+                    "path": "/" + s.get("name", ""),
+                    "is_dir": True,
+                    "size": None,
+                    "mtime": None,
+                }
+                for s in raw
+            ]
+        else:
+            raw = client.list_folder(path)
+            items = []
+            for f in raw:
+                items.append({
+                    "name": f.get("name", ""),
+                    "path": f.get("path", path + "/" + f.get("name", "")),
+                    "is_dir": f.get("isdir", False),
+                    "size": (f.get("additional") or {}).get("size"),
+                    "mtime": (f.get("additional") or {}).get("time", {}).get("mtime"),
+                })
+        items.sort(key=lambda x: (0 if x["is_dir"] else 1, x["name"].lower()))
+        return JsonResponse({"items": items})
+    except Exception as exc:
+        logger.warning("NAS list %s error: %s", path, exc)
+        return JsonResponse({"items": [], "error": str(exc)}, status=200)
+
+
+@staff_member_required
+def pass_docs_nas_api_download(request):
+    """GET: ?path=/Папка/файл.pdf → file download"""
+    path = (request.GET.get("path") or "").strip()
+    if not path:
+        return HttpResponse("path required", status=400)
+    try:
+        client = _nas_client()
+        data = client.download(path)
+        if data is None:
+            return HttpResponse("Файл не найден на NAS", status=404)
+        filename = path.rsplit("/", 1)[-1]
+        import mimetypes as _mt
+        ctype, _ = _mt.guess_type(filename)
+        resp = HttpResponse(data, content_type=ctype or "application/octet-stream")
+        safe = filename.encode("utf-8", "replace").decode("latin-1", "replace")
+        resp["Content-Disposition"] = f'attachment; filename="{safe}"'
+        return resp
+    except Exception as exc:
+        logger.warning("NAS download %s error: %s", path, exc)
+        return HttpResponse(f"Ошибка скачивания: {exc}", status=500)
+
+
+@staff_member_required
+def pass_docs_nas_api_inline(request):
+    """GET: ?path=... → inline (для просмотра PDF/изображений)"""
+    path = (request.GET.get("path") or "").strip()
+    if not path:
+        return HttpResponse("path required", status=400)
+    try:
+        client = _nas_client()
+        data = client.download(path)
+        if data is None:
+            return HttpResponse("Файл не найден", status=404)
+        filename = path.rsplit("/", 1)[-1]
+        import mimetypes as _mt
+        ctype, _ = _mt.guess_type(filename)
+        resp = HttpResponse(data, content_type=ctype or "application/octet-stream")
+        resp["Content-Disposition"] = f'inline; filename="{filename}"'
+        return resp
+    except Exception as exc:
+        return HttpResponse(f"Ошибка: {exc}", status=500)
+
+
+@staff_member_required
+@require_POST
+def pass_docs_nas_api_delete(request):
+    """POST JSON {path}: удалить файл/папку"""
+    try:
+        body = json.loads(request.body)
+        path = (body.get("path") or "").strip()
+    except Exception:
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    if not path or path == "/":
+        return JsonResponse({"ok": False, "error": "invalid path"}, status=400)
+    try:
+        client = _nas_client()
+        ok = client.delete(path)
+        return JsonResponse({"ok": ok})
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)})
+
+
+@staff_member_required
+@require_POST
+def pass_docs_nas_api_mkdir(request):
+    """POST JSON {parent, name}: создать папку"""
+    try:
+        body = json.loads(request.body)
+        parent = (body.get("parent") or "").strip()
+        name   = (body.get("name") or "").strip()
+    except Exception:
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    if not parent or not name:
+        return JsonResponse({"ok": False, "error": "parent и name обязательны"}, status=400)
+    try:
+        client = _nas_client()
+        ok = client.create_folder(parent, name)
+        return JsonResponse({"ok": ok})
+    except Exception as exc:
+        return JsonResponse({"ok": False, "error": str(exc)})
+
+
+@staff_member_required
+@require_POST
+def pass_docs_nas_api_upload(request):
+    """POST multipart: path (папка назначения) + file"""
+    folder = (request.POST.get("path") or "").strip()
+    file_obj = request.FILES.get("file")
+    if not folder or not file_obj:
+        return JsonResponse({"ok": False, "error": "path и file обязательны"}, status=400)
+    try:
+        client = _nas_client()
+        data = file_obj.read()
+        ok = client.upload(folder, file_obj.name, data)
+        return JsonResponse({"ok": ok})
+    except Exception as exc:
+        logger.warning("NAS upload error: %s", exc)
+        return JsonResponse({"ok": False, "error": str(exc)})

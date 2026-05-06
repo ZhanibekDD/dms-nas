@@ -27,6 +27,19 @@ logger = logging.getLogger(__name__)
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp"}
 
+
+def _parse_date_field(value: Any) -> "date | None":
+    from datetime import date, datetime
+    if not value:
+        return None
+    s = str(value).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
 _TRAINING_KINDS = frozenset(
     {
         "safety_protocol_v",
@@ -514,7 +527,24 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
         }
         doc.parse_status = EmployeeDocument.ParseStatus.ERROR
 
-    doc.save(update_fields=["extracted_json", "parse_status", "updated_at"])
+    # Авто-заполнение дат и авто-Принят при успешном OCR
+    update_fields = ["extracted_json", "parse_status", "updated_at"]
+    if doc.parse_status == EmployeeDocument.ParseStatus.OK:
+        normalized = (doc.extracted_json or {}).get("normalized") or {}
+        _issue = _parse_date_field(normalized.get("issue_date"))
+        _expiry = _parse_date_field(normalized.get("valid_until") or normalized.get("expiry_date"))
+        if _issue and not doc.issue_date:
+            doc.issue_date = _issue
+            update_fields.append("issue_date")
+        if _expiry and not doc.expiry_date:
+            doc.expiry_date = _expiry
+            update_fields.append("expiry_date")
+        # Авто-принятие: убираем ручное утверждение
+        if doc.status == EmployeeDocument.Status.PENDING:
+            doc.status = EmployeeDocument.Status.OK
+            update_fields.append("status")
+
+    doc.save(update_fields=update_fields)
 
     employee_sync = employee_extraction_sync.apply_extracted_normalized_to_employee(doc)
 

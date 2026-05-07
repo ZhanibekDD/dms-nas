@@ -7,206 +7,315 @@
 
 {% block pass_docs_content %}
 
-<div class="nas-browser" id="nas-browser">
+<div class="nas-layout">
 
-  {# Хлебные крошки #}
-  <div class="nas-breadcrumb" id="nas-breadcrumb">
-    <span class="nas-bc-item" data-path="/" onclick="nasNavigate('/')">
-      <i class="fas fa-server"></i> NAS
-    </span>
-  </div>
-
-  {# Панель инструментов #}
-  <div class="nas-toolbar">
-    <div class="nas-toolbar__left">
-      <button class="pd-btn pd-btn--ghost pd-btn--sm" id="nas-btn-up" onclick="nasGoUp()" title="На уровень вверх">
-        <i class="fas fa-level-up-alt"></i> Вверх
-      </button>
-      <button class="pd-btn pd-btn--ghost pd-btn--sm" onclick="nasRefresh()" title="Обновить">
-        <i class="fas fa-sync-alt"></i> Обновить
-      </button>
+  {# ── Левая панель: дерево папок ── #}
+  <div class="nas-tree-panel" id="nas-tree-panel">
+    <div class="nas-tree-header">
+      <i class="fas fa-server"></i> Хранилище
     </div>
-    <div class="nas-toolbar__right">
-      <button class="pd-btn pd-btn--ghost pd-btn--sm" id="nas-btn-mkdir" onclick="nasShowMkdir()">
-        <i class="fas fa-folder-plus"></i> Новая папка
-      </button>
-      <label class="pd-btn pd-btn--primary pd-btn--sm nas-upload-label" title="Загрузить файл">
-        <i class="fas fa-cloud-upload-alt"></i> Загрузить
-        <input type="file" id="nas-upload-input" class="nas-hidden-input" multiple onchange="nasUpload(this)">
-      </label>
+    <div class="nas-tree-root" id="nas-tree-root">
+      <div class="nas-tree-loading"><i class="fas fa-spinner fa-spin"></i></div>
     </div>
   </div>
 
-  {# Форма новой папки (скрыта) #}
-  <div class="nas-mkdir-panel pd-hidden" id="nas-mkdir-panel">
-    <div class="nas-mkdir-row">
-      <input type="text" id="nas-mkdir-name" class="pd-input" placeholder="Название папки" maxlength="100">
-      <button class="pd-btn pd-btn--primary pd-btn--sm" onclick="nasConfirmMkdir()">
-        <i class="fas fa-check"></i> Создать
-      </button>
-      <button class="pd-btn pd-btn--ghost pd-btn--sm" onclick="nasHideMkdir()">Отмена</button>
+  {# ── Правая панель: содержимое папки ── #}
+  <div class="nas-content-panel">
+
+    {# Хлебные крошки #}
+    <div class="nas-breadcrumb" id="nas-breadcrumb"></div>
+
+    {# Панель инструментов #}
+    <div class="nas-toolbar">
+      <div class="nas-toolbar__left">
+        <button class="pd-btn pd-btn--ghost pd-btn--sm" onclick="nasRefresh()" title="Обновить">
+          <i class="fas fa-sync-alt"></i> Обновить
+        </button>
+      </div>
+      <div class="nas-toolbar__right">
+        <button class="pd-btn pd-btn--ghost pd-btn--sm" onclick="nasShowMkdir()">
+          <i class="fas fa-folder-plus"></i> Новая папка
+        </button>
+        <label class="pd-btn pd-btn--primary pd-btn--sm nas-upload-label">
+          <i class="fas fa-cloud-upload-alt"></i> Загрузить
+          <input type="file" id="nas-upload-input" class="nas-hidden-input" multiple onchange="nasUpload(this)">
+        </label>
+      </div>
     </div>
-  </div>
 
-  {# Прогресс загрузки #}
-  <div class="nas-upload-progress pd-hidden" id="nas-upload-progress">
-    <div class="nas-upload-bar"><div class="nas-upload-fill" id="nas-upload-fill"></div></div>
-    <span id="nas-upload-status">Загрузка…</span>
-  </div>
+    {# Форма новой папки #}
+    <div class="nas-mkdir-panel pd-hidden" id="nas-mkdir-panel">
+      <div class="nas-mkdir-row">
+        <input type="text" id="nas-mkdir-name" class="pd-input" placeholder="Название папки" maxlength="100">
+        <button class="pd-btn pd-btn--primary pd-btn--sm" onclick="nasConfirmMkdir()">
+          <i class="fas fa-check"></i> Создать
+        </button>
+        <button class="pd-btn pd-btn--ghost pd-btn--sm" onclick="nasHideMkdir()">Отмена</button>
+      </div>
+    </div>
 
-  {# Список файлов #}
-  <div class="nas-file-list" id="nas-file-list">
-    <div class="nas-loading"><i class="fas fa-spinner fa-spin"></i> Загрузка…</div>
-  </div>
+    {# Прогресс загрузки #}
+    <div class="nas-upload-progress pd-hidden" id="nas-upload-progress">
+      <div class="nas-upload-bar"><div class="nas-upload-fill" id="nas-upload-fill"></div></div>
+      <span id="nas-upload-status">Загрузка…</span>
+    </div>
 
-  {# Встроенный просмотрщик #}
-  <div class="nas-viewer-overlay pd-hidden" id="nas-viewer-overlay" onclick="nasCloseViewer(event)">
-    <div class="nas-viewer-box">
-      <div class="nas-viewer-header">
-        <span id="nas-viewer-title"></span>
+    {# Список файлов #}
+    <div class="nas-file-list" id="nas-file-list">
+      <div class="nas-loading"><i class="fas fa-spinner fa-spin"></i> Загрузка…</div>
+    </div>
+
+  </div>
+</div>
+
+{# Просмотрщик файлов #}
+<div class="nas-viewer-overlay pd-hidden" id="nas-viewer-overlay" onclick="nasCloseViewer(event)">
+  <div class="nas-viewer-box">
+    <div class="nas-viewer-header">
+      <span id="nas-viewer-title"></span>
+      <div style="display:flex;gap:8px">
+        <a id="nas-viewer-download" class="pd-btn pd-btn--ghost pd-btn--sm" href="#" download>
+          <i class="fas fa-download"></i> Скачать
+        </a>
         <button class="nas-viewer-close" onclick="nasCloseViewer(null)"><i class="fas fa-times"></i></button>
       </div>
-      <div class="nas-viewer-body" id="nas-viewer-body"></div>
     </div>
+    <div class="nas-viewer-body" id="nas-viewer-body"></div>
   </div>
-
 </div>
 
 {% endblock %}
 
 {% block extra_head %}
 <style>
-/* ── NAS Browser ── */
-.nas-browser { display:flex; flex-direction:column; gap:12px; }
+/* ── Layout ── */
+.nas-layout {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 120px);
+  min-height: 500px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ── Tree panel ── */
+.nas-tree-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  overflow: hidden;
+}
+.nas-tree-header {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.nas-tree-root {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.nas-tree-loading { padding: 16px; text-align: center; color: #94a3b8; font-size: 13px; }
+
+/* Tree node */
+.nas-tree-node { user-select: none; }
+.nas-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 1px 4px;
+  font-size: 13px;
+  color: #334155;
+  transition: background .1s;
+}
+.nas-tree-row:hover { background: #e2e8f0; }
+.nas-tree-row.is-active { background: #dbeafe; color: #1d4ed8; font-weight: 600; }
+
+.nas-tree-toggle {
+  width: 16px; flex-shrink: 0; text-align: center;
+  font-size: 10px; color: #94a3b8;
+}
+.nas-tree-toggle.is-open { color: #475569; }
+.nas-tree-folder-icon { color: #f59e0b; flex-shrink: 0; font-size: 13px; }
+.nas-tree-folder-icon.is-open { color: #d97706; }
+.nas-tree-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.nas-tree-children { padding-left: 20px; }
+.nas-tree-children-loading { padding: 4px 8px; font-size: 12px; color: #94a3b8; }
+
+/* ── Content panel ── */
+.nas-content-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
 .nas-breadcrumb {
-  display:flex; align-items:center; flex-wrap:wrap; gap:0;
-  background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;
-  padding:8px 14px; font-size:13px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+  padding: 8px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+  flex-shrink: 0;
 }
-.nas-bc-item {
-  color:#2563eb; cursor:pointer; padding:2px 4px; border-radius:4px;
-}
-.nas-bc-item:hover { background:#dbeafe; }
-.nas-bc-sep { color:#94a3b8; margin:0 4px; }
-.nas-bc-current { color:#1e293b; font-weight:600; cursor:default; }
+.nas-bc-item { color: #2563eb; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.nas-bc-item:hover { background: #dbeafe; }
+.nas-bc-sep { color: #94a3b8; margin: 0 2px; }
+.nas-bc-current { color: #1e293b; font-weight: 600; }
 
 .nas-toolbar {
-  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  flex-wrap: wrap; gap: 6px;
 }
-.nas-toolbar__left, .nas-toolbar__right { display:flex; align-items:center; gap:8px; }
+.nas-toolbar__left, .nas-toolbar__right { display: flex; align-items: center; gap: 6px; }
+.nas-upload-label { cursor: pointer; }
+.nas-hidden-input { position: absolute; width: 0; height: 0; opacity: 0; }
 
-.nas-upload-label { cursor:pointer; }
-.nas-hidden-input { position:absolute; width:0; height:0; opacity:0; }
-
-.nas-mkdir-panel { padding:10px 0; }
-.nas-mkdir-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.nas-mkdir-row .pd-input { max-width:280px; }
+.nas-mkdir-panel { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
+.nas-mkdir-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.nas-mkdir-row .pd-input { max-width: 260px; }
 
 .nas-upload-progress {
-  background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 14px;
-  display:flex; align-items:center; gap:12px;
+  margin: 0; padding: 8px 14px;
+  background: #f0fdf4; border-bottom: 1px solid #bbf7d0;
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
 }
-.nas-upload-bar { flex:1; height:8px; background:#d1fae5; border-radius:4px; overflow:hidden; }
-.nas-upload-fill { height:100%; background:#16a34a; border-radius:4px; transition:width .3s; width:0%; }
+.nas-upload-bar { flex: 1; height: 6px; background: #d1fae5; border-radius: 4px; overflow: hidden; }
+.nas-upload-fill { height: 100%; background: #16a34a; border-radius: 4px; transition: width .3s; width: 0%; }
 
-.nas-file-list {
-  background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;
+.nas-file-list { flex: 1; overflow-y: auto; }
+.nas-loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
+.nas-empty  { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; }
+.nas-error  { padding: 14px; color: #b91c1c; font-size: 13px; }
+
+/* File table */
+.nas-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.nas-table thead th {
+  position: sticky; top: 0; background: #f8fafc;
+  padding: 7px 12px; text-align: left; font-size: 11px;
+  font-weight: 600; color: #64748b; text-transform: uppercase;
+  letter-spacing: .04em; border-bottom: 1px solid #e2e8f0;
 }
-.nas-loading { padding:40px; text-align:center; color:#94a3b8; font-size:15px; }
-.nas-empty { padding:40px; text-align:center; color:#94a3b8; font-size:14px; }
-.nas-error { padding:20px 14px; color:#b91c1c; font-size:13px; }
+.nas-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+.nas-table tbody tr:last-child { border-bottom: none; }
+.nas-table tbody tr:hover { background: #f8fafc; }
+.nas-table td { padding: 7px 12px; vertical-align: middle; }
 
-.nas-row {
-  display:flex; align-items:center; gap:10px; padding:9px 14px;
-  border-bottom:1px solid #f1f5f9; cursor:default;
-  transition:background .12s;
+.nas-td-icon { width: 28px; }
+.nas-td-name { min-width: 0; }
+.nas-td-size { width: 90px; text-align: right; color: #64748b; white-space: nowrap; }
+.nas-td-date { width: 130px; text-align: right; color: #94a3b8; white-space: nowrap; }
+.nas-td-actions { width: 90px; text-align: right; white-space: nowrap; }
+
+.nas-file-icon { font-size: 15px; }
+.nas-file-icon .fa-folder      { color: #f59e0b; }
+.nas-file-icon .fa-file-pdf    { color: #ef4444; }
+.nas-file-icon .fa-file-image  { color: #2563eb; }
+.nas-file-icon .fa-file-excel  { color: #16a34a; }
+.nas-file-icon .fa-file-archive{ color: #7c3aed; }
+.nas-file-icon .fa-file        { color: #64748b; }
+.nas-file-icon .fa-file-alt    { color: #64748b; }
+
+.nas-name-link {
+  color: #1e293b; cursor: pointer;
+  text-decoration: none; display: inline;
 }
-.nas-row:last-child { border-bottom:none; }
-.nas-row:hover { background:#f8fafc; }
+.nas-name-link:hover { color: #2563eb; text-decoration: underline; }
+.nas-name-dir { font-weight: 600; color: #1d4ed8; }
 
-.nas-row__icon { width:22px; text-align:center; flex-shrink:0; }
-.nas-row__icon .fa-folder { color:#f59e0b; }
-.nas-row__icon .fa-file-pdf { color:#ef4444; }
-.nas-row__icon .fa-file-image { color:#2563eb; }
-.nas-row__icon .fa-file-excel { color:#16a34a; }
-.nas-row__icon .fa-file-archive { color:#7c3aed; }
-.nas-row__icon .fa-file { color:#64748b; }
-
-.nas-row__name {
-  flex:1; font-size:13px; color:#1e293b; min-width:0;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.nas-row__name--dir { font-weight:600; cursor:pointer; color:#1d4ed8; }
-.nas-row__name--dir:hover { text-decoration:underline; }
-.nas-row__name--file { cursor:pointer; }
-.nas-row__name--file:hover { color:#2563eb; text-decoration:underline; }
-
-.nas-row__size { width:80px; text-align:right; font-size:12px; color:#64748b; flex-shrink:0; }
-.nas-row__mtime { width:130px; text-align:right; font-size:12px; color:#94a3b8; flex-shrink:0; }
-
-.nas-row__actions { display:flex; gap:6px; flex-shrink:0; }
 .nas-btn-icon {
-  background:none; border:none; cursor:pointer; padding:4px 6px;
-  color:#64748b; border-radius:4px; font-size:13px;
-  transition:background .12s, color .12s;
+  background: none; border: none; cursor: pointer;
+  padding: 3px 6px; color: #64748b;
+  border-radius: 4px; font-size: 12px;
+  transition: background .1s, color .1s;
 }
-.nas-btn-icon:hover { background:#f1f5f9; color:#1e293b; }
-.nas-btn-icon--danger:hover { background:#fee2e2; color:#dc2626; }
+.nas-btn-icon:hover { background: #f1f5f9; color: #1e293b; }
+.nas-btn-icon--danger:hover { background: #fee2e2; color: #dc2626; }
 
-/* Viewer overlay */
+/* Viewer */
 .nas-viewer-overlay {
-  position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:1000;
-  display:flex; align-items:center; justify-content:center;
+  position: fixed; inset: 0; background: rgba(0,0,0,.65);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
 }
-.nas-viewer-overlay.pd-hidden { display:none; }
+.nas-viewer-overlay.pd-hidden { display: none; }
 .nas-viewer-box {
-  background:#fff; border-radius:12px; overflow:hidden;
-  display:flex; flex-direction:column;
-  width:90vw; max-width:1100px; height:88vh;
-  box-shadow:0 20px 60px rgba(0,0,0,.4);
+  background: #fff; border-radius: 12px; overflow: hidden;
+  display: flex; flex-direction: column;
+  width: 90vw; max-width: 1100px; height: 88vh;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
 }
 .nas-viewer-header {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:10px 16px; border-bottom:1px solid #e2e8f0;
-  background:#f8fafc; font-size:14px; font-weight:600; color:#1e293b;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc; font-size: 14px; font-weight: 600; color: #1e293b;
+  flex-shrink: 0;
 }
 .nas-viewer-close {
-  background:none; border:none; cursor:pointer; font-size:18px;
-  color:#64748b; padding:4px 8px; border-radius:4px;
+  background: none; border: none; cursor: pointer; font-size: 18px;
+  color: #64748b; padding: 4px 8px; border-radius: 4px;
 }
-.nas-viewer-close:hover { background:#f1f5f9; color:#1e293b; }
-.nas-viewer-body { flex:1; overflow:auto; }
-.nas-viewer-body iframe, .nas-viewer-body img {
-  width:100%; height:100%; border:none; display:block;
-}
-.nas-viewer-body img { object-fit:contain; }
+.nas-viewer-close:hover { background: #f1f5f9; color: #1e293b; }
+.nas-viewer-body { flex: 1; overflow: auto; }
+.nas-viewer-body iframe { width: 100%; height: 100%; border: none; display: block; }
+.nas-viewer-body img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-@media (max-width:640px) {
-  .nas-row__size, .nas-row__mtime { display:none; }
+@media (max-width: 700px) {
+  .nas-tree-panel { display: none; }
+  .nas-td-date { display: none; }
 }
 </style>
 
 <script>
-(function() {
+(function () {
   var _currentPath = "/";
-  var _history = ["/"];
+  var LIST_URL     = "{% url 'pass_docs_nas_api_list' %}";
+  var DOWNLOAD_URL = "{% url 'pass_docs_nas_api_download' %}";
+  var INLINE_URL   = "{% url 'pass_docs_nas_api_inline' %}";
+  var DELETE_URL   = "{% url 'pass_docs_nas_api_delete' %}";
+  var MKDIR_URL    = "{% url 'pass_docs_nas_api_mkdir' %}";
+  var UPLOAD_URL   = "{% url 'pass_docs_nas_api_upload' %}";
 
-  function _fmt_size(bytes) {
-    if (bytes == null) return "";
-    if (bytes < 1024) return bytes + " Б";
-    if (bytes < 1048576) return (bytes/1024).toFixed(1) + " КБ";
-    if (bytes < 1073741824) return (bytes/1048576).toFixed(1) + " МБ";
-    return (bytes/1073741824).toFixed(2) + " ГБ";
+  /* ── helpers ── */
+  function _esc(s) {
+    return String(s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
-
+  function _csrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
+  function _fmt_size(b) {
+    if (b == null) return "";
+    if (b < 1024) return b + " Б";
+    if (b < 1048576) return (b/1024).toFixed(1) + " КБ";
+    if (b < 1073741824) return (b/1048576).toFixed(1) + " МБ";
+    return (b/1073741824).toFixed(2) + " ГБ";
+  }
   function _fmt_time(ts) {
     if (!ts) return "";
     var d = new Date(ts * 1000);
-    return d.toLocaleDateString("ru-RU") + " " + d.toLocaleTimeString("ru-RU", {hour:"2-digit",minute:"2-digit"});
+    return d.toLocaleDateString("ru-RU") + " "
+         + d.toLocaleTimeString("ru-RU", {hour:"2-digit",minute:"2-digit"});
   }
-
-  function _file_icon(name, is_dir) {
+  function _icon(name, is_dir) {
     if (is_dir) return "fa-folder";
     var ext = (name.match(/\.([^.]+)$/) || [])[1];
     if (!ext) return "fa-file";
@@ -215,256 +324,304 @@
     if (["jpg","jpeg","png","gif","webp","bmp","tif","tiff"].indexOf(ext) >= 0) return "fa-file-image";
     if (["xlsx","xls","csv","ods"].indexOf(ext) >= 0) return "fa-file-excel";
     if (["zip","rar","7z","tar","gz","bz2"].indexOf(ext) >= 0) return "fa-file-archive";
-    if (["doc","docx","txt","odt"].indexOf(ext) >= 0) return "fa-file-alt";
+    if (["doc","docx","txt","odt","rtf"].indexOf(ext) >= 0) return "fa-file-alt";
     return "fa-file";
   }
-
   function _can_preview(name) {
     var ext = (name.match(/\.([^.]+)$/) || [])[1];
     if (!ext) return false;
-    ext = ext.toLowerCase();
-    return ["pdf","jpg","jpeg","png","gif","webp","bmp"].indexOf(ext) >= 0;
+    return ["pdf","jpg","jpeg","png","gif","webp","bmp"].indexOf(ext.toLowerCase()) >= 0;
   }
 
-  function _build_breadcrumb(path) {
+  /* ── breadcrumb ── */
+  function _buildBreadcrumb(path) {
     var bc = document.getElementById("nas-breadcrumb");
     bc.innerHTML = "";
-
-    var root = document.createElement("span");
-    root.className = "nas-bc-item";
-    root.innerHTML = '<i class="fas fa-server"></i> NAS';
-    root.setAttribute("data-path", "/");
-    root.onclick = function(){ nasNavigate("/"); };
-    bc.appendChild(root);
-
-    if (path === "/") return;
-
-    var parts = path.replace(/^\//, "").split("/");
-    var cumul = "";
-    parts.forEach(function(part, idx) {
-      cumul += "/" + part;
-      var sep = document.createElement("span");
-      sep.className = "nas-bc-sep";
-      sep.textContent = " / ";
-      bc.appendChild(sep);
-
-      var item = document.createElement("span");
-      if (idx === parts.length - 1) {
-        item.className = "nas-bc-current";
-        item.textContent = part;
-      } else {
-        item.className = "nas-bc-item";
-        item.textContent = part;
-        var p = cumul;
-        item.onclick = function(){ nasNavigate(p); };
-      }
-      bc.appendChild(item);
-    });
+    function _item(label, p, isCurrent) {
+      var el = document.createElement("span");
+      el.className = isCurrent ? "nas-bc-current" : "nas-bc-item";
+      el.textContent = label;
+      if (!isCurrent) el.onclick = function(){ nasNavigate(p); };
+      return el;
+    }
+    bc.appendChild(_item("NAS", "/", path === "/"));
+    if (path !== "/") {
+      var parts = path.replace(/^\//, "").split("/");
+      var cumul = "";
+      parts.forEach(function(p, i) {
+        cumul += "/" + p;
+        var sep = document.createElement("span");
+        sep.className = "nas-bc-sep"; sep.textContent = " / ";
+        bc.appendChild(sep);
+        bc.appendChild(_item(p, cumul, i === parts.length - 1));
+      });
+    }
   }
 
-  function _load(path) {
+  /* ── file list (right panel) ── */
+  function _loadFiles(path) {
     _currentPath = path;
-    _build_breadcrumb(path);
+    _buildBreadcrumb(path);
     var list = document.getElementById("nas-file-list");
     list.innerHTML = '<div class="nas-loading"><i class="fas fa-spinner fa-spin"></i> Загрузка…</div>';
 
-    var url = "{% url 'pass_docs_nas_api_list' %}?path=" + encodeURIComponent(path);
-    fetch(url)
+    fetch(LIST_URL + "?path=" + encodeURIComponent(path))
       .then(function(r){ return r.json(); })
-      .then(function(data) {
-        if (data.error && data.items.length === 0) {
-          list.innerHTML = '<div class="nas-error"><i class="fas fa-exclamation-triangle"></i> ' + _esc(data.error) + '</div>';
-          return;
-        }
-        _render(data.items, data.error || null);
-      })
-      .catch(function(e){ list.innerHTML = '<div class="nas-error">Ошибка сети: ' + _esc(e.message) + '</div>'; });
+      .then(function(data){ _renderFiles(data.items || [], data.error || null); })
+      .catch(function(e){ list.innerHTML = '<div class="nas-error"><i class="fas fa-exclamation-triangle"></i> ' + _esc(e.message) + '</div>'; });
   }
 
-  function _esc(s) {
-    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  }
-
-  function _render(items, warning) {
+  function _renderFiles(items, error) {
     var list = document.getElementById("nas-file-list");
     if (!items.length) {
-      list.innerHTML = '<div class="nas-empty"><i class="fas fa-folder-open"></i> Папка пуста</div>';
-      if (warning) {
-        list.innerHTML += '<div class="nas-error" style="border-top:1px solid #fde8e8">' + _esc(warning) + '</div>';
-      }
+      list.innerHTML = '<div class="nas-empty"><i class="fas fa-folder-open"></i><br>Папка пуста</div>'
+        + (error ? '<div class="nas-error">' + _esc(error) + '</div>' : "");
       return;
     }
-    var html = "";
-    items.forEach(function(item) {
-      var icon = _file_icon(item.name, item.is_dir);
-      var nameClass = item.is_dir ? "nas-row__name--dir" : "nas-row__name--file";
+    var rows = items.map(function(item) {
+      var icon = _icon(item.name, item.is_dir);
+      var path = item.path;
       var nameClick = item.is_dir
-        ? "nasNavigate('" + _esc(item.path).replace(/'/g,"\\'") + "')"
-        : (_can_preview(item.name) ? "nasOpenViewer('" + _esc(item.path).replace(/'/g,"\\'") + "','" + _esc(item.name).replace(/'/g,"\\'") + "')" : "nasDownload('" + _esc(item.path).replace(/'/g,"\\'") + "')");
+        ? "nasNavigate('" + _esc(path).replace(/'/g,"\\'") + "')"
+        : (_can_preview(item.name)
+            ? "nasOpenViewer('" + _esc(path).replace(/'/g,"\\'") + "','" + _esc(item.name).replace(/'/g,"\\'") + "')"
+            : "nasDownload('" + _esc(path).replace(/'/g,"\\'") + "')");
+      var nameClass = "nas-name-link" + (item.is_dir ? " nas-name-dir" : "");
 
-      html += '<div class="nas-row">';
-      html += '<span class="nas-row__icon"><i class="fas ' + icon + '"></i></span>';
-      html += '<span class="nas-row__name ' + nameClass + '" onclick="' + nameClick + '" title="' + _esc(item.name) + '">' + _esc(item.name) + '</span>';
-      html += '<span class="nas-row__size">' + _fmt_size(item.size) + '</span>';
-      html += '<span class="nas-row__mtime">' + _fmt_time(item.mtime) + '</span>';
-      html += '<span class="nas-row__actions">';
+      var actions = "";
       if (!item.is_dir) {
         if (_can_preview(item.name)) {
-          html += '<button class="nas-btn-icon" onclick="nasOpenViewer(\'' + _esc(item.path).replace(/'/g,"\\'") + '\',\'' + _esc(item.name).replace(/'/g,"\\'") + '\')" title="Открыть"><i class="fas fa-eye"></i></button>';
+          actions += '<button class="nas-btn-icon" onclick="nasOpenViewer(\'' + _esc(path).replace(/'/g,"\\'") + '\',\'' + _esc(item.name).replace(/'/g,"\\'") + '\')" title="Открыть"><i class="fas fa-eye"></i></button>';
         }
-        html += '<button class="nas-btn-icon" onclick="nasDownload(\'' + _esc(item.path).replace(/'/g,"\\'") + '\')" title="Скачать"><i class="fas fa-download"></i></button>';
+        actions += '<button class="nas-btn-icon" onclick="nasDownload(\'' + _esc(path).replace(/'/g,"\\'") + '\')" title="Скачать"><i class="fas fa-download"></i></button>';
       }
-      html += '<button class="nas-btn-icon nas-btn-icon--danger" onclick="nasDelete(\'' + _esc(item.path).replace(/'/g,"\\'") + '\',\'' + _esc(item.name).replace(/'/g,"\\'") + '\')" title="Удалить"><i class="fas fa-trash"></i></button>';
-      html += '</span></div>';
-    });
-    if (warning) {
-      html += '<div class="nas-error" style="border-top:1px solid #fde8e8;padding:8px 14px">' + _esc(warning) + '</div>';
+      actions += '<button class="nas-btn-icon nas-btn-icon--danger" onclick="nasDelete(\'' + _esc(path).replace(/'/g,"\\'") + '\',\'' + _esc(item.name).replace(/'/g,"\\'") + '\')" title="Удалить"><i class="fas fa-trash"></i></button>';
+
+      return '<tr>'
+        + '<td class="nas-td-icon"><span class="nas-file-icon"><i class="fas ' + icon + '"></i></span></td>'
+        + '<td class="nas-td-name"><span class="' + nameClass + '" onclick="' + nameClick + '" title="' + _esc(item.name) + '">' + _esc(item.name) + '</span></td>'
+        + '<td class="nas-td-size">' + _fmt_size(item.size) + '</td>'
+        + '<td class="nas-td-date">' + _fmt_time(item.mtime) + '</td>'
+        + '<td class="nas-td-actions">' + actions + '</td>'
+        + '</tr>';
+    }).join("");
+
+    list.innerHTML = '<table class="nas-table">'
+      + '<thead><tr><th colspan="2">Имя</th><th>Размер</th><th>Дата</th><th></th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table>';
+    if (error) {
+      list.innerHTML += '<div class="nas-error">' + _esc(error) + '</div>';
     }
-    list.innerHTML = html;
   }
 
+  /* ── tree (left panel) ── */
+  function _makeTreeNode(item, depth) {
+    var node = document.createElement("div");
+    node.className = "nas-tree-node";
+
+    var row = document.createElement("div");
+    row.className = "nas-tree-row";
+    row.style.paddingLeft = (8 + depth * 16) + "px";
+    row.dataset.path = item.path;
+
+    var toggle = document.createElement("span");
+    toggle.className = "nas-tree-toggle";
+    toggle.innerHTML = '<i class="fas fa-caret-right"></i>';
+
+    var folderIcon = document.createElement("span");
+    folderIcon.className = "nas-tree-folder-icon";
+    folderIcon.innerHTML = '<i class="fas fa-folder"></i>';
+
+    var nameSpan = document.createElement("span");
+    nameSpan.className = "nas-tree-name";
+    nameSpan.textContent = item.name;
+    nameSpan.title = item.name;
+
+    row.appendChild(toggle);
+    row.appendChild(folderIcon);
+    row.appendChild(nameSpan);
+    node.appendChild(row);
+
+    var children = document.createElement("div");
+    children.className = "nas-tree-children";
+    children.style.display = "none";
+    node.appendChild(children);
+
+    var expanded = false;
+    var loaded = false;
+
+    function expand() {
+      if (!loaded) {
+        loaded = true;
+        children.innerHTML = '<div class="nas-tree-children-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+        fetch(LIST_URL + "?path=" + encodeURIComponent(item.path))
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            children.innerHTML = "";
+            var dirs = (data.items || []).filter(function(x){ return x.is_dir; });
+            if (!dirs.length) {
+              children.innerHTML = "";
+              toggle.innerHTML = '<i class="fas fa-caret-right" style="opacity:.2"></i>';
+            } else {
+              dirs.forEach(function(child){
+                children.appendChild(_makeTreeNode(child, depth + 1));
+              });
+            }
+          })
+          .catch(function(){ children.innerHTML = ""; });
+      }
+      expanded = true;
+      children.style.display = "block";
+      toggle.innerHTML = '<i class="fas fa-caret-down"></i>';
+      toggle.classList.add("is-open");
+      folderIcon.innerHTML = '<i class="fas fa-folder-open"></i>';
+      folderIcon.classList.add("is-open");
+    }
+
+    function collapse() {
+      expanded = false;
+      children.style.display = "none";
+      toggle.innerHTML = '<i class="fas fa-caret-right"></i>';
+      toggle.classList.remove("is-open");
+      folderIcon.innerHTML = '<i class="fas fa-folder"></i>';
+      folderIcon.classList.remove("is-open");
+    }
+
+    row.addEventListener("click", function(e) {
+      e.stopPropagation();
+      // highlight active
+      document.querySelectorAll(".nas-tree-row.is-active").forEach(function(r){ r.classList.remove("is-active"); });
+      row.classList.add("is-active");
+      // load files on right
+      _loadFiles(item.path);
+      // toggle expand
+      if (expanded) collapse(); else expand();
+    });
+
+    return node;
+  }
+
+  function _loadTree() {
+    var root = document.getElementById("nas-tree-root");
+    root.innerHTML = '<div class="nas-tree-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+    fetch(LIST_URL + "?path=/")
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        root.innerHTML = "";
+        (data.items || []).forEach(function(share){
+          root.appendChild(_makeTreeNode(share, 0));
+        });
+      })
+      .catch(function(e){
+        root.innerHTML = '<div class="nas-tree-loading" style="color:#b91c1c">' + _esc(e.message) + '</div>';
+      });
+  }
+
+  /* ── public API ── */
   window.nasNavigate = function(path) {
-    if (_history[_history.length-1] !== path) _history.push(path);
-    _load(path);
+    _loadFiles(path);
+    // highlight matching tree row
+    document.querySelectorAll(".nas-tree-row").forEach(function(r){
+      r.classList.toggle("is-active", r.dataset.path === path);
+    });
   };
 
-  window.nasGoUp = function() {
-    if (_currentPath === "/") return;
-    var parts = _currentPath.replace(/\/$/, "").split("/");
-    parts.pop();
-    var up = parts.join("/") || "/";
-    nasNavigate(up);
+  window.nasRefresh = function(){ _loadFiles(_currentPath); };
+
+  window.nasDownload = function(path){
+    window.location.href = DOWNLOAD_URL + "?path=" + encodeURIComponent(path);
   };
 
-  window.nasRefresh = function() { _load(_currentPath); };
-
-  window.nasDownload = function(path) {
-    window.location.href = "{% url 'pass_docs_nas_api_download' %}?path=" + encodeURIComponent(path);
-  };
-
-  window.nasDelete = function(path, name) {
-    if (!confirm('Удалить «' + name + '»?\n\nЭто действие нельзя отменить.')) return;
-    var csrfToken = document.cookie.match(/csrftoken=([^;]+)/);
-    csrfToken = csrfToken ? csrfToken[1] : "";
-    fetch("{% url 'pass_docs_nas_api_delete' %}", {
-      method: "POST",
-      headers: {"Content-Type":"application/json","X-CSRFToken":csrfToken},
+  window.nasDelete = function(path, name){
+    if (!confirm("Удалить «" + name + "»?\n\nЭто действие нельзя отменить.")) return;
+    fetch(DELETE_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","X-CSRFToken":_csrf()},
       body: JSON.stringify({path: path}),
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.ok) { nasRefresh(); }
-      else { alert("Ошибка удаления: " + (d.error || "неизвестная ошибка")); }
-    })
-    .catch(function(e){ alert("Ошибка сети: " + e.message); });
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d.ok) { nasRefresh(); _loadTree(); }
+      else alert("Ошибка удаления: " + (d.error || "?"));
+    }).catch(function(e){ alert("Ошибка сети: " + e.message); });
   };
 
-  window.nasShowMkdir = function() {
+  window.nasShowMkdir = function(){
     document.getElementById("nas-mkdir-panel").classList.remove("pd-hidden");
     document.getElementById("nas-mkdir-name").focus();
   };
-  window.nasHideMkdir = function() {
+  window.nasHideMkdir = function(){
     document.getElementById("nas-mkdir-panel").classList.add("pd-hidden");
     document.getElementById("nas-mkdir-name").value = "";
   };
-  window.nasConfirmMkdir = function() {
+  window.nasConfirmMkdir = function(){
     var name = (document.getElementById("nas-mkdir-name").value || "").trim();
-    if (!name) { alert("Введите название папки"); return; }
-    var csrfToken = document.cookie.match(/csrftoken=([^;]+)/);
-    csrfToken = csrfToken ? csrfToken[1] : "";
-    fetch("{% url 'pass_docs_nas_api_mkdir' %}", {
-      method: "POST",
-      headers: {"Content-Type":"application/json","X-CSRFToken":csrfToken},
+    if (!name){ alert("Введите название папки"); return; }
+    fetch(MKDIR_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","X-CSRFToken":_csrf()},
       body: JSON.stringify({parent: _currentPath, name: name}),
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
+    }).then(function(r){ return r.json(); }).then(function(d){
       nasHideMkdir();
-      if (d.ok) { nasRefresh(); }
-      else { alert("Ошибка: " + (d.error || "неизвестная ошибка")); }
-    })
-    .catch(function(e){ alert("Ошибка сети: " + e.message); });
+      if (d.ok){ nasRefresh(); _loadTree(); }
+      else alert("Ошибка: " + (d.error || "?"));
+    }).catch(function(e){ alert("Ошибка сети: " + e.message); });
   };
 
-  window.nasUpload = function(input) {
+  window.nasUpload = function(input){
     var files = input.files;
     if (!files || !files.length) return;
     var progress = document.getElementById("nas-upload-progress");
-    var fill = document.getElementById("nas-upload-fill");
-    var status = document.getElementById("nas-upload-status");
+    var fill     = document.getElementById("nas-upload-fill");
+    var status   = document.getElementById("nas-upload-status");
     progress.classList.remove("pd-hidden");
+    var total = files.length, errors = [];
 
-    var done = 0;
-    var total = files.length;
-    var errors = [];
-
-    function _next(idx) {
-      if (idx >= total) {
+    function _next(idx){
+      if (idx >= total){
         input.value = "";
-        status.textContent = errors.length
-          ? ("Готово с ошибками: " + errors.join("; "))
-          : "Загружено " + total + " файл(ов)";
+        status.textContent = errors.length ? "Ошибки: " + errors.join("; ") : "Загружено " + total + " файл(ов)";
         fill.style.width = "100%";
-        setTimeout(function(){
-          progress.classList.add("pd-hidden");
-          fill.style.width = "0%";
-          nasRefresh();
-        }, 2000);
+        setTimeout(function(){ progress.classList.add("pd-hidden"); fill.style.width="0%"; nasRefresh(); }, 2000);
         return;
       }
       var file = files[idx];
-      status.textContent = "Загрузка: " + file.name + " (" + (idx+1) + "/" + total + ")";
-      fill.style.width = Math.round(idx / total * 100) + "%";
-
+      status.textContent = file.name + " (" + (idx+1) + "/" + total + ")";
+      fill.style.width = Math.round(idx/total*100) + "%";
       var fd = new FormData();
       fd.append("path", _currentPath);
       fd.append("file", file);
-      var csrfToken = document.cookie.match(/csrftoken=([^;]+)/);
-      csrfToken = csrfToken ? csrfToken[1] : "";
-
-      fetch("{% url 'pass_docs_nas_api_upload' %}", {
-        method:"POST",
-        headers:{"X-CSRFToken":csrfToken},
-        body: fd,
-      })
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if (!d.ok) errors.push(file.name + ": " + (d.error||"?"));
-        _next(idx+1);
-      })
-      .catch(function(e){ errors.push(file.name + ": " + e.message); _next(idx+1); });
+      fetch(UPLOAD_URL, { method:"POST", headers:{"X-CSRFToken":_csrf()}, body:fd })
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if (!d.ok) errors.push(file.name); _next(idx+1); })
+        .catch(function(){ errors.push(file.name); _next(idx+1); });
     }
     _next(0);
   };
 
-  window.nasOpenViewer = function(path, name) {
+  window.nasOpenViewer = function(path, name){
     var overlay = document.getElementById("nas-viewer-overlay");
-    var title = document.getElementById("nas-viewer-title");
-    var body = document.getElementById("nas-viewer-body");
-    title.textContent = name;
-    var url = "{% url 'pass_docs_nas_api_inline' %}?path=" + encodeURIComponent(path);
+    document.getElementById("nas-viewer-title").textContent = name;
+    document.getElementById("nas-viewer-download").href = DOWNLOAD_URL + "?path=" + encodeURIComponent(path);
+    var url = INLINE_URL + "?path=" + encodeURIComponent(path);
     var ext = (name.match(/\.([^.]+)$/) || [])[1];
     var isImage = ext && ["jpg","jpeg","png","gif","webp","bmp"].indexOf(ext.toLowerCase()) >= 0;
-    if (isImage) {
-      body.innerHTML = '<img src="' + url + '" alt="' + _esc(name) + '">';
-    } else {
-      body.innerHTML = '<iframe src="' + url + '" title="' + _esc(name) + '"></iframe>';
-    }
+    document.getElementById("nas-viewer-body").innerHTML = isImage
+      ? '<img src="' + url + '" alt="' + _esc(name) + '">'
+      : '<iframe src="' + url + '" title="' + _esc(name) + '"></iframe>';
     overlay.classList.remove("pd-hidden");
   };
 
-  window.nasCloseViewer = function(e) {
+  window.nasCloseViewer = function(e){
     if (e && e.target !== document.getElementById("nas-viewer-overlay")) return;
     document.getElementById("nas-viewer-overlay").classList.add("pd-hidden");
     document.getElementById("nas-viewer-body").innerHTML = "";
   };
 
-  document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape") nasCloseViewer(null);
-  });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") nasCloseViewer(null); });
 
-  document.addEventListener("DOMContentLoaded", function() {
-    _load("/");
+  /* init */
+  document.addEventListener("DOMContentLoaded", function(){
+    _loadTree();
+    _loadFiles("/");
   });
 })();
 </script>

@@ -73,18 +73,26 @@ class NASClient:
     # ------------------------------------------------------------------
 
     def login(self) -> None:
-        data = self._get({
-            "api": "SYNO.API.Auth",
-            "version": "3",
-            "method": "login",
-            "account": self.username,
-            "passwd": self.password,
-            "session": "FileStation",
-            "format": "sid",
-        })
-        self._sid = data["sid"]
-        self._token = data.get("synotoken", "")
-        logger.info("NAS login OK sid=...%s", self._sid[-6:] if self._sid else "?")
+        # DSM 7.x requires version 6+; try 6 first, fall back to 3 for older DSM
+        for ver in ("6", "3"):
+            try:
+                data = self._get({
+                    "api": "SYNO.API.Auth",
+                    "version": ver,
+                    "method": "login",
+                    "account": self.username,
+                    "passwd": self.password,
+                    "session": "FileStation",
+                    "format": "sid",
+                }, timeout=15)
+                self._sid = data["sid"]
+                self._token = data.get("synotoken", "")
+                logger.info("NAS login OK ver=%s sid=...%s", ver, self._sid[-6:] if self._sid else "?")
+                return
+            except NASError as exc:
+                if ver == "3":
+                    raise
+                logger.warning("NAS login ver=%s failed, retrying with ver=3: %s", ver, exc)
 
     def logout(self) -> None:
         if not self._sid:

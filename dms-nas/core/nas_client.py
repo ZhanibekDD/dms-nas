@@ -36,6 +36,9 @@ class NASClient:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    # Auth error codes that must not be retried (retrying only piles up failed attempts)
+    _NO_RETRY_CODES = frozenset({400, 401, 402, 403, 404, 406, 407, 408, 409, 410})
+
     def _get(self, params: dict, timeout: int = 30) -> dict:
         last_err: Exception = RuntimeError("no attempts")
         for attempt in range(1, self.retries + 1):
@@ -51,6 +54,9 @@ class NASClient:
                 logger.warning("NAS attempt %d/%d error %s: %s.%s",
                                attempt, self.retries, code,
                                params.get("api"), params.get("method"))
+                # Auth errors must not be retried — each attempt counts toward account lockout
+                if isinstance(code, int) and code in self._NO_RETRY_CODES:
+                    break
                 if attempt < self.retries:
                     time.sleep(attempt)
             except NASError:
@@ -73,7 +79,8 @@ class NASClient:
     # ------------------------------------------------------------------
 
     def login(self) -> None:
-        # DSM 7.x requires version 6+; try 6 first, fall back to 3 for older DSM
+        # version=6 works on DSM 7.x; version=3 for DSM 6.x
+        # We try one version only — retries on auth errors lock the account
         for ver in ("6", "3"):
             try:
                 data = self._get({
@@ -90,9 +97,13 @@ class NASClient:
                 logger.info("NAS login OK ver=%s sid=...%s", ver, self._sid[-6:] if self._sid else "?")
                 return
             except NASError as exc:
+                code_str = str(exc)
+                # 407=locked, 400=bad creds — no point trying another version
+                if "407" in code_str or "400" in code_str:
+                    raise
                 if ver == "3":
                     raise
-                logger.warning("NAS login ver=%s failed, retrying with ver=3: %s", ver, exc)
+                logger.warning("NAS login ver=%s failed, trying ver=3: %s", ver, exc)
 
     def logout(self) -> None:
         if not self._sid:

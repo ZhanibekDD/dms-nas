@@ -599,15 +599,34 @@
 
   window.nasOpenViewer = function(path, name){
     var overlay = document.getElementById("nas-viewer-overlay");
+    var body    = document.getElementById("nas-viewer-body");
     document.getElementById("nas-viewer-title").textContent = name;
     document.getElementById("nas-viewer-download").href = DOWNLOAD_URL + "?path=" + encodeURIComponent(path);
-    var url = INLINE_URL + "?path=" + encodeURIComponent(path);
+
+    // Show loading spinner while fetching
+    body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:15px"><i class="fas fa-spinner fa-spin" style="margin-right:8px"></i>Загрузка…</div>';
+    overlay.classList.remove("pd-hidden");
+
     var ext = (name.match(/\.([^.]+)$/) || [])[1];
     var isImage = ext && ["jpg","jpeg","png","gif","webp","bmp"].indexOf(ext.toLowerCase()) >= 0;
-    document.getElementById("nas-viewer-body").innerHTML = isImage
-      ? '<img src="' + url + '" alt="' + _esc(name) + '">'
-      : '<iframe src="' + url + '" title="' + _esc(name) + '"></iframe>';
-    overlay.classList.remove("pd-hidden");
+
+    // Fetch via AJAX → blob URL → no separate iframe request to server
+    fetch(INLINE_URL + "?path=" + encodeURIComponent(path), {credentials: "include"})
+      .then(function(r){
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.blob();
+      })
+      .then(function(blob){
+        var blobUrl = URL.createObjectURL(blob);
+        if (isImage) {
+          body.innerHTML = '<img src="' + blobUrl + '" alt="' + _esc(name) + '">';
+        } else {
+          body.innerHTML = '<iframe src="' + blobUrl + '" title="' + _esc(name) + '"></iframe>';
+        }
+      })
+      .catch(function(e){
+        body.innerHTML = '<div style="padding:24px;color:#b91c1c"><i class="fas fa-exclamation-triangle"></i> Не удалось загрузить файл: ' + _esc(e.message) + '</div>';
+      });
   };
 
   window.nasCloseViewer = function(e){

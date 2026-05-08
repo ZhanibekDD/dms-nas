@@ -131,42 +131,15 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
 }
 
 .pd-brand--logo {
-  padding: 6px 0 16px;
-  gap: 11px;
-  align-items: center;
+  padding: 4px 0 16px;
+  display: block;
 }
 
-.pd-brand__logo-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 11px;
-  box-shadow: 0 2px 8px rgba(37,99,235,.28);
-}
-
-.pd-brand__logo-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.pd-brand__logo-name {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  color: #0f172a;
-  line-height: 1;
-}
-
-.pd-brand__logo-sub {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: #94a3b8;
-  line-height: 1;
-  white-space: nowrap;
+.pd-brand__logo-img {
+  width: 100%;
+  max-width: 164px;
+  height: auto;
+  display: block;
 }
 
 .pd-nav { display: grid; gap: 2px; }

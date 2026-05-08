@@ -85,8 +85,9 @@ urlpatterns = [
     path("workspace/ai/", views.ai_assistant_page, name="ai_assistant_page"),
     path("workspace/scan/", views.scan_document_page, name="scan_document_page"),
     path("nas-proxy/", views.nas_proxy, name="nas_proxy"),
-    # NAS browser
+    # NAS browser + migration
     path("workspace/nas/", views.pass_docs_nas_browser, name="pass_docs_nas_browser"),
+    path("workspace/nas/migrate/", views.pass_docs_nas_migrate, name="pass_docs_nas_migrate"),
     path("workspace/nas/api/list/", views.pass_docs_nas_api_list, name="pass_docs_nas_api_list"),
     path("workspace/nas/api/download/", views.pass_docs_nas_api_download, name="pass_docs_nas_api_download"),
     path("workspace/nas/api/inline/", views.pass_docs_nas_api_inline, name="pass_docs_nas_api_inline"),

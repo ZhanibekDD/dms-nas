@@ -329,16 +329,55 @@ def _run_extractor(kind: str, *, vision_json: dict | None, pdf_text: str | None)
     return fn(vision_json=vision_json, pdf_text=pdf_text)
 
 
+def _resolve_local_path(doc: EmployeeDocument) -> "tuple[Path, Any]":
+    """
+    Возвращает (локальный_путь, temp_handle).
+    Если файл на NAS — скачивает во временный файл; его нужно закрыть после OCR.
+    Если файл локальный — возвращает путь напрямую, temp_handle=None.
+    """
+    import tempfile
+
+    # Приоритет 1: original_file (NAS или диск)
+    if doc.original_file and doc.original_file.name:
+        local_path = Path(doc.source_path) if doc.source_path else None
+        if local_path and local_path.is_file():
+            return local_path, None  # локальный файл, NAS не нужен
+        # Файл на NAS — скачиваем во временный файл
+        try:
+            fh = doc.original_file.open("rb")
+            suffix = Path(doc.original_file.name).suffix or ".pdf"
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            tmp.write(fh.read())
+            tmp.close()
+            fh.close()
+            return Path(tmp.name), tmp
+        except Exception as exc:
+            logger.warning("Cannot download from NAS for doc %s: %s", doc.pk, exc)
+
+    # Приоритет 2: source_path на локальном диске (legacy)
+    if doc.source_path:
+        local_path = Path(str(doc.source_path))
+        if local_path.is_file():
+            return local_path, None
+
+    return Path(""), None
+
+
 def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
     """
     Прогоняет pipeline и сохраняет doc.extracted_json / doc.parse_status.
     Возвращает краткий словарь для консоли (без полного дублирования БД).
     """
-    path = Path(doc.source_path)
+    import os as _os
+
+    path, _tmp = _resolve_local_path(doc)
     kind = resolve_extractor_kind(doc.document_type)
 
-    if not path.is_file():
-        doc.extracted_json = {"error": "file_not_found", "path": str(path)}
+    if not path or not path.is_file():
+        if _tmp:
+            try: _os.unlink(_tmp.name)
+            except Exception: pass
+        doc.extracted_json = {"error": "file_not_found", "path": str(doc.source_path)}
         doc.parse_status = EmployeeDocument.ParseStatus.ERROR
         doc.save(update_fields=["extracted_json", "parse_status", "updated_at"])
         return {
@@ -545,6 +584,14 @@ def run_extraction(doc: EmployeeDocument) -> dict[str, Any]:
             update_fields.append("status")
 
     doc.save(update_fields=update_fields)
+
+    # Удаляем временный файл после OCR (если был скачан с NAS)
+    if _tmp:
+        try:
+            import os as _os
+            _os.unlink(_tmp.name)
+        except Exception:
+            pass
 
     employee_sync = employee_extraction_sync.apply_extracted_normalized_to_employee(doc)
 

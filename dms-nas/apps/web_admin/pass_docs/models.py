@@ -1,4 +1,5 @@
 from django.db import models
+from pass_docs.services.nas_storage import employee_doc_upload_path, package_upload_path
 
 
 class DocumentType(models.Model):
@@ -131,7 +132,7 @@ class EmployeeDocument(models.Model):
     )
     original_file = models.FileField(
         "файл",
-        upload_to="pass_docs/uploads/%Y/%m/",
+        upload_to=employee_doc_upload_path,
         null=True,
         blank=True,
     )
@@ -175,6 +176,15 @@ class EmployeeDocument(models.Model):
 
     def __str__(self):
         return f"{self.employee.import_key} → {self.document_type.code} ({self.source_path})"
+
+    def delete(self, *args, **kwargs):
+        # Delete file from NAS before removing the DB record
+        if self.original_file:
+            try:
+                self.original_file.delete(save=False)
+            except Exception:
+                pass
+        super().delete(*args, **kwargs)
 
 
 class ProfessionRequirement(models.Model):
@@ -236,13 +246,13 @@ class PackageRequest(models.Model):
     payload_json = models.JSONField("данные заявки", default=dict, blank=True)
     excel_file = models.FileField(
         "Excel",
-        upload_to="pass_docs/packages/%Y/%m/",
+        upload_to=package_upload_path,
         null=True,
         blank=True,
     )
     zip_file = models.FileField(
         "ZIP",
-        upload_to="pass_docs/packages/%Y/%m/",
+        upload_to=package_upload_path,
         null=True,
         blank=True,
     )

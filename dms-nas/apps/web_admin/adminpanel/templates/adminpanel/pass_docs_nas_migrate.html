@@ -1,0 +1,68 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+{% block html_title %}Миграция файлов на NAS{% endblock %}
+{% block pass_docs_title %}Миграция файлов на NAS{% endblock %}
+{% block pass_docs_subtitle %}Перенос существующих файлов с диска сервера на Synology NAS{% endblock %}
+
+{% block pass_docs_content %}
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2><i class="fas fa-hdd" style="color:#2563eb;margin-right:8px"></i>Перенос файлов на NAS</h2>
+  </div>
+  <p class="pd-card__hint">
+    После запуска миграции все документы сотрудников, хранящиеся на диске сервера,
+    будут скопированы в папку <strong>/ДМС/Сотрудники/…</strong> на NAS.
+    Записи в базе данных обновятся автоматически.
+    Процесс выполняется в фоне — страницу можно закрыть.
+  </p>
+
+  <div class="pd-meta-grid" style="margin:16px 0">
+    <div>
+      <span class="pd-k">Файлов на диске сервера</span>
+      <span class="pd-v"><strong>{{ local_count }}</strong></span>
+    </div>
+  </div>
+
+  {% if local_count == 0 %}
+  <div class="pd-empty-state" style="padding:24px 0">
+    <i class="pd-empty-state__icon fas fa-check-circle" style="color:#16a34a"></i>
+    <h3>Все файлы уже на NAS</h3>
+    <p>Локальных файлов на диске сервера не найдено.</p>
+  </div>
+  {% else %}
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="pd-btn pd-btn--primary pd-btn--lg"
+            onclick="this.disabled=true;this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> Запуск…';this.form.submit()">
+      <i class="fas fa-upload"></i> Перенести {{ local_count }} файлов на NAS
+    </button>
+  </form>
+  <p class="pd-muted" style="margin-top:12px;font-size:12px">
+    Прогресс миграции отображается в логах сервера (<code>journalctl -u passdocs-web -f</code>).
+    Файлы, которые уже есть на NAS, будут пропущены.
+  </p>
+  {% endif %}
+</section>
+
+<section class="pd-card" style="border-top:3px solid #f59e0b">
+  <div class="pd-card__header">
+    <h2><i class="fas fa-info-circle" style="color:#d97706;margin-right:8px"></i>Структура папок на NAS</h2>
+  </div>
+  <pre style="font-size:13px;background:#f8fafc;padding:14px;border-radius:8px;overflow-x:auto">/ДМС/
+  Сотрудники/
+    Иванов Иван Иванович/
+      Паспорт.pdf
+      Медицинская справка.pdf
+      СОУТ.pdf
+      …
+    Петров Пётр Петрович/
+      …
+  Пакеты/
+    Иванов Иван Иванович/
+      Excel_20250508.xlsx
+      Архив_20250508.zip</pre>
+  <p class="pd-muted" style="font-size:12px;margin-top:8px">
+    Корневая папка задаётся переменной окружения <code>NAS_DMS_ROOT</code> (по умолчанию <code>/ДМС</code>).
+    Папку нужно создать вручную в NAS перед первым использованием.
+  </p>
+</section>
+{% endblock %}

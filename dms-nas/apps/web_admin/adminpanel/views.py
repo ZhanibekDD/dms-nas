@@ -408,19 +408,17 @@ def _pass_docs_document_file_response(request, doc_id: int, *, attachment: bool)
     if not doc:
         raise Http404("Документ не найден")
 
-    # Приоритет: original_file → source_path на диске
+    # Приоритет: original_file (NAS или диск) → source_path на диске (legacy)
     if doc.original_file and doc.original_file.name:
         try:
             fh = doc.original_file.open("rb")
-        except FileNotFoundError:
-            raise Http404("Файл удалён с диска")
+        except (FileNotFoundError, IOError, Exception) as exc:
+            logger.warning("Cannot open original_file for doc %s: %s", doc_id, exc)
+            raise Http404("Файл недоступен")
         download_name = os.path.basename(doc.original_file.name)
-    elif doc.source_path:
-        path = str(doc.source_path)
-        if not os.path.isfile(path):
-            raise Http404("Файл не найден на диске")
-        fh = open(path, "rb")
-        download_name = os.path.basename(path)
+    elif doc.source_path and os.path.isfile(str(doc.source_path)):
+        fh = open(str(doc.source_path), "rb")
+        download_name = os.path.basename(str(doc.source_path))
     else:
         raise Http404("Файл не загружен")
 
@@ -1684,7 +1682,8 @@ def pass_docs_employee_zip_upload(request, employee_id: int):
                         metadata={"archive_source": entry_name, "uploaded_via": "zip_upload"},
                     )
                     try:
-                        doc.source_path = doc.original_file.path
+                        # NASStorage has no .path — store the NAS name instead
+                        doc.source_path = doc.original_file.name or placeholder
                         doc.save(update_fields=["source_path"])
                     except Exception:
                         pass
@@ -1956,7 +1955,8 @@ def pass_docs_bulk_upload(request):
                         metadata={"archive_source": entry, "uploaded_via": "bulk_archive"},
                     )
                     try:
-                        doc.source_path = doc.original_file.path
+                        # NASStorage has no .path — store the NAS name instead
+                        doc.source_path = doc.original_file.name or placeholder
                         doc.save(update_fields=["source_path"])
                     except Exception:
                         pass
@@ -2101,6 +2101,73 @@ def pass_docs_employee_download_all(request, employee_id: int):
     safe = zip_name.encode("utf-8", "replace").decode("latin-1", "replace")
     resp["Content-Disposition"] = f'attachment; filename="{safe}"'
     return resp
+
+
+# ── Миграция существующих файлов с диска на NAS ────────────────────────────────
+
+@staff_member_required
+def pass_docs_nas_migrate(request):
+    """
+    GET:  страница с кнопкой «Мигрировать».
+    POST: копирует все локальные файлы EmployeeDocument на NAS в фоне.
+    """
+    from pass_docs.models import EmployeeDocument
+
+    if request.method == "GET":
+        local_count = sum(
+            1 for d in EmployeeDocument.objects.exclude(original_file="").exclude(original_file=None)
+            if d.original_file and os.path.isfile(str(d.source_path or ""))
+        )
+        return render(request, "adminpanel/pass_docs_nas_migrate.html", {
+            **_pass_docs_shell_ctx("nas"),
+            "local_count": local_count,
+        })
+
+    def _migrate_bg():
+        import threading
+        from django.core.files.base import ContentFile as _CF
+        from pass_docs.services.nas_storage import NASStorage, employee_doc_upload_path
+
+        docs = list(
+            EmployeeDocument.objects
+            .select_related("employee", "document_type")
+            .exclude(original_file="").exclude(original_file=None)
+        )
+        storage = NASStorage()
+        ok_count = err_count = skip_count = 0
+
+        for doc in docs:
+            if not doc.original_file:
+                skip_count += 1
+                continue
+            try:
+                local = str(doc.source_path or "")
+                if not os.path.isfile(local):
+                    skip_count += 1
+                    continue
+                # Build NAS target path
+                nas_name = employee_doc_upload_path(doc, os.path.basename(local))
+                if storage.exists(nas_name):
+                    skip_count += 1
+                    continue
+                with open(local, "rb") as fh:
+                    data = fh.read()
+                storage._save(nas_name, _CF(data, name=os.path.basename(local)))
+                # Update the record to point to NAS file name
+                doc.original_file.name = nas_name
+                EmployeeDocument.objects.filter(pk=doc.pk).update(original_file=nas_name)
+                ok_count += 1
+                logger.info("NAS migrate OK: doc=%s → %s", doc.pk, nas_name)
+            except Exception as exc:
+                err_count += 1
+                logger.error("NAS migrate FAIL: doc=%s: %s", doc.pk, exc)
+
+        logger.info("NAS migration done: ok=%s skip=%s err=%s", ok_count, skip_count, err_count)
+
+    import threading
+    threading.Thread(target=_migrate_bg, daemon=True).start()
+    messages.success(request, "Миграция файлов на NAS запущена в фоне. Прогресс в логах сервера.")
+    return redirect("pass_docs_nas_migrate")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

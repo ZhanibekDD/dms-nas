@@ -68,6 +68,10 @@
            href="{% url 'pass_docs_nas_browser' %}">
           <i class="pd-nav__icon fas fa-hdd"></i>NAS Synology
         </a>
+        <a class="pd-nav__link{% if pass_docs_active == 'nas_migrate' %} is-active{% endif %}"
+           href="{% url 'pass_docs_nas_migrate' %}">
+          <i class="pd-nav__icon fas fa-upload"></i>Перенос файлов на NAS
+        </a>
 
         <p class="pd-nav__section">Система</p>
         <a class="pd-nav__link" href="/admin/">

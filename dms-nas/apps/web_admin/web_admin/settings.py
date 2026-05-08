@@ -82,8 +82,17 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "adminpanel" / "static"]
 
-# WhiteNoise — раздача статики напрямую из Django (без nginx)
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# ── Хранилище файлов: Synology NAS ────────────────────────────────────────────
+# Документы сотрудников и пакеты хранятся на NAS, не на диске сервера.
+# NAS_DMS_ROOT (env) задаёт корневую папку, по умолчанию /ДМС.
+STORAGES = {
+    "default": {
+        "BACKEND": "pass_docs.services.nas_storage.NASStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

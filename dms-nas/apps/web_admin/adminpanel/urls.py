@@ -44,6 +44,11 @@ urlpatterns = [
         name="pass_docs_employee_retry_errors",
     ),
     path(
+        "workspace/pass-docs/employees/<int:employee_id>/download-all/",
+        views.pass_docs_employee_download_all,
+        name="pass_docs_employee_download_all",
+    ),
+    path(
         "workspace/pass-docs/employees/<int:employee_id>/",
         views.pass_docs_employee_detail,
         name="pass_docs_employee_detail",

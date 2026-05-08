@@ -2059,6 +2059,50 @@ def _send_excel_email(excel_bytes: bytes, emp, email_to: str) -> None:
     logger.info("Excel email sent to %s for employee %s", email_to, emp.pk)
 
 
+# ── Скачать все документы сотрудника ZIP-ом ──────────────────────────────────
+
+@staff_member_required
+@require_GET
+def pass_docs_employee_download_all(request, employee_id: int):
+    import zipfile
+    import io as _io
+    from pass_docs.models import Employee, EmployeeDocument
+
+    emp = Employee.objects.filter(pk=employee_id).first()
+    if not emp:
+        raise Http404("Сотрудник не найден")
+
+    docs = EmployeeDocument.objects.filter(employee=emp).select_related("document_type")
+    buf = _io.BytesIO()
+    added = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for doc in docs:
+            if not doc.original_file:
+                continue
+            try:
+                file_field = doc.original_file
+                ext = os.path.splitext(file_field.name)[1]
+                safe_type = doc.document_type.name.replace("/", "-").replace("\\", "-")
+                arcname = f"{safe_type}{ext}"
+                with file_field.open("rb") as fh:
+                    zf.writestr(arcname, fh.read())
+                added += 1
+            except Exception as exc:
+                logger.warning("download_all: skip doc %s: %s", doc.pk, exc)
+
+    if not added:
+        messages.warning(request, "Нет файлов для скачивания.")
+        return redirect("pass_docs_employee_detail", employee_id=employee_id)
+
+    buf.seek(0)
+    safe_name = (emp.last_name or emp.full_name or str(employee_id)).replace(" ", "_")
+    zip_name = f"Документы_{safe_name}.zip"
+    resp = HttpResponse(buf.read(), content_type="application/zip")
+    safe = zip_name.encode("utf-8", "replace").decode("latin-1", "replace")
+    resp["Content-Disposition"] = f'attachment; filename="{safe}"'
+    return resp
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # NAS File Browser
 # ──────────────────────────────────────────────────────────────────────────────

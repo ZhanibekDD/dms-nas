@@ -88,6 +88,7 @@ urlpatterns = [
     path("workspace/nas/api/delete/", views.pass_docs_nas_api_delete, name="pass_docs_nas_api_delete"),
     path("workspace/nas/api/mkdir/", views.pass_docs_nas_api_mkdir, name="pass_docs_nas_api_mkdir"),
     path("workspace/nas/api/upload/", views.pass_docs_nas_api_upload, name="pass_docs_nas_api_upload"),
+    path("workspace/nas/api/download-all/", views.pass_docs_nas_api_download_all, name="pass_docs_nas_api_download_all"),
     path("health", views.health, name="health"),
     path("packages/", views.packages_ui, name="packages_ui"),
     path("objects/", views.objects_list, name="objects_list"),

@@ -2215,3 +2215,48 @@ def pass_docs_nas_api_upload(request):
     except Exception as exc:
         logger.warning("NAS upload error: %s", exc)
         return JsonResponse({"ok": False, "error": str(exc)})
+
+
+@staff_member_required
+def pass_docs_nas_api_download_all(request):
+    """GET: ?path=/Папка → ZIP со всеми файлами папки (не рекурсивно)."""
+    import zipfile
+    import io as _io
+
+    folder = (request.GET.get("path") or "").strip()
+    if not folder:
+        return HttpResponse("path required", status=400)
+
+    try:
+        client = _nas_client()
+        items = client.list_folder(folder)
+        files = [f for f in items if not f.get("isdir", False)]
+    except Exception as exc:
+        return HttpResponse(f"Ошибка получения списка файлов: {exc}", status=500)
+
+    if not files:
+        return HttpResponse("В папке нет файлов", status=404)
+
+    buf = _io.BytesIO()
+    errors = []
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in files:
+            name = f.get("name", "")
+            file_path = f.get("path", folder + "/" + name)
+            try:
+                data = client.download(file_path)
+                if data:
+                    zf.writestr(name, data)
+                else:
+                    errors.append(name)
+            except Exception as exc:
+                logger.warning("NAS download_all: skip %s: %s", name, exc)
+                errors.append(name)
+
+    buf.seek(0)
+    folder_name = folder.rstrip("/").rsplit("/", 1)[-1] or "nas"
+    zip_name = f"{folder_name}.zip"
+    resp = HttpResponse(buf.read(), content_type="application/zip")
+    safe = zip_name.encode("utf-8", "replace").decode("latin-1", "replace")
+    resp["Content-Disposition"] = f'attachment; filename="{safe}"'
+    return resp

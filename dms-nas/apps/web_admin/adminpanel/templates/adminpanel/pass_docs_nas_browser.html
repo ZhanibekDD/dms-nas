@@ -276,6 +276,23 @@
 .nas-viewer-body iframe { width: 100%; height: 100%; border: none; display: block; }
 .nas-viewer-body img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
+.nas-download-all-bar {
+  padding: 10px 14px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+}
+.nas-download-all-btn {
+  color: #2563eb;
+  border-color: #cbd5e1;
+  gap: 6px;
+}
+.nas-download-all-btn:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+
 @media (max-width: 700px) {
   .nas-tree-panel { display: none; }
   .nas-td-date { display: none; }
@@ -290,7 +307,8 @@
   var INLINE_URL   = "{% url 'pass_docs_nas_api_inline' %}";
   var DELETE_URL   = "{% url 'pass_docs_nas_api_delete' %}";
   var MKDIR_URL    = "{% url 'pass_docs_nas_api_mkdir' %}";
-  var UPLOAD_URL   = "{% url 'pass_docs_nas_api_upload' %}";
+  var UPLOAD_URL       = "{% url 'pass_docs_nas_api_upload' %}";
+  var DOWNLOAD_ALL_URL = "{% url 'pass_docs_nas_api_download_all' %}";
 
   /* ── helpers ── */
   function _esc(s) {
@@ -406,11 +424,22 @@
         + '</tr>';
     }).join("");
 
+    var fileCount = items.filter(function(x){ return !x.is_dir; }).length;
+
     list.innerHTML = '<table class="nas-table">'
       + '<thead><tr><th colspan="2">Имя</th><th>Размер</th><th>Дата</th><th></th></tr></thead>'
       + '<tbody>' + rows + '</tbody></table>';
+
     if (error) {
       list.innerHTML += '<div class="nas-error">' + _esc(error) + '</div>';
+    }
+
+    // Кнопка "Скачать все" внизу — только если есть файлы
+    if (fileCount > 0) {
+      list.innerHTML += '<div class="nas-download-all-bar">'
+        + '<a href="' + DOWNLOAD_ALL_URL + '?path=' + encodeURIComponent(_currentPath) + '" class="pd-btn pd-btn--ghost pd-btn--sm nas-download-all-btn">'
+        + '<i class="fas fa-file-archive"></i> Скачать все файлы папки (' + fileCount + ') — ZIP'
+        + '</a></div>';
     }
   }
 

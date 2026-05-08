@@ -131,15 +131,18 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
 }
 
 .pd-brand--logo {
-  padding: 4px 0 16px;
-  display: block;
+  padding: 6px 0 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .pd-brand__logo-img {
+  max-width: 156px;
   width: 100%;
-  max-width: 164px;
   height: auto;
   display: block;
+  margin: 0 auto;
 }
 
 .pd-nav { display: grid; gap: 2px; }

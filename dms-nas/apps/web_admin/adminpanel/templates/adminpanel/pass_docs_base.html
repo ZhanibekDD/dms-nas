@@ -4,7 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block html_title %}Документы{% endblock %} — ДнепрНАС</title>
+  <title>{% block html_title %}Документы{% endblock %} — ДАС</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'adminpanel/img/das_icon.svg' %}">
   <link rel="stylesheet" href="{% static 'adminpanel/css/pass_docs_workspace.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/fontawesome-free/css/all.min.css' %}">
   {% block extra_head %}{% endblock %}
@@ -24,9 +25,8 @@
   <div class="pd-shell">
 
     <aside class="pd-sidebar">
-      <a href="{% url 'pass_docs_employees' %}" class="pd-brand">
-        <span class="pd-brand__dot"></span>
-        <span>ДнепрНАС</span>
+      <a href="{% url 'pass_docs_employees' %}" class="pd-brand pd-brand--logo">
+        <img src="{% static 'adminpanel/img/das_logo.svg' %}" alt="ДАС" class="pd-brand__logo">
       </a>
 
       <nav class="pd-nav">

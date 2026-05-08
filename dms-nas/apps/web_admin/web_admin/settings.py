@@ -98,9 +98,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ── Jazzmin theme ──────────────────────────────────────────────────────────────
 JAZZMIN_SETTINGS = {
-    "site_title":    "ДнепрНАС",
-    "site_header":   "ДнепрНАС — Документы",
-    "site_brand":    "ДнепрНАС",
+    "site_title":    "ДАС",
+    "site_header":   "ДАС — Документальная Архивная Система",
+    "site_brand":    "ДАС",
     "welcome_sign":  "Добро пожаловать в систему управления документами",
     "copyright":     "© Строительная компания Днепр",
 

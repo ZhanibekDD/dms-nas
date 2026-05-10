@@ -1,4 +1,5 @@
 import pprint as py_pprint
+from datetime import date
 
 from django import template
 from django.utils.html import format_html
@@ -34,6 +35,34 @@ def pprint_filter(value) -> str:
         return py_pprint.pformat(value)
     except Exception:
         return str(value)
+
+
+@register.simple_tag
+def expiry_date_cell(expiry) -> str:
+    """Ячейка срока действия с цветовым индикатором."""
+    if not expiry:
+        return format_html('<span class="pd-muted">—</span>')
+    today = date.today()
+    if hasattr(expiry, "date"):
+        expiry = expiry.date()
+    delta = (expiry - today).days
+    fmt = expiry.strftime("%d.%m.%Y")
+    if delta < 0:
+        return format_html(
+            '<span class="pd-expiry pd-expiry--expired">'
+            '<i class="fas fa-exclamation-circle"></i> {}</span>', fmt
+        )
+    if delta < 7:
+        return format_html(
+            '<span class="pd-expiry pd-expiry--critical">'
+            '<i class="fas fa-exclamation-triangle"></i> {}</span>', fmt
+        )
+    if delta < 30:
+        return format_html(
+            '<span class="pd-expiry pd-expiry--warn">'
+            '<i class="fas fa-clock"></i> {}</span>', fmt
+        )
+    return format_html('<span class="pd-expiry pd-expiry--ok">{}</span>', fmt)
 
 
 @register.simple_tag

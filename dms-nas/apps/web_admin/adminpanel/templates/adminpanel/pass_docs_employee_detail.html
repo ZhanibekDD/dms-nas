@@ -225,13 +225,7 @@
             <div class="pd-strong">{{ d.document_type.name }}</div>
           </td>
           <td>{{ d.issue_date|default:"—" }}</td>
-          <td>
-            {% if d.expiry_date %}
-              {{ d.expiry_date }}
-            {% else %}
-              <span class="pd-muted">—</span>
-            {% endif %}
-          </td>
+          <td>{% expiry_date_cell d.expiry_date %}</td>
           <td>{% doc_status_badge d %}</td>
           <td class="pd-right">
             <div style="display:inline-flex;gap:6px;align-items:center">
@@ -296,13 +290,7 @@
             <div class="pd-strong">{{ d.document_type.name }}</div>
           </td>
           <td>{{ d.issue_date|default:"—" }}</td>
-          <td>
-            {% if d.expiry_date %}
-              {{ d.expiry_date }}
-            {% else %}
-              <span class="pd-muted">—</span>
-            {% endif %}
-          </td>
+          <td>{% expiry_date_cell d.expiry_date %}</td>
           <td>{% doc_status_badge d %}</td>
           <td class="pd-right">
             <div style="display:inline-flex;gap:6px;align-items:center">

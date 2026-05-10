@@ -1268,3 +1268,79 @@ body.pass-docs-workspace .content-wrapper > .content { padding-top: 10px !import
   height: 0;
   opacity: 0;
 }
+
+/* ── Индикаторы срока действия ───────────────────────────────── */
+.pd-expiry {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pd-expiry--ok {
+  color: #374151;
+}
+.pd-expiry--warn {
+  color: #b45309;
+  background: #fef3c7;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.pd-expiry--critical {
+  color: #c2410c;
+  background: #fee2e2;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.pd-expiry--expired {
+  color: #991b1b;
+  background: #fecaca;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-decoration: line-through;
+}
+
+/* ── Форма-строка (журналы и другие формы) ───────────────────── */
+.pd-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.pd-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+.pd-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.pd-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+.pd-input--readonly {
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #475569;
+}
+.pd-mono {
+  font-family: monospace;
+  font-size: 13px;
+}
+.pd-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pd-input--search {
+  flex: 1;
+}

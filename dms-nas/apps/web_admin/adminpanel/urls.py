@@ -68,6 +68,12 @@ urlpatterns = [
     path("workspace/pass-docs/documents/<int:doc_id>/", views.pass_docs_document_detail, name="pass_docs_document_detail"),
     path("workspace/pass-docs/bulk-upload/", views.pass_docs_bulk_upload, name="pass_docs_bulk_upload"),
     path("workspace/pass-docs/document-types/", views.pass_docs_document_types, name="pass_docs_document_types"),
+    # Журналы обучения
+    path("workspace/pass-docs/journals/", views.pass_docs_journals, name="pass_docs_journals"),
+    path("workspace/pass-docs/journals/<int:journal_id>/", views.pass_docs_journal_detail, name="pass_docs_journal_detail"),
+    path("workspace/pass-docs/journals/<int:journal_id>/entry/add/", views.pass_docs_journal_entry_add, name="pass_docs_journal_entry_add"),
+    path("workspace/pass-docs/journals/<int:journal_id>/entry/<int:entry_id>/edit/", views.pass_docs_journal_entry_edit, name="pass_docs_journal_entry_edit"),
+    path("workspace/pass-docs/journals/<int:journal_id>/entry/<int:entry_id>/delete/", views.pass_docs_journal_entry_delete, name="pass_docs_journal_entry_delete"),
     path("workspace/pass-docs/package-requests/", views.pass_docs_package_requests, name="pass_docs_package_requests"),
     path(
         "workspace/pass-docs/package-requests/<int:request_id>/build/",

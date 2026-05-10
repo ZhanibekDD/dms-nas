@@ -270,6 +270,58 @@
   {% endif %}
 </section>
 
+{# Блок: прочие документы #}
+{% if other_documents %}
+<section class="pd-card">
+  <div class="pd-card__header">
+    <h2><i class="fas fa-folder-open" style="color:#7c3aed;margin-right:8px"></i>Прочие документы</h2>
+    <span class="pd-counter">{{ other_documents|length }}</span>
+  </div>
+  <div class="pd-table-wrap">
+    <table class="pd-table">
+      <thead>
+        <tr>
+          <th>Тип документа</th>
+          <th>Дата выдачи</th>
+          <th>Действует до</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in other_documents %}
+        <tr class="pd-row-doc">
+          <td>
+            <span class="pd-type-code pd-user-hidden">{{ d.document_type.code }}</span>
+            <div class="pd-strong">{{ d.document_type.name }}</div>
+          </td>
+          <td>{{ d.issue_date|default:"—" }}</td>
+          <td>
+            {% if d.expiry_date %}
+              {{ d.expiry_date }}
+            {% else %}
+              <span class="pd-muted">—</span>
+            {% endif %}
+          </td>
+          <td>{% doc_status_badge d %}</td>
+          <td class="pd-right">
+            <div style="display:inline-flex;gap:6px;align-items:center">
+              <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_document_detail' d.id %}">Просмотр →</a>
+              {% if d.original_file %}
+              <a class="pd-btn pd-btn--ghost pd-btn--sm" href="{% url 'pass_docs_document_download' d.id %}" title="Скачать оригинал">
+                <i class="fas fa-download"></i>
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
 {# Блок: история сборок (только если есть) #}
 {% if package_requests %}
 <section class="pd-card">

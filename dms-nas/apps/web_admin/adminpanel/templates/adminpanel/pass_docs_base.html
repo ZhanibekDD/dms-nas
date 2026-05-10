@@ -45,6 +45,11 @@
           <i class="pd-nav__icon fas fa-box"></i>Готовые комплекты
         </a>
 
+        <a class="pd-nav__link{% if pass_docs_active == 'journals' %} is-active{% endif %}"
+           href="{% url 'pass_docs_journals' %}">
+          <i class="pd-nav__icon fas fa-book"></i>Журналы обучения
+        </a>
+
         <p class="pd-nav__section">Документы</p>
         <a class="pd-nav__link{% if pass_docs_active == 'documents' %} is-active{% endif %}"
            href="{% url 'pass_docs_documents' %}">

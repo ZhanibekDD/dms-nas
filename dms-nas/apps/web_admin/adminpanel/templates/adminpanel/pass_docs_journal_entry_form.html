@@ -1,0 +1,90 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block html_title %}{% if entry %}Редактировать запись{% else %}Добавить запись{% endif %}{% endblock %}
+{% block pass_docs_title %}{% if entry %}Редактировать запись{% else %}Добавить запись (ЧАК){% endif %}{% endblock %}
+{% block pass_docs_subtitle %}{{ journal.name }}{% endblock %}
+
+{% block pass_docs_content %}
+
+<div class="pd-back-nav">
+  <a href="{% url 'pass_docs_journal_detail' journal.pk %}" class="pd-btn pd-btn--ghost pd-btn--sm">
+    <i class="fas fa-arrow-left"></i> Назад к журналу
+  </a>
+</div>
+
+<section class="pd-card">
+  <form method="post">
+    {% csrf_token %}
+
+    {% if not entry %}
+    <div class="pd-form-group">
+      <label class="pd-label">Сотрудник *</label>
+      <select name="employee_id" class="pd-input pd-input--select" required>
+        <option value="">— выберите сотрудника —</option>
+        {% for emp in employees %}
+        <option value="{{ emp.pk }}">{{ emp.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% else %}
+    <div class="pd-form-group">
+      <label class="pd-label">Сотрудник</label>
+      <div class="pd-input pd-input--readonly">{{ entry.employee.full_name }}</div>
+    </div>
+    {% endif %}
+
+    <div class="pd-form-row">
+      <div class="pd-form-group">
+        <label class="pd-label">Номер протокола</label>
+        <input class="pd-input" type="text" name="protocol_number"
+               value="{{ entry.protocol_number|default:'' }}" placeholder="Например: №1/1-ОТ">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label">Дата протокола</label>
+        <input class="pd-input" type="date" name="protocol_date"
+               value="{{ entry.protocol_date|date:'Y-m-d'|default:'' }}">
+      </div>
+    </div>
+
+    <div class="pd-form-group">
+      <label class="pd-label">Учебный центр</label>
+      <input class="pd-input" type="text" name="training_center"
+             value="{{ entry.training_center|default:'' }}" placeholder="Название учебного центра">
+    </div>
+
+    <div class="pd-form-row">
+      <div class="pd-form-group">
+        <label class="pd-label">Член комиссии 1</label>
+        <input class="pd-input" type="text" name="commission_member_1"
+               value="{{ entry.commission_member_1|default:'' }}" placeholder="ФИО">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label">Член комиссии 2</label>
+        <input class="pd-input" type="text" name="commission_member_2"
+               value="{{ entry.commission_member_2|default:'' }}" placeholder="ФИО">
+      </div>
+      <div class="pd-form-group">
+        <label class="pd-label">Член комиссии 3</label>
+        <input class="pd-input" type="text" name="commission_member_3"
+               value="{{ entry.commission_member_3|default:'' }}" placeholder="ФИО">
+      </div>
+    </div>
+
+    <div class="pd-form-group">
+      <label class="pd-label">Заметки</label>
+      <textarea class="pd-input pd-textarea" name="notes" rows="3"
+                placeholder="Дополнительная информация">{{ entry.notes|default:'' }}</textarea>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <button type="submit" class="pd-btn pd-btn--primary">
+        <i class="fas fa-save"></i> {% if entry %}Сохранить{% else %}Добавить запись{% endif %}
+      </button>
+      <a href="{% url 'pass_docs_journal_detail' journal.pk %}" class="pd-btn pd-btn--ghost">
+        Отмена
+      </a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

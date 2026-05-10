@@ -347,10 +347,14 @@ def pass_docs_employee_detail(request, employee_id: int):
             ready_with_files = pr
             break
 
+    main_docs = [d for d in docs if not d.document_type.is_other]
+    other_docs = [d for d in docs if d.document_type.is_other]
+
     context = {
         **_pass_docs_shell_ctx("employees"),
         "employee": emp,
-        "documents": docs,
+        "documents": main_docs,
+        "other_documents": other_docs,
         "package_requests": package_qs,
         "ready_package": ready_with_files,
         "parse_err": parse_err,
@@ -2370,4 +2374,196 @@ def pass_docs_nas_api_download_all(request):
     resp = HttpResponse(buf.read(), content_type="application/zip")
     safe = zip_name.encode("utf-8", "replace").decode("latin-1", "replace")
     resp["Content-Disposition"] = f'attachment; filename="{safe}"'
+    return resp
+
+
+# ── Журналы обучения ───────────────────────────────────────────────────────────
+
+@staff_member_required
+def pass_docs_journals(request):
+    from pass_docs.models import TrainingJournal
+    journals = list(
+        TrainingJournal.objects.prefetch_related("entries").order_by("sort_order", "name")
+    )
+    journal_data = [
+        {"journal": j, "entry_count": j.entries.count()}
+        for j in journals
+    ]
+    return render(request, "adminpanel/pass_docs_journals.html", {
+        **_pass_docs_shell_ctx("journals"),
+        "journal_data": journal_data,
+    })
+
+
+@staff_member_required
+def pass_docs_journal_detail(request, journal_id: int):
+    from django.db.models import Q
+    from pass_docs.models import TrainingJournal, JournalEntry
+    from django.shortcuts import get_object_or_404
+
+    journal = get_object_or_404(TrainingJournal, pk=journal_id)
+    q = request.GET.get("q", "").strip()
+    entries_qs = (
+        JournalEntry.objects.filter(journal=journal)
+        .select_related("employee", "employee_document")
+        .order_by("-protocol_date", "employee__full_name")
+    )
+    if q:
+        entries_qs = entries_qs.filter(
+            Q(employee__full_name__icontains=q) | Q(protocol_number__icontains=q)
+        )
+
+    if request.GET.get("export") == "excel":
+        return _export_journal_excel(journal, list(entries_qs))
+
+    return render(request, "adminpanel/pass_docs_journal_detail.html", {
+        **_pass_docs_shell_ctx("journals"),
+        "journal": journal,
+        "entries": entries_qs,
+        "q": q,
+    })
+
+
+@staff_member_required
+def pass_docs_journal_entry_add(request, journal_id: int):
+    from pass_docs.models import TrainingJournal, JournalEntry, Employee
+    from django.shortcuts import get_object_or_404
+
+    journal = get_object_or_404(TrainingJournal, pk=journal_id)
+    if request.method == "POST":
+        employee_id = request.POST.get("employee_id")
+        emp = Employee.objects.filter(pk=employee_id).first()
+        if emp:
+            JournalEntry.objects.create(
+                journal=journal,
+                employee=emp,
+                protocol_number=request.POST.get("protocol_number", ""),
+                protocol_date=request.POST.get("protocol_date") or None,
+                commission_member_1=request.POST.get("commission_member_1", ""),
+                commission_member_2=request.POST.get("commission_member_2", ""),
+                commission_member_3=request.POST.get("commission_member_3", ""),
+                training_center=request.POST.get("training_center", ""),
+                notes=request.POST.get("notes", ""),
+                is_auto=False,
+            )
+            messages.success(request, "Запись добавлена.")
+        else:
+            messages.error(request, "Сотрудник не найден.")
+        return redirect("pass_docs_journal_detail", journal_id=journal_id)
+
+    employees = Employee.objects.filter(is_active=True).order_by("full_name")
+    return render(request, "adminpanel/pass_docs_journal_entry_form.html", {
+        **_pass_docs_shell_ctx("journals"),
+        "journal": journal,
+        "employees": employees,
+        "entry": None,
+    })
+
+
+@staff_member_required
+def pass_docs_journal_entry_edit(request, journal_id: int, entry_id: int):
+    from pass_docs.models import TrainingJournal, JournalEntry, Employee
+    from django.shortcuts import get_object_or_404
+
+    journal = get_object_or_404(TrainingJournal, pk=journal_id)
+    entry = get_object_or_404(JournalEntry, pk=entry_id, journal=journal)
+    if request.method == "POST":
+        entry.protocol_number = request.POST.get("protocol_number", entry.protocol_number)
+        entry.protocol_date = request.POST.get("protocol_date") or entry.protocol_date
+        entry.commission_member_1 = request.POST.get("commission_member_1", entry.commission_member_1)
+        entry.commission_member_2 = request.POST.get("commission_member_2", entry.commission_member_2)
+        entry.commission_member_3 = request.POST.get("commission_member_3", entry.commission_member_3)
+        entry.training_center = request.POST.get("training_center", entry.training_center)
+        entry.notes = request.POST.get("notes", entry.notes)
+        entry.save()
+        messages.success(request, "Запись обновлена.")
+        return redirect("pass_docs_journal_detail", journal_id=journal_id)
+
+    employees = Employee.objects.filter(is_active=True).order_by("full_name")
+    return render(request, "adminpanel/pass_docs_journal_entry_form.html", {
+        **_pass_docs_shell_ctx("journals"),
+        "journal": journal,
+        "entry": entry,
+        "employees": employees,
+    })
+
+
+@staff_member_required
+@require_POST
+def pass_docs_journal_entry_delete(request, journal_id: int, entry_id: int):
+    from pass_docs.models import JournalEntry
+    from django.shortcuts import get_object_or_404
+
+    entry = get_object_or_404(JournalEntry, pk=entry_id, journal_id=journal_id)
+    entry.delete()
+    messages.success(request, "Запись удалена.")
+    return redirect("pass_docs_journal_detail", journal_id=journal_id)
+
+
+def _export_journal_excel(journal, entries):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Журнал"
+
+    header_fill = PatternFill("solid", fgColor="1E40AF")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    thin = Side(style="thin")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = [
+        "№", "ФИО сотрудника", "Номер протокола", "Дата протокола",
+        "Член комиссии 1", "Член комиссии 2", "Член комиссии 3",
+        "Учебный центр", "Заметки",
+    ]
+    col_widths = [5, 35, 22, 16, 28, 28, 28, 32, 30]
+
+    ws.append(["Журнал обучения: " + journal.name])
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+    title_cell = ws.cell(row=1, column=1)
+    title_cell.font = Font(bold=True, size=13)
+    title_cell.alignment = Alignment(horizontal="center")
+
+    ws.append([])
+    ws.append(headers)
+    for col_idx, (h, w) in enumerate(zip(headers, col_widths), start=1):
+        cell = ws.cell(row=3, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border
+        ws.column_dimensions[cell.column_letter].width = w
+    ws.row_dimensions[3].height = 30
+
+    for i, entry in enumerate(entries, start=1):
+        row_data = [
+            i,
+            entry.employee.full_name,
+            entry.protocol_number,
+            entry.protocol_date.strftime("%d.%m.%Y") if entry.protocol_date else "",
+            entry.commission_member_1,
+            entry.commission_member_2,
+            entry.commission_member_3,
+            entry.training_center,
+            entry.notes,
+        ]
+        ws.append(row_data)
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=3 + i, column=col_idx)
+            cell.border = border
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+
+    ws.freeze_panes = "A4"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe_name = f"journal_{journal.code}.xlsx"
+    resp = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{safe_name}"'
     return resp

@@ -1,5 +1,23 @@
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from pass_docs.services.nas_storage import employee_doc_upload_path, package_upload_path
+
+
+class TrainingJournal(models.Model):
+    """Журнал обучения (один журнал = одна программа обучения)."""
+
+    name = models.CharField("название", max_length=512)
+    code = models.CharField("код", max_length=64, unique=True)
+    sort_order = models.PositiveIntegerField("порядок", default=0)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "журнал обучения"
+        verbose_name_plural = "журналы обучения"
+
+    def __str__(self):
+        return self.name
 
 
 class DocumentType(models.Model):
@@ -17,11 +35,25 @@ class DocumentType(models.Model):
         help_text="Идентификатор пайплайна извлечения (позже vision и т.д.).",
     )
     is_common_document = models.BooleanField("общий документ", default=False)
+    is_other = models.BooleanField(
+        "прочий документ",
+        default=False,
+        help_text="Документ показывается в разделе «Прочие документы» карточки сотрудника.",
+    )
     expiry_rule_days = models.PositiveIntegerField(
         "срок действия, дней",
         null=True,
         blank=True,
         help_text="Опциональное правило: через сколько дней истекает документ.",
+    )
+    training_journal = models.ForeignKey(
+        TrainingJournal,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="document_types",
+        verbose_name="журнал обучения",
+        help_text="При загрузке протокола автоматически создаётся запись в этом журнале.",
     )
 
     class Meta:
@@ -268,3 +300,70 @@ class PackageRequest(models.Model):
 
     def __str__(self):
         return f"Пакет {self.id} — {self.employee.import_key} ({self.status})"
+
+
+class JournalEntry(models.Model):
+    """Запись в журнале обучения."""
+
+    journal = models.ForeignKey(
+        TrainingJournal,
+        on_delete=models.CASCADE,
+        related_name="entries",
+        verbose_name="журнал",
+    )
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="journal_entries",
+        verbose_name="сотрудник",
+    )
+    employee_document = models.ForeignKey(
+        EmployeeDocument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="journal_entries",
+        verbose_name="документ",
+    )
+    protocol_number = models.CharField("номер протокола", max_length=128, blank=True)
+    protocol_date = models.DateField("дата протокола", null=True, blank=True)
+    commission_member_1 = models.CharField("член комиссии 1", max_length=255, blank=True)
+    commission_member_2 = models.CharField("член комиссии 2", max_length=255, blank=True)
+    commission_member_3 = models.CharField("член комиссии 3", max_length=255, blank=True)
+    training_center = models.CharField("учебный центр", max_length=512, blank=True)
+    is_auto = models.BooleanField("создано автоматически", default=True)
+    notes = models.TextField("заметки", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-protocol_date", "employee__full_name"]
+        verbose_name = "запись журнала"
+        verbose_name_plural = "записи журнала"
+
+    def __str__(self):
+        return f"{self.journal.name} — {self.employee.full_name} — {self.protocol_number or '—'}"
+
+
+@receiver(post_save, sender=EmployeeDocument)
+def _auto_journal_entry(sender, instance, **kwargs):
+    """Автоматически создаёт запись в журнале при успешном распознавании протокола."""
+    if instance.parse_status != EmployeeDocument.ParseStatus.OK:
+        return
+    journal = instance.document_type.training_journal
+    if not journal:
+        return
+    if JournalEntry.objects.filter(journal=journal, employee_document=instance).exists():
+        return
+    protocol_number = (
+        instance.extracted_json.get("protocol_number", "")
+        or instance.external_reference
+        or ""
+    )
+    JournalEntry.objects.create(
+        journal=journal,
+        employee=instance.employee,
+        employee_document=instance,
+        protocol_number=protocol_number,
+        protocol_date=instance.issue_date,
+        is_auto=True,
+    )

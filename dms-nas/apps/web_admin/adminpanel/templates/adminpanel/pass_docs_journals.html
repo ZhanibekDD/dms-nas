@@ -1,0 +1,51 @@
+{% extends "adminpanel/pass_docs_base.html" %}
+
+{% block html_title %}Журналы обучения{% endblock %}
+{% block pass_docs_title %}Журналы обучения{% endblock %}
+{% block pass_docs_subtitle %}Учёт выдачи протоколов по программам обучения{% endblock %}
+
+{% block pass_docs_content %}
+
+{% if not journal_data %}
+<section class="pd-card">
+  <div class="pd-empty-state">
+    <i class="pd-empty-state__icon fas fa-book"></i>
+    <h3>Журналы не созданы</h3>
+    <p>Создайте журналы обучения в <a href="/admin/pass_docs/trainingjournal/add/">разделе администрирования</a>.</p>
+  </div>
+</section>
+{% else %}
+<div class="pd-table-wrap">
+  <table class="pd-table">
+    <thead>
+      <tr>
+        <th>Название журнала</th>
+        <th>Код</th>
+        <th style="text-align:center">Записей</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in journal_data %}
+      <tr>
+        <td>
+          <div class="pd-strong">{{ item.journal.name }}</div>
+        </td>
+        <td class="pd-muted">{{ item.journal.code }}</td>
+        <td style="text-align:center">
+          <span class="pd-counter">{{ item.entry_count }}</span>
+        </td>
+        <td class="pd-right">
+          <a class="pd-btn pd-btn--ghost pd-btn--sm"
+             href="{% url 'pass_docs_journal_detail' item.journal.pk %}">
+            Открыть →
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

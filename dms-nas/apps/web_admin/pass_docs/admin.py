@@ -9,9 +9,32 @@ from .models import (
     DocumentType,
     Employee,
     EmployeeDocument,
+    JournalEntry,
     PackageRequest,
     ProfessionRequirement,
+    TrainingJournal,
 )
+
+
+@admin.register(TrainingJournal)
+class TrainingJournalAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "sort_order", "entry_count")
+    search_fields = ("code", "name")
+    ordering = ("sort_order", "name")
+
+    def entry_count(self, obj):
+        return obj.entries.count()
+    entry_count.short_description = "Записей"
+
+
+@admin.register(JournalEntry)
+class JournalEntryAdmin(admin.ModelAdmin):
+    list_display = ("journal", "employee", "protocol_number", "protocol_date", "training_center", "is_auto")
+    list_filter = ("journal", "is_auto")
+    search_fields = ("employee__full_name", "protocol_number", "training_center")
+    ordering = ("-protocol_date",)
+    autocomplete_fields = ["employee"]
+    raw_id_fields = ["employee_document"]
 
 
 @admin.register(DocumentType)
@@ -22,9 +45,11 @@ class DocumentTypeAdmin(admin.ModelAdmin):
         "sort_order",
         "extractor_kind",
         "is_common_document",
+        "is_other",
+        "training_journal",
         "expiry_rule_days",
     )
-    list_filter = ("is_common_document",)
+    list_filter = ("is_common_document", "is_other", "training_journal")
     search_fields = ("code", "name", "description", "extractor_kind")
     ordering = ("sort_order", "code")
 

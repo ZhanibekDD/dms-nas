@@ -221,8 +221,12 @@
         {% for d in documents %}
         <tr class="pd-row-doc">
           <td>
-            <span class="pd-type-code pd-user-hidden">{{ d.document_type.code }}</span>
+            {% if d.document_type.code == "UNKNOWN" %}
+            <span class="pd-badge pd-badge--warn">Без кода — требуется разбор</span>
             <div class="pd-strong">{{ d.document_type.name }}</div>
+            {% else %}
+            <div class="pd-strong"><span class="pd-type-code">{{ d.document_type.code }}&amp;</span>{{ d.document_type.name }}</div>
+            {% endif %}
           </td>
           <td>{{ d.issue_date|default:"—" }}</td>
           <td>{% expiry_date_cell d.expiry_date %}</td>
@@ -286,8 +290,12 @@
         {% for d in other_documents %}
         <tr class="pd-row-doc">
           <td>
-            <span class="pd-type-code pd-user-hidden">{{ d.document_type.code }}</span>
+            {% if d.document_type.code == "UNKNOWN" %}
+            <span class="pd-badge pd-badge--warn">Без кода — требуется разбор</span>
             <div class="pd-strong">{{ d.document_type.name }}</div>
+            {% else %}
+            <div class="pd-strong"><span class="pd-type-code">{{ d.document_type.code }}&amp;</span>{{ d.document_type.name }}</div>
+            {% endif %}
           </td>
           <td>{{ d.issue_date|default:"—" }}</td>
           <td>{% expiry_date_cell d.expiry_date %}</td>

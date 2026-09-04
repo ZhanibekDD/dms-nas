@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any
 
+from pass_docs.catalog.document_filenames import canonical_document_filename
 from pass_docs.models import EmployeeDocument, PackageRequest
 from pass_docs.services.package_validation import PackageDocumentResolution, extractor_kind_for_document, resolve_document_filesystem_path
 
@@ -75,11 +76,13 @@ def build_package_zip_bytes(
             if fs_path is None:
                 continue
 
-            code = _safe_segment(doc.document_type.code or "doc", 48)
+            raw_code = doc.document_type.code or "UNKNOWN"
+            code = _safe_segment(raw_code, 48)
             ek = _zip_extractor_folder_segment(doc)
             rel_dir = f"{root}/documents/{code}_{ek}"
 
-            orig_name = fs_path.name or f"document_{doc.pk}"
+            source_name = fs_path.name or f"document_{doc.pk}"
+            orig_name = canonical_document_filename(raw_code, source_name)
             arcname = f"{rel_dir}/{orig_name}"
             if arcname in used_arcnames:
                 arcname = f"{rel_dir}/{doc.pk}/{orig_name}"
@@ -118,6 +121,6 @@ def describe_zip_example_structure(request: PackageRequest) -> str:
             "  summary.xlsx",
             "  documents/",
             "    <doc_code>_<extractor_kind|name_slug>/",
-            "      <original_filename>   # при коллизии: <document_id>_<original_filename>",
+            "      <doc_code>&<original_filename>   # при коллизии: <document_id>/<doc_code>&<name>",
         ]
     )

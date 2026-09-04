@@ -132,11 +132,34 @@ class EmployeeAdmin(admin.ModelAdmin):
     )
 
 
+class DocumentCodeStatusFilter(admin.SimpleListFilter):
+    title = "код в имени файла"
+    parameter_name = "document_code_status"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("missing", "Без кода — требует разбора"),
+            ("inferred", "Код определён по точному алиасу"),
+            ("coded", "Код присутствует"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "missing":
+            return queryset.filter(document_type__code="UNKNOWN")
+        if value == "inferred":
+            return queryset.filter(metadata__document_code_status="inferred")
+        if value == "coded":
+            return queryset.exclude(document_type__code="UNKNOWN")
+        return queryset
+
+
 @admin.register(EmployeeDocument)
 class EmployeeDocumentAdmin(admin.ModelAdmin):
     list_display = (
         "employee",
         "document_type",
+        "display_document_code_status",
         "display_extractor_kind",
         "parse_status",
         "status",
@@ -145,7 +168,13 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
         "expiry_date",
         "updated_at",
     )
-    list_filter = ("parse_status", "status", "is_actual", "document_type")
+    list_filter = (
+        DocumentCodeStatusFilter,
+        "parse_status",
+        "status",
+        "is_actual",
+        "document_type",
+    )
     search_fields = (
         "employee__import_key",
         "employee__employee_code",
@@ -185,6 +214,16 @@ class EmployeeDocumentAdmin(admin.ModelAdmin):
         ),
         ("Служебное", {"fields": ("metadata", "created_at", "updated_at")}),
     )
+
+    @admin.display(description="код файла")
+    def display_document_code_status(self, obj) -> str:
+        metadata = obj.metadata if isinstance(obj.metadata, dict) else {}
+        status = metadata.get("document_code_status")
+        if obj.document_type.code == "UNKNOWN" or status == "missing":
+            return "ТРЕБУЕТ РАЗБОРА"
+        if status == "inferred":
+            return "определён автоматически"
+        return "есть"
 
     @admin.display(description="extractor_kind")
     def display_extractor_kind(self, obj) -> str:

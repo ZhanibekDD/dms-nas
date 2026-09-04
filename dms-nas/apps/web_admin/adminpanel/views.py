@@ -464,6 +464,7 @@ def pass_docs_documents(request):
     parse_status = (request.GET.get("parse_status") or "").strip()
     status = (request.GET.get("status") or "").strip()
     actual = (request.GET.get("actual") or "").strip()
+    code_status = (request.GET.get("code_status") or "").strip()
 
     qs = EmployeeDocument.objects.select_related("employee", "document_type")
     if q:
@@ -481,6 +482,14 @@ def pass_docs_documents(request):
     if actual in ("1", "0"):
         qs = qs.filter(is_actual=(actual == "1"))
 
+    documents_uncoded = qs.filter(document_type__code="UNKNOWN").count()
+    if code_status == "missing":
+        qs = qs.filter(document_type__code="UNKNOWN")
+    elif code_status == "inferred":
+        qs = qs.filter(metadata__document_code_status="inferred")
+    elif code_status == "coded":
+        qs = qs.exclude(document_type__code="UNKNOWN")
+
     documents_qs = qs.order_by("-updated_at", "-id")
     paginator = Paginator(documents_qs, 50)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -497,12 +506,14 @@ def pass_docs_documents(request):
         "parse_status": parse_status,
         "status": status,
         "actual": actual,
+        "code_status": code_status,
         "parse_status_choices": _parse_status_choices_ru(),
         "status_choices": _doc_status_choices_ru(),
         "documents_total": documents_qs.count(),
         "documents_ok": documents_ok,
         "documents_error": documents_error,
         "documents_pending": documents_pending,
+        "documents_uncoded": documents_uncoded,
     }
     return render(request, "adminpanel/pass_docs_documents.html", context)
 

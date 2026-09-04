@@ -38,8 +38,12 @@
 <section class="pd-card pd-card--detail-head">
   <div class="pd-card__header">
     <div class="pd-detail-title">
-      <span class="pd-type-code pd-user-hidden">{{ doc.document_type.code }}</span>
+      {% if doc.document_type.code == "UNKNOWN" %}
+      <span class="pd-badge pd-badge--warn">Без кода — требуется разбор</span>
       <h2>{{ doc.document_type.name }}</h2>
+      {% else %}
+      <h2><span class="pd-type-code">{{ doc.document_type.code }}&amp;</span>{{ doc.document_type.name }}</h2>
+      {% endif %}
     </div>
     {# Единый понятный статус #}
     {% doc_status_badge doc %}

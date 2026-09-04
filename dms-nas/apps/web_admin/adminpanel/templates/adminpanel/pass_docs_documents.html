@@ -23,10 +23,14 @@
     <span class="pd-summary__label">В очереди</span>
     <strong class="pd-summary__value">{{ documents_pending }}</strong>
   </article>
+  <article class="pd-summary__card pd-summary__card--warn">
+    <span class="pd-summary__label">Без кода</span>
+    <strong class="pd-summary__value">{{ documents_uncoded }}</strong>
+  </article>
 </div>
 
 <section class="pd-card pd-card--compact">
-  <form method="get" class="pd-filters pd-filters--grid4">
+  <form method="get" class="pd-filters pd-filters--grid5">
     <label class="pd-field">
       <span>Поиск</span>
       <input type="text" name="q" value="{{ q }}" placeholder="ФИО или тип документа">
@@ -55,6 +59,15 @@
         <option value="">Все</option>
         <option value="1" {% if actual == "1" %}selected{% endif %}>Только текущие</option>
         <option value="0" {% if actual == "0" %}selected{% endif %}>Устаревшие</option>
+      </select>
+    </label>
+    <label class="pd-field">
+      <span>Код документа</span>
+      <select name="code_status">
+        <option value="">Все</option>
+        <option value="missing" {% if code_status == "missing" %}selected{% endif %}>Без кода — требует разбора</option>
+        <option value="inferred" {% if code_status == "inferred" %}selected{% endif %}>Определён автоматически</option>
+        <option value="coded" {% if code_status == "coded" %}selected{% endif %}>Код присутствует</option>
       </select>
     </label>
     <div class="pd-filter-actions">
@@ -97,8 +110,12 @@
             {% if doc.employee.company %}<div class="pd-muted">{{ doc.employee.company }}</div>{% endif %}
           </td>
           <td>
-            <span class="pd-type-code pd-user-hidden">{{ doc.document_type.code }}</span>
-            <span class="pd-strong">{{ doc.document_type.name }}</span>
+            {% if doc.document_type.code == "UNKNOWN" %}
+            <span class="pd-badge pd-badge--warn">Без кода — требуется разбор</span>
+            <div class="pd-strong">{{ doc.document_type.name }}</div>
+            {% else %}
+            <span class="pd-strong"><span class="pd-type-code">{{ doc.document_type.code }}&amp;</span>{{ doc.document_type.name }}</span>
+            {% endif %}
           </td>
           <td>{% doc_status_badge doc %}</td>
           <td class="pd-muted">{{ doc.updated_at|date:"d.m.Y" }}</td>

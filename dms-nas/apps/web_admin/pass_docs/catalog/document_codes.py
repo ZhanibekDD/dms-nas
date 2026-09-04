@@ -21,6 +21,8 @@ DOCUMENT_CODE_CATALOG: dict[str, CatalogEntry] = {
     # Числовые коды из имён файлов «6&…», «7&…»
     "6": {"name": "Паспорт РФ", "extractor_kind": "ru_passport"},
     "7": {"name": "Медицинская справка", "extractor_kind": "medical_certificate"},
+    # Подтверждённый бизнес-код: 11&ВУ.
+    "11": {"name": "Водительское удостоверение"},
     # Текстовые синонимы (PASSPORT_RF&… и т.п.)
     "PASSPORT_RF": {"name": "Паспорт РФ", "extractor_kind": "ru_passport"},
     "PASPORT_RF": {"name": "Паспорт РФ", "extractor_kind": "ru_passport"},

@@ -14,6 +14,9 @@
 Файлы: код типа документа — подстрока до первого «&» в имени файла, например
   PASSPORT_RF&скан.pdf  →  тип PASSPORT_RF
 Поддерживаются все файлы с «&» в имени (PDF, JPG, PNG и т.д.).
+Файлы известных документных форматов без «&» больше не пропускаются молча:
+точные подтверждённые алиасы получают код, остальные импортируются как UNKNOWN
+со статусом document_code_status=missing для ручного разбора.
 
 Повторный запуск обновляет те же строки по паре (сотрудник, абсолютный source_path).
 
@@ -30,15 +33,21 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from pass_docs.catalog.document_codes import catalog_defaults_for_import
+from pass_docs.catalog.document_filenames import (
+    MISSING_DOCUMENT_CODE,
+    canonical_document_filename,
+    is_supported_uncoded_document,
+    normalize_document_code,
+    parse_document_filename,
+)
 from pass_docs.models import DocumentType, Employee, EmployeeDocument
 
 COMMON_EMPLOYEE_CODE = "__COMMON_ORG__"
 
 
 def _normalize_doc_code(raw: str) -> str:
-    s = (raw or "").strip().upper().replace(" ", "_")
-    cleaned = "".join(c for c in s if c.isalnum() or c in "_-")
-    return cleaned[:64] if cleaned else "UNKNOWN"
+    """Compatibility wrapper for existing callers/tests."""
+    return normalize_document_code(raw)
 
 
 def _split_fio(name_part: str) -> tuple[str, str, str, str]:
@@ -73,6 +82,9 @@ def _empty_stats() -> dict[str, int]:
         "employee_documents_created": 0,
         "employee_documents_updated": 0,
         "files_seen": 0,
+        "coded_files": 0,
+        "inferred_code_files": 0,
+        "uncoded_files": 0,
         "skipped_dirs": 0,
         "skipped_files": 0,
     }
@@ -163,6 +175,9 @@ class Command(BaseCommand):
             "employee_documents_created",
             "employee_documents_updated",
             "files_seen",
+            "coded_files",
+            "inferred_code_files",
+            "uncoded_files",
             "skipped_dirs",
             "skipped_files",
         ):
@@ -299,19 +314,35 @@ class Command(BaseCommand):
                 continue
             stats["files_seen"] += 1
             name = path.name
-            if "&" not in name:
+            parsed_name = parse_document_filename(name)
+            if (
+                parsed_name.status == "missing"
+                and not is_supported_uncoded_document(name)
+            ):
                 stats["skipped_files"] += 1
                 continue
 
-            raw_code = name.split("&", 1)[0].strip()
+            if parsed_name.status == "coded":
+                stats["coded_files"] += 1
+            elif parsed_name.status == "inferred":
+                stats["inferred_code_files"] += 1
+            else:
+                stats["uncoded_files"] += 1
+
             doc_type = self._get_or_create_document_type(
-                raw_code, from_common=from_common, stats=stats
+                parsed_name.code, from_common=from_common, stats=stats
             )
 
             source_path = str(path.resolve())
             meta: dict = {
                 "import_scope": "common" if from_common else "employee",
                 "path_under_root": self._relpath(path),
+                "source_filename": parsed_name.basename,
+                "document_code": doc_type.code,
+                "document_code_status": parsed_name.status,
+                "canonical_filename": canonical_document_filename(
+                    doc_type.code, parsed_name.basename
+                ),
             }
             if from_common:
                 meta["common_folder_kind"] = common_kind
@@ -324,7 +355,11 @@ class Command(BaseCommand):
                 source_path=source_path,
                 defaults={
                     "document_type": doc_type,
-                    "parse_status": EmployeeDocument.ParseStatus.PENDING,
+                    "parse_status": (
+                        EmployeeDocument.ParseStatus.SKIPPED
+                        if parsed_name.code == MISSING_DOCUMENT_CODE
+                        else EmployeeDocument.ParseStatus.PENDING
+                    ),
                     "status": EmployeeDocument.Status.PENDING,
                     "is_actual": True,
                     "metadata": meta,
